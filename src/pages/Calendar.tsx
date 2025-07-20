@@ -46,12 +46,72 @@ const Calendar = () => {
     return days;
   };
 
-  const getReservationsForDate = (date: Date) => {
-    const dateStr = date.toISOString().split('T')[0];
-    return reservations.filter(reservation => {
-      return dateStr >= reservation.checkIn && dateStr < reservation.checkOut;
+  const processReservationsForCalendar = () => {
+    const days = getDaysInMonth(currentDate);
+    const processedReservations: Array<{
+      reservation: Reservation;
+      startIndex: number;
+      endIndex: number;
+      row: number;
+      segments: Array<{ startIndex: number; endIndex: number; weekRow: number }>;
+    }> = [];
+
+    reservations.forEach(reservation => {
+      const checkIn = new Date(reservation.checkIn);
+      const checkOut = new Date(reservation.checkOut);
+      
+      const startIndex = days.findIndex(day => 
+        day.toISOString().split('T')[0] === reservation.checkIn
+      );
+      const endIndex = days.findIndex(day => 
+        day.toISOString().split('T')[0] === reservation.checkOut
+      ) - 1;
+
+      if (startIndex >= 0 && (endIndex >= 0 || checkOut > days[days.length - 1])) {
+        const actualEndIndex = endIndex >= 0 ? endIndex : days.length - 1;
+        
+        // Find available row to avoid conflicts
+        let row = 0;
+        let conflictFound = true;
+        while (conflictFound) {
+          conflictFound = processedReservations.some(existing => 
+            existing.row === row &&
+            !(actualEndIndex < existing.startIndex || startIndex > existing.endIndex)
+          );
+          if (conflictFound) row++;
+        }
+
+        // Create segments for reservations that span multiple weeks
+        const segments = [];
+        let currentStart = startIndex;
+        
+        while (currentStart <= actualEndIndex) {
+          const weekRow = Math.floor(currentStart / 7);
+          const weekEnd = Math.min((weekRow + 1) * 7 - 1, actualEndIndex);
+          
+          segments.push({
+            startIndex: currentStart,
+            endIndex: weekEnd,
+            weekRow
+          });
+          
+          currentStart = weekEnd + 1;
+        }
+
+        processedReservations.push({
+          reservation,
+          startIndex,
+          endIndex: actualEndIndex,
+          row,
+          segments
+        });
+      }
     });
+
+    return processedReservations;
   };
+
+  const reservationBlocks = processReservationsForCalendar();
 
   const navigateMonth = (direction: 'prev' | 'next') => {
     setCurrentDate(prev => {
@@ -118,49 +178,83 @@ const Calendar = () => {
           {loading ? (
             <div className="text-center py-8 text-muted-foreground">Cargando calendario...</div>
           ) : (
-            <div className="grid grid-cols-7 gap-2">
+            <div className="relative">
               {/* Day headers */}
-              {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(day => (
-                <div key={day} className="p-2 text-center font-medium text-muted-foreground">
-                  {day}
-                </div>
-              ))}
-
-              {/* Calendar days */}
-              {days.map((day, index) => {
-                const isCurrentMonth = day.getMonth() === currentDate.getMonth();
-                const isToday = day.toDateString() === new Date().toDateString();
-                const dayReservations = getReservationsForDate(day);
-
-                return (
-                  <div
-                    key={index}
-                    className={`
-                      calendar-cell min-h-[100px] p-2 border border-border/50
-                      ${!isCurrentMonth ? 'text-muted-foreground bg-muted/20' : ''}
-                      ${isToday ? 'bg-primary/10 border-primary' : ''}
-                    `}
-                  >
-                    <div className="text-sm font-medium mb-1">
-                      {day.getDate()}
-                    </div>
-                    <div className="space-y-1">
-                      {dayReservations.map(reservation => (
-                        <div
-                          key={reservation.id}
-                          className="reservation-block cursor-pointer"
-                          onClick={() => handleReservationClick(reservation)}
-                        >
-                          <div className="font-medium">{reservation.passengerName}</div>
-                          <div className="text-xs opacity-90">
-                            {reservation.cabinType.split(' ')[1]}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+              <div className="grid grid-cols-7 gap-2 mb-2">
+                {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(day => (
+                  <div key={day} className="p-2 text-center font-medium text-muted-foreground">
+                    {day}
                   </div>
-                );
-              })}
+                ))}
+              </div>
+
+              {/* Calendar grid */}
+              <div className="grid grid-cols-7 gap-2 relative">
+                {/* Calendar days */}
+                {days.map((day, index) => {
+                  const isCurrentMonth = day.getMonth() === currentDate.getMonth();
+                  const isToday = day.toDateString() === new Date().toDateString();
+
+                  return (
+                    <div
+                      key={index}
+                      className={`
+                        calendar-cell min-h-[80px] p-2 border border-border/50 relative
+                        ${!isCurrentMonth ? 'text-muted-foreground bg-muted/20' : ''}
+                        ${isToday ? 'bg-primary/10 border-primary' : ''}
+                      `}
+                      style={{ 
+                        minHeight: `${80 + Math.max(0, reservationBlocks.filter(block => 
+                          block.segments.some(segment => 
+                            segment.startIndex <= index && segment.endIndex >= index
+                          )
+                        ).length * 28)}px` 
+                      }}
+                    >
+                      <div className="text-sm font-medium mb-1 relative z-10">
+                        {day.getDate()}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Continuous reservation blocks */}
+                {reservationBlocks.map((block, blockIndex) => 
+                  block.segments.map((segment, segmentIndex) => {
+                    const startCol = segment.startIndex % 7;
+                    const endCol = segment.endIndex % 7;
+                    const weekRow = Math.floor(segment.startIndex / 7);
+                    const segmentWidth = endCol - startCol + 1;
+                    
+                    return (
+                      <div
+                        key={`${block.reservation.id}-${segmentIndex}`}
+                        className="absolute z-20 reservation-continuous cursor-pointer hover:scale-[1.02] transition-transform duration-200"
+                        style={{
+                          left: `${(startCol * 100) / 7 + 0.5}%`,
+                          width: `${(segmentWidth * 100) / 7 - 1}%`,
+                          top: `${weekRow * (80 + Math.max(0, reservationBlocks.filter(b => 
+                            b.segments.some(s => s.weekRow === weekRow)
+                          ).length * 28)) + 20 + block.row * 28}px`,
+                          height: '24px'
+                        }}
+                        onClick={() => handleReservationClick(block.reservation)}
+                      >
+                        <div className="h-full w-full bg-gradient-to-r from-primary/80 to-primary-glow/80 rounded-md px-2 py-1 text-white text-xs font-medium shadow-sm flex items-center justify-between overflow-hidden">
+                          {segmentIndex === 0 && (
+                            <>
+                              <span className="truncate">{block.reservation.passengerName}</span>
+                              <span className="text-xs opacity-90 ml-1">
+                                {block.reservation.cabinType.split(' ')[1]}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
             </div>
           )}
         </CardContent>
