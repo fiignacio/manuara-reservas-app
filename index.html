@@ -3,22 +3,51 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>manuara-reservas-app</title>
-    <meta name="description" content="Lovable Generated Project" />
-    <meta name="author" content="Lovable" />
+    <title>Manuara Reservas - Gestión de Cabañas</title>
+    <meta name="description" content="Sistema de gestión de reservas para cabañas Manuara. Administra reservas, calendario y huéspedes de forma eficiente." />
+    <meta name="author" content="Manuara" />
+    <meta name="theme-color" content="#2d5530" />
 
-    <meta property="og:title" content="manuara-reservas-app" />
-    <meta property="og:description" content="Lovable Generated Project" />
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" href="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=32&h=32&fit=crop&crop=center" />
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="Manuara Reservas - Gestión de Cabañas" />
+    <meta property="og:description" content="Sistema de gestión de reservas para cabañas Manuara" />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+    <meta property="og:image" content="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1200&h=630&fit=crop&crop=center" />
 
+    <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@lovable_dev" />
-    <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+    <meta name="twitter:title" content="Manuara Reservas" />
+    <meta name="twitter:description" content="Sistema de gestión de reservas para cabañas" />
+    <meta name="twitter:image" content="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1200&h=630&fit=crop&crop=center" />
+
+    <!-- iOS PWA -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Manuara Reservas" />
+    <link rel="apple-touch-icon" href="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=180&h=180&fit=crop&crop=center" />
   </head>
 
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- PWA Service Worker -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then((registration) => {
+              console.log('SW registered: ', registration);
+            })
+            .catch((registrationError) => {
+              console.log('SW registration failed: ', registrationError);
+            });
+        });
+      }
+    </script>
   </body>
 </html>
