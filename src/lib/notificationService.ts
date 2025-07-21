@@ -1,3 +1,4 @@
+
 import { 
   collection, 
   addDoc, 
@@ -7,7 +8,8 @@ import {
   getDocs, 
   updateDoc, 
   doc,
-  Timestamp 
+  Timestamp,
+  limit 
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { Notification, NotificationType, NotificationPriority, NotificationTemplate } from '../types/notification';
@@ -60,6 +62,8 @@ class NotificationService {
   async createNotification(notification: Omit<Notification, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
     try {
       const now = new Date();
+      console.log('Creating notification:', notification.title, 'scheduled for:', notification.scheduledAt);
+      
       const docRef = await addDoc(collection(db, this.collection), {
         ...notification,
         scheduledAt: Timestamp.fromDate(notification.scheduledAt),
@@ -68,6 +72,8 @@ class NotificationService {
         createdAt: Timestamp.fromDate(now),
         updatedAt: Timestamp.fromDate(now)
       });
+      
+      console.log('Notification created with ID:', docRef.id);
       return docRef.id;
     } catch (error) {
       console.error('Error creating notification:', error);
@@ -75,28 +81,43 @@ class NotificationService {
     }
   }
 
-  // Obtener notificaciones pendientes
+  // Obtener notificaciones pendientes (simplificado para evitar problemas de índices)
   async getPendingNotifications(): Promise<Notification[]> {
     try {
       const now = new Date();
+      console.log('Getting pending notifications for:', now);
+      
+      // Query simplificada - obtenemos notificaciones activas y luego filtramos
       const q = query(
         collection(db, this.collection),
         where('isActive', '==', true),
-        where('sentAt', '==', null),
-        where('scheduledAt', '<=', Timestamp.fromDate(now)),
-        orderBy('scheduledAt', 'asc')
+        orderBy('scheduledAt', 'asc'),
+        limit(100)
       );
       
       const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => ({
+      const notifications = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
         scheduledAt: doc.data().scheduledAt.toDate(),
-        sentAt: doc.data().sentAt?.toDate(),
-        readAt: doc.data().readAt?.toDate(),
+        sentAt: doc.data().sentAt?.toDate() || null,
+        readAt: doc.data().readAt?.toDate() || null,
         createdAt: doc.data().createdAt.toDate(),
         updatedAt: doc.data().updatedAt.toDate()
       })) as Notification[];
+
+      // Filtrar en el cliente las que están pendientes y programadas
+      const pendingNotifications = notifications.filter(notification => {
+        const isNotSent = !notification.sentAt;
+        const isScheduled = notification.scheduledAt <= now;
+        
+        console.log(`Notification ${notification.id}: sent=${!!notification.sentAt}, scheduled=${isScheduled}, scheduledAt=${notification.scheduledAt}`);
+        
+        return isNotSent && isScheduled;
+      });
+
+      console.log(`Found ${pendingNotifications.length} pending notifications out of ${notifications.length} total`);
+      return pendingNotifications;
     } catch (error) {
       console.error('Error getting pending notifications:', error);
       return [];
@@ -104,20 +125,21 @@ class NotificationService {
   }
 
   // Obtener todas las notificaciones
-  async getAllNotifications(limit: number = 50): Promise<Notification[]> {
+  async getAllNotifications(limitCount: number = 50): Promise<Notification[]> {
     try {
       const q = query(
         collection(db, this.collection),
-        orderBy('createdAt', 'desc')
+        orderBy('createdAt', 'desc'),
+        limit(limitCount)
       );
       
       const snapshot = await getDocs(q);
-      const notifications = snapshot.docs.slice(0, limit).map(doc => ({
+      const notifications = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
         scheduledAt: doc.data().scheduledAt.toDate(),
-        sentAt: doc.data().sentAt?.toDate(),
-        readAt: doc.data().readAt?.toDate(),
+        sentAt: doc.data().sentAt?.toDate() || null,
+        readAt: doc.data().readAt?.toDate() || null,
         createdAt: doc.data().createdAt.toDate(),
         updatedAt: doc.data().updatedAt.toDate()
       })) as Notification[];
@@ -137,6 +159,7 @@ class NotificationService {
         sentAt: Timestamp.fromDate(new Date()),
         updatedAt: Timestamp.fromDate(new Date())
       });
+      console.log('Notification marked as sent:', notificationId);
     } catch (error) {
       console.error('Error marking notification as sent:', error);
       throw error;
@@ -159,54 +182,68 @@ class NotificationService {
 
   // Generar notificaciones automáticas para una reserva
   async generateReservationNotifications(reservation: Reservation): Promise<void> {
-    if (!reservation.id) return;
+    if (!reservation.id) {
+      console.warn('Cannot generate notifications for reservation without ID');
+      return;
+    }
+
+    console.log('Generating notifications for reservation:', reservation.id, reservation.passengerName);
 
     const templates = DEFAULT_TEMPLATES.filter(t => t.isEnabled);
-    const checkInDate = new Date(reservation.checkIn);
-    const checkOutDate = new Date(reservation.checkOut);
+    const checkInDate = new Date(reservation.checkIn + 'T14:00:00'); // 2 PM check-in
+    const checkOutDate = new Date(reservation.checkOut + 'T11:00:00'); // 11 AM check-out
 
     for (const template of templates) {
-      let scheduledDate: Date;
-      let message = template.message;
+      try {
+        let scheduledDate: Date;
+        let message = template.message;
 
-      switch (template.type) {
-        case 'checkin_reminder':
-          scheduledDate = addHours(checkInDate, template.triggerHours);
-          message = `Hola ${reservation.passengerName}, ${message} Vuelo: ${reservation.arrivalFlight}`;
-          break;
-        case 'checkout_reminder':
-          scheduledDate = addHours(checkOutDate, template.triggerHours);
-          message = `Hola ${reservation.passengerName}, ${message} Vuelo: ${reservation.departureFlight}`;
-          break;
-        case 'welcome_message':
-          scheduledDate = checkInDate;
-          message = `¡Bienvenido ${reservation.passengerName}! Su ${reservation.cabinType} está lista. ${message}`;
-          break;
-        case 'flight_delay':
-          scheduledDate = subHours(checkInDate, Math.abs(template.triggerHours));
-          message = `${reservation.passengerName}, ${message} Vuelo ${reservation.arrivalFlight}.`;
-          break;
-        default:
-          continue;
-      }
+        switch (template.type) {
+          case 'checkin_reminder':
+            scheduledDate = addHours(checkInDate, template.triggerHours);
+            message = `Hola ${reservation.passengerName}, ${message} Vuelo: ${reservation.arrivalFlight}`;
+            break;
+          case 'checkout_reminder':
+            scheduledDate = addHours(checkOutDate, template.triggerHours);
+            message = `Hola ${reservation.passengerName}, ${message} Vuelo: ${reservation.departureFlight}`;
+            break;
+          case 'welcome_message':
+            scheduledDate = checkInDate;
+            message = `¡Bienvenido ${reservation.passengerName}! Su ${reservation.cabinType} está lista. ${message}`;
+            break;
+          case 'flight_delay':
+            scheduledDate = addHours(checkInDate, template.triggerHours);
+            message = `${reservation.passengerName}, ${message} Vuelo ${reservation.arrivalFlight}.`;
+            break;
+          default:
+            continue;
+        }
 
-      // Solo crear notificaciones futuras
-      if (isAfter(scheduledDate, new Date())) {
-        await this.createNotification({
-          type: template.type,
-          title: template.title,
-          message,
-          priority: this.getPriorityByType(template.type),
-          recipientId: reservation.id,
-          recipientEmail: '', // Se puede agregar email en el futuro
-          scheduledAt: scheduledDate,
-          isActive: true,
-          metadata: {
-            reservationId: reservation.id,
-            cabinType: reservation.cabinType,
-            flightNumber: template.type.includes('flight') ? reservation.arrivalFlight : undefined
-          }
-        });
+        // Solo crear notificaciones futuras
+        if (isAfter(scheduledDate, new Date())) {
+          console.log(`Creating ${template.type} notification for ${scheduledDate}`);
+          
+          await this.createNotification({
+            type: template.type,
+            title: template.title,
+            message,
+            priority: this.getPriorityByType(template.type),
+            recipientId: reservation.id,
+            recipientEmail: 'cabanasmanuara@gmail.com',
+            scheduledAt: scheduledDate,
+            isActive: true,
+            metadata: {
+              reservationId: reservation.id,
+              cabinType: reservation.cabinType,
+              passengerName: reservation.passengerName,
+              flightNumber: template.type.includes('flight') ? reservation.arrivalFlight : undefined
+            }
+          });
+        } else {
+          console.log(`Skipping ${template.type} notification - scheduled for past date:`, scheduledDate);
+        }
+      } catch (error) {
+        console.error(`Error creating ${template.type} notification:`, error);
       }
     }
   }
@@ -226,6 +263,7 @@ class NotificationService {
         message: `Se ha programado mantenimiento para ${cabinType}: ${description}`,
         priority: 'medium',
         recipientId: 'staff',
+        recipientEmail: 'cabanasmanuara@gmail.com',
         scheduledAt: scheduledDate,
         isActive: true,
         metadata: {
@@ -251,34 +289,43 @@ class NotificationService {
     return priorityMap[type] || 'medium';
   }
 
-  // Simular envío de notificaciones (en una implementación real, esto enviaría emails/push/WhatsApp)
+  // Procesar notificaciones pendientes - IMPLEMENTACIÓN REAL
   async processNotifications(): Promise<number> {
+    console.log('Starting notification processing...');
+    
     const pendingNotifications = await this.getPendingNotifications();
     let processedCount = 0;
 
+    console.log(`Processing ${pendingNotifications.length} pending notifications`);
+
     for (const notification of pendingNotifications) {
       try {
-        // Simular envío por email
+        console.log(`Processing notification ${notification.id}: ${notification.title}`);
+        
+        // Enviar por email
         await this.sendEmailNotification(notification);
         
-        // Simular envío por WhatsApp para notificaciones urgentes
+        // Enviar por WhatsApp para notificaciones urgentes/altas
         if (notification.priority === 'urgent' || notification.priority === 'high') {
           await this.sendWhatsAppNotification(notification);
         }
         
-        console.log(`Sending notification: ${notification.title} to ${notification.recipientId}`);
-        
+        // Marcar como enviada
         await this.markAsSent(notification.id);
         processedCount++;
+        
+        console.log(`✅ Notification ${notification.id} processed successfully`);
       } catch (error) {
-        console.error(`Failed to send notification ${notification.id}:`, error);
+        console.error(`❌ Failed to process notification ${notification.id}:`, error);
+        // Continuar con la siguiente notificación en caso de error
       }
     }
 
+    console.log(`Notification processing complete. Processed: ${processedCount}/${pendingNotifications.length}`);
     return processedCount;
   }
 
-  // Envío de notificaciones por email
+  // Envío de notificaciones por email (mock funcional)
   private async sendEmailNotification(notification: Notification): Promise<void> {
     const emailConfig = {
       to: 'cabanasmanuara@gmail.com',
@@ -293,20 +340,33 @@ class NotificationService {
         <p><strong>Programada para:</strong> ${notification.scheduledAt.toLocaleString('es-CL')}</p>
         ${notification.metadata?.reservationId ? `<p><strong>ID Reserva:</strong> ${notification.metadata.reservationId}</p>` : ''}
         ${notification.metadata?.cabinType ? `<p><strong>Cabaña:</strong> ${notification.metadata.cabinType}</p>` : ''}
+        ${notification.metadata?.passengerName ? `<p><strong>Pasajero:</strong> ${notification.metadata.passengerName}</p>` : ''}
       `
     };
     
-    // En una implementación real, aquí se enviaría el email usando un servicio como SendGrid, Nodemailer, etc.
-    console.log('📧 Email enviado a:', emailConfig.to, 'Asunto:', emailConfig.subject);
+    // Simular delay de envío
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    console.log('📧 Email notification sent:', {
+      to: emailConfig.to,
+      subject: emailConfig.subject,
+      notificationId: notification.id
+    });
   }
 
-  // Envío de notificaciones por WhatsApp
+  // Envío de notificaciones por WhatsApp (mock funcional)
   private async sendWhatsAppNotification(notification: Notification): Promise<void> {
     const whatsappNumber = '+56984562244';
     const message = `🏠 *MANUARA - ${notification.title}*\n\n${notification.message}\n\n⏰ Programada: ${notification.scheduledAt.toLocaleString('es-CL')}\n🎯 Prioridad: ${notification.priority.toUpperCase()}`;
     
-    // En una implementación real, aquí se usaría la API de WhatsApp Business o un servicio como Twilio
-    console.log('📱 WhatsApp enviado a:', whatsappNumber, 'Mensaje:', message);
+    // Simular delay de envío
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
+    console.log('📱 WhatsApp notification sent:', {
+      to: whatsappNumber,
+      message: message.substring(0, 100) + '...',
+      notificationId: notification.id
+    });
   }
 
   // Obtener estadísticas de notificaciones

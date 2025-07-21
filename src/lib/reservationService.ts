@@ -1,4 +1,3 @@
-
 import { 
   collection, 
   addDoc, 
@@ -14,6 +13,7 @@ import {
 import { db } from './firebase';
 import { Reservation, ReservationFormData } from '@/types/reservation';
 import { addDays, getTomorrowDate } from './dateUtils';
+import { notificationService } from './notificationService';
 
 const COLLECTION_NAME = 'reservas';
 
@@ -69,6 +69,8 @@ export const checkCabinAvailability = async (
 };
 
 export const createReservation = async (data: ReservationFormData): Promise<string> => {
+  console.log('Creating reservation for:', data.passengerName);
+  
   // Validar disponibilidad antes de crear
   const isAvailable = await checkCabinAvailability(data.cabinType, data.checkIn, data.checkOut);
   
@@ -85,10 +87,27 @@ export const createReservation = async (data: ReservationFormData): Promise<stri
   };
   
   const docRef = await addDoc(collection(db, COLLECTION_NAME), reservation);
+  
+  // Generar notificaciones automáticas para la nueva reserva
+  try {
+    const fullReservation: Reservation = {
+      ...reservation,
+      id: docRef.id
+    };
+    
+    console.log('Generating notifications for new reservation:', docRef.id);
+    await notificationService.generateReservationNotifications(fullReservation);
+  } catch (error) {
+    console.error('Error generating notifications for reservation:', error);
+    // No fallar la creación de la reserva si hay error en notificaciones
+  }
+  
   return docRef.id;
 };
 
 export const updateReservation = async (id: string, data: ReservationFormData): Promise<void> => {
+  console.log('Updating reservation:', id);
+  
   // Validar disponibilidad antes de actualizar (excluyendo la reserva actual)
   const isAvailable = await checkCabinAvailability(data.cabinType, data.checkIn, data.checkOut, id);
   
@@ -104,6 +123,22 @@ export const updateReservation = async (id: string, data: ReservationFormData): 
   };
   
   await updateDoc(doc(db, COLLECTION_NAME, id), reservation);
+  
+  // Regenerar notificaciones para la reserva actualizada
+  try {
+    const fullReservation: Reservation = {
+      ...reservation,
+      id,
+      createdAt: new Date(), // Este valor se sobreescribirá con el real
+      updatedAt: new Date()
+    } as Reservation;
+    
+    console.log('Regenerating notifications for updated reservation:', id);
+    await notificationService.generateReservationNotifications(fullReservation);
+  } catch (error) {
+    console.error('Error regenerating notifications for reservation:', error);
+    // No fallar la actualización de la reserva si hay error en notificaciones
+  }
 };
 
 export const deleteReservation = async (id: string): Promise<void> => {

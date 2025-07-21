@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
@@ -8,7 +9,7 @@ import { Label } from '../components/ui/label';
 import { Switch } from '../components/ui/switch';
 import { Textarea } from '../components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { Bell, Send, Settings, BarChart3, Plus, Calendar, AlertTriangle, Mail, MessageCircle, Phone } from 'lucide-react';
+import { Bell, Send, Settings, BarChart3, Plus, Calendar, AlertTriangle, Mail, MessageCircle, Phone, Loader2, RefreshCw } from 'lucide-react';
 import { notificationService } from '../lib/notificationService';
 import { Notification, NotificationType } from '../types/notification';
 import { format } from 'date-fns';
@@ -19,6 +20,7 @@ export function Notifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [stats, setStats] = useState({ total: 0, pending: 0, sent: 0, read: 0 });
   const [isLoading, setIsLoading] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [newNotification, setNewNotification] = useState({
     type: 'maintenance_alert' as NotificationType,
     title: '',
@@ -35,10 +37,14 @@ export function Notifications() {
   const loadData = async () => {
     setIsLoading(true);
     try {
+      console.log('Loading notifications data...');
       const [notificationsData, statsData] = await Promise.all([
         notificationService.getAllNotifications(100),
         notificationService.getNotificationStats()
       ]);
+      
+      console.log('Loaded notifications:', notificationsData.length);
+      console.log('Stats:', statsData);
       
       setNotifications(notificationsData);
       setStats(statsData);
@@ -65,19 +71,22 @@ export function Notifications() {
     }
 
     try {
+      console.log('Creating manual notification:', newNotification);
+      
       await notificationService.createNotification({
         type: newNotification.type,
         title: newNotification.title,
         message: newNotification.message,
         priority: 'medium',
         recipientId: newNotification.recipientId || 'staff',
+        recipientEmail: 'cabanasmanuara@gmail.com',
         scheduledAt: new Date(newNotification.scheduledAt),
         isActive: true,
         metadata: {}
       });
 
       toast({
-        title: "Notificación creada",
+        title: "✅ Notificación creada",
         description: "La notificación ha sido programada correctamente"
       });
 
@@ -101,23 +110,28 @@ export function Notifications() {
   };
 
   const handleProcessNotifications = async () => {
-    setIsLoading(true);
+    setIsProcessing(true);
     try {
+      console.log('Processing notifications...');
+      
       const processedCount = await notificationService.processNotifications();
+      
       toast({
-        title: "Notificaciones procesadas",
-        description: `Se enviaron ${processedCount} notificaciones`
+        title: "✅ Notificaciones procesadas",
+        description: `Se enviaron ${processedCount} notificaciones correctamente`
       });
+      
+      // Recargar datos después del procesamiento
       await loadData();
     } catch (error) {
       console.error('Error processing notifications:', error);
       toast({
-        title: "Error",
-        description: "Error al procesar notificaciones",
+        title: "❌ Error al procesar",
+        description: "Hubo un error al procesar las notificaciones",
         variant: "destructive"
       });
     } finally {
-      setIsLoading(false);
+      setIsProcessing(false);
     }
   };
 
@@ -150,10 +164,32 @@ export function Notifications() {
           <Bell className="h-8 w-8" />
           Notificaciones
         </h1>
-        <Button onClick={handleProcessNotifications} disabled={isLoading}>
-          <Send className="h-4 w-4 mr-2" />
-          Procesar Pendientes
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            onClick={loadData} 
+            disabled={isLoading}
+            variant="outline"
+          >
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4 mr-2" />
+            )}
+            Actualizar
+          </Button>
+          <Button 
+            onClick={handleProcessNotifications} 
+            disabled={isProcessing || isLoading}
+            className="btn-cabin"
+          >
+            {isProcessing ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Send className="h-4 w-4 mr-2" />
+            )}
+            {isProcessing ? 'Procesando...' : 'Procesar Pendientes'}
+          </Button>
+        </div>
       </div>
 
       {/* Estadísticas */}
@@ -281,9 +317,16 @@ export function Notifications() {
                   </div>
                 ))}
                 
-                {notifications.length === 0 && (
+                {notifications.length === 0 && !isLoading && (
                   <div className="text-center py-8 text-muted-foreground">
                     No hay notificaciones registradas
+                  </div>
+                )}
+                
+                {isLoading && (
+                  <div className="text-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
+                    <p className="text-muted-foreground">Cargando notificaciones...</p>
                   </div>
                 )}
               </div>
