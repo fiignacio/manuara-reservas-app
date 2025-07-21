@@ -251,14 +251,21 @@ class NotificationService {
     return priorityMap[type] || 'medium';
   }
 
-  // Simular envío de notificaciones (en una implementación real, esto enviaría emails/push)
+  // Simular envío de notificaciones (en una implementación real, esto enviaría emails/push/WhatsApp)
   async processNotifications(): Promise<number> {
     const pendingNotifications = await this.getPendingNotifications();
     let processedCount = 0;
 
     for (const notification of pendingNotifications) {
       try {
-        // Aquí iría la lógica real de envío (email, push, etc.)
+        // Simular envío por email
+        await this.sendEmailNotification(notification);
+        
+        // Simular envío por WhatsApp para notificaciones urgentes
+        if (notification.priority === 'urgent' || notification.priority === 'high') {
+          await this.sendWhatsAppNotification(notification);
+        }
+        
         console.log(`Sending notification: ${notification.title} to ${notification.recipientId}`);
         
         await this.markAsSent(notification.id);
@@ -269,6 +276,37 @@ class NotificationService {
     }
 
     return processedCount;
+  }
+
+  // Envío de notificaciones por email
+  private async sendEmailNotification(notification: Notification): Promise<void> {
+    const emailConfig = {
+      to: 'cabanasmanuara@gmail.com',
+      subject: `[Manuara] ${notification.title}`,
+      body: `
+        <h2>${notification.title}</h2>
+        <p>${notification.message}</p>
+        <hr>
+        <p><strong>Prioridad:</strong> ${notification.priority}</p>
+        <p><strong>Tipo:</strong> ${notification.type}</p>
+        <p><strong>Destinatario:</strong> ${notification.recipientId}</p>
+        <p><strong>Programada para:</strong> ${notification.scheduledAt.toLocaleString('es-CL')}</p>
+        ${notification.metadata?.reservationId ? `<p><strong>ID Reserva:</strong> ${notification.metadata.reservationId}</p>` : ''}
+        ${notification.metadata?.cabinType ? `<p><strong>Cabaña:</strong> ${notification.metadata.cabinType}</p>` : ''}
+      `
+    };
+    
+    // En una implementación real, aquí se enviaría el email usando un servicio como SendGrid, Nodemailer, etc.
+    console.log('📧 Email enviado a:', emailConfig.to, 'Asunto:', emailConfig.subject);
+  }
+
+  // Envío de notificaciones por WhatsApp
+  private async sendWhatsAppNotification(notification: Notification): Promise<void> {
+    const whatsappNumber = '+56984562244';
+    const message = `🏠 *MANUARA - ${notification.title}*\n\n${notification.message}\n\n⏰ Programada: ${notification.scheduledAt.toLocaleString('es-CL')}\n🎯 Prioridad: ${notification.priority.toUpperCase()}`;
+    
+    // En una implementación real, aquí se usaría la API de WhatsApp Business o un servicio como Twilio
+    console.log('📱 WhatsApp enviado a:', whatsappNumber, 'Mensaje:', message);
   }
 
   // Obtener estadísticas de notificaciones

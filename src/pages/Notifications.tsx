@@ -8,7 +8,7 @@ import { Label } from '../components/ui/label';
 import { Switch } from '../components/ui/switch';
 import { Textarea } from '../components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { Bell, Send, Settings, BarChart3, Plus, Calendar, AlertTriangle } from 'lucide-react';
+import { Bell, Send, Settings, BarChart3, Plus, Calendar, AlertTriangle, Mail, MessageCircle, Phone } from 'lucide-react';
 import { notificationService } from '../lib/notificationService';
 import { Notification, NotificationType } from '../types/notification';
 import { format } from 'date-fns';
@@ -395,22 +395,41 @@ export function Notifications() {
                 <h3 className="text-lg font-medium">Canales de Notificación</h3>
                 
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label htmlFor="emailEnabled">Notificaciones por Email</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Enviar notificaciones automáticas por correo electrónico
-                      </p>
+                  <div className="flex items-center justify-between p-3 border rounded">
+                    <div className="flex items-center gap-3">
+                      <Mail className="h-5 w-5 text-blue-500" />
+                      <div>
+                        <Label htmlFor="emailEnabled">Notificaciones por Email</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Enviar a: cabanasmanuara@gmail.com
+                        </p>
+                      </div>
                     </div>
                     <Switch id="emailEnabled" defaultChecked />
                   </div>
 
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label htmlFor="pushEnabled">Notificaciones Push</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Mostrar notificaciones en el navegador
-                      </p>
+                  <div className="flex items-center justify-between p-3 border rounded">
+                    <div className="flex items-center gap-3">
+                      <MessageCircle className="h-5 w-5 text-green-500" />
+                      <div>
+                        <Label htmlFor="whatsappEnabled">Notificaciones WhatsApp</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Enviar a: +56984562244 (solo urgentes/altas)
+                        </p>
+                      </div>
+                    </div>
+                    <Switch id="whatsappEnabled" defaultChecked />
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 border rounded">
+                    <div className="flex items-center gap-3">
+                      <Bell className="h-5 w-5 text-purple-500" />
+                      <div>
+                        <Label htmlFor="pushEnabled">Notificaciones Push</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Mostrar notificaciones en el navegador
+                        </p>
+                      </div>
                     </div>
                     <Switch id="pushEnabled" defaultChecked />
                   </div>
