@@ -227,7 +227,7 @@ const Calendar = () => {
   const getMaxRowsForWeek = (weekIndex: number) => {
     let maxRows = 0;
     for (let day = weekIndex * 7; day < (weekIndex + 1) * 7; day++) {
-      const rowsInDay = occupancyMatrix[day]?.findLastIndex(occupied => occupied) + 1 || 0;
+      const rowsInDay = occupancyMatrix[day] ? occupancyMatrix[day].map((occupied, index) => occupied ? index : -1).reduce((last, current) => current > last ? current : last, -1) + 1 : 0;
       maxRows = Math.max(maxRows, rowsInDay);
     }
     return Math.max(maxRows, 1);
