@@ -43,6 +43,25 @@ const Calendar = () => {
     loadReservations();
   }, []);
 
+  const getCabinColor = (cabinType: string) => {
+    switch (cabinType) {
+      case 'Cabaña Pequeña (Max 3p)':
+        return '#3B82F6'; // Blue
+      case 'Cabaña Mediana 1 (Max 4p)':
+        return '#8B5CF6'; // Purple
+      case 'Cabaña Mediana 2 (Max 4p)':
+        return '#F59E0B'; // Orange
+      case 'Cabaña Grande (Max 6p)':
+        return '#EC4899'; // Pink
+      default:
+        return '#10B981'; // Green
+    }
+  };
+
+  const goToToday = () => {
+    setCurrentDate(new Date());
+  };
+
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear();
     const month = date.getMonth();
@@ -58,25 +77,6 @@ const Calendar = () => {
       days.push(day);
     }
     return days;
-  };
-
-  const getCabinColor = (cabinType: string) => {
-    switch (cabinType) {
-      case 'Cabaña Pequeña (Max 3p)':
-        return 'hsl(var(--cabin-small))';
-      case 'Cabaña Mediana 1 (Max 4p)':
-        return 'hsl(var(--cabin-medium1))';
-      case 'Cabaña Mediana 2 (Max 4p)':
-        return 'hsl(var(--cabin-medium2))';
-      case 'Cabaña Grande (Max 6p)':
-        return 'hsl(var(--cabin-large))';
-      default:
-        return 'hsl(var(--primary))';
-    }
-  };
-
-  const goToToday = () => {
-    setCurrentDate(new Date());
   };
 
   const processReservationsForCalendar = () => {
@@ -283,7 +283,8 @@ const Calendar = () => {
                         <div 
                           className="h-full w-full rounded-md px-2 py-1 text-white text-xs font-medium shadow-sm flex items-center justify-between overflow-hidden"
                           style={{
-                            background: `linear-gradient(135deg, ${getCabinColor(block.reservation.cabinType)}, ${getCabinColor(block.reservation.cabinType)}dd)`
+                            backgroundColor: getCabinColor(block.reservation.cabinType),
+                            color: 'white'
                           }}
                         >
                           {segmentIndex === 0 && (
@@ -317,19 +318,19 @@ const Calendar = () => {
               <span className="text-sm">Día actual</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded" style={{ backgroundColor: 'hsl(var(--cabin-small))' }}></div>
+              <div className="w-4 h-4 rounded" style={{ backgroundColor: '#3B82F6' }}></div>
               <span className="text-sm">Cabaña Pequeña</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded" style={{ backgroundColor: 'hsl(var(--cabin-medium1))' }}></div>
+              <div className="w-4 h-4 rounded" style={{ backgroundColor: '#8B5CF6' }}></div>
               <span className="text-sm">Cabaña Mediana 1</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded" style={{ backgroundColor: 'hsl(var(--cabin-medium2))' }}></div>
+              <div className="w-4 h-4 rounded" style={{ backgroundColor: '#F59E0B' }}></div>
               <span className="text-sm">Cabaña Mediana 2</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded" style={{ backgroundColor: 'hsl(var(--cabin-large))' }}></div>
+              <div className="w-4 h-4 rounded" style={{ backgroundColor: '#EC4899' }}></div>
               <span className="text-sm">Cabaña Grande</span>
             </div>
           </div>

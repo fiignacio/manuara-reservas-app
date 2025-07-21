@@ -116,7 +116,12 @@ const Reservations = () => {
   };
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('es-CL');
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('es-CL', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
   };
 
   const getSeasonBadge = (season: string) => {
