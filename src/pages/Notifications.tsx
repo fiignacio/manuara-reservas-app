@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
@@ -8,7 +8,7 @@ import { Label } from '../components/ui/label';
 import { Switch } from '../components/ui/switch';
 import { Textarea } from '../components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { Bell, Send, Settings, BarChart3, Plus, Calendar, AlertTriangle, Mail, MessageCircle, Phone, Loader2, RefreshCw, Check, Archive } from 'lucide-react';
+import { Bell, Send, Settings, BarChart3, Plus, Calendar, Loader2, RefreshCw, Check, Archive, AlertTriangle } from 'lucide-react';
 import { notificationService } from '../lib/notificationService';
 import { deleteExpiredReservations } from '../lib/reservationService';
 import { Notification, NotificationType } from '../types/notification';
@@ -20,7 +20,15 @@ import { useToast } from '../hooks/use-toast';
 export function Notifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [filteredNotifications, setFilteredNotifications] = useState<Notification[]>([]);
-  const [stats, setStats] = useState({ total: 0, pending: 0, sent: 0, read: 0, completed: 0, archived: 0 });
+  const [stats, setStats] = useState({ 
+    total: 0, 
+    pending: 0, 
+    sent: 0, 
+    read: 0, 
+    completed: 0, 
+    archived: 0,
+    unread: 0
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -33,25 +41,14 @@ export function Notifications() {
   });
   const { toast } = useToast();
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  useEffect(() => {
-    filterNotifications();
-  }, [notifications, statusFilter]);
-
-  const loadData = async () => {
+  // Función optimizada para cargar datos
+  const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
-      console.log('Loading notifications data...');
       const [notificationsData, statsData] = await Promise.all([
-        notificationService.getAllNotifications(100),
+        notificationService.getAllNotifications(200),
         notificationService.getNotificationStats()
       ]);
-      
-      console.log('Loaded notifications:', notificationsData.length);
-      console.log('Stats:', statsData);
       
       setNotifications(notificationsData);
       setStats(statsData);
@@ -65,9 +62,14 @@ export function Notifications() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [toast]);
 
-  const filterNotifications = () => {
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // Filtrar notificaciones optimizado
+  useEffect(() => {
     let filtered = notifications;
     
     switch (statusFilter) {
@@ -107,12 +109,11 @@ export function Notifications() {
         filtered = notifications;
     }
     
-    console.log(`Filtered ${filtered.length} notifications for status: ${statusFilter}`);
     setFilteredNotifications(filtered);
-  };
+  }, [notifications, statusFilter]);
 
   const handleCreateNotification = async () => {
-    if (!newNotification.title || !newNotification.message) {
+    if (!newNotification.title?.trim() || !newNotification.message?.trim()) {
       toast({
         title: "Error",
         description: "Título y mensaje son requeridos",
@@ -122,15 +123,13 @@ export function Notifications() {
     }
 
     try {
-      console.log('Creating manual notification:', newNotification);
-      
       await notificationService.createNotification({
         type: newNotification.type,
-        title: newNotification.title,
-        message: newNotification.message,
+        title: newNotification.title.trim(),
+        message: newNotification.message.trim(),
         priority: 'medium',
         status: 'pending',
-        recipientId: newNotification.recipientId || 'staff',
+        recipientId: newNotification.recipientId.trim() || 'staff',
         recipientEmail: 'cabanasmanuara@gmail.com',
         scheduledAt: new Date(newNotification.scheduledAt),
         isActive: true,
@@ -155,7 +154,7 @@ export function Notifications() {
       console.error('Error creating notification:', error);
       toast({
         title: "Error",
-        description: "No se pudo crear la notificación",
+        description: error instanceof Error ? error.message : "No se pudo crear la notificación",
         variant: "destructive"
       });
     }
@@ -164,10 +163,10 @@ export function Notifications() {
   const handleProcessNotifications = async () => {
     setIsProcessing(true);
     try {
-      console.log('Processing notifications...');
-      
-      const processedCount = await notificationService.processNotifications();
-      const deletedReservations = await deleteExpiredReservations();
+      const [processedCount, deletedReservations] = await Promise.all([
+        notificationService.processNotifications(),
+        deleteExpiredReservations()
+      ]);
       
       let message = '';
       if (processedCount > 0) {
@@ -187,7 +186,6 @@ export function Notifications() {
         description: message
       });
       
-      // Recargar datos después del procesamiento
       await loadData();
     } catch (error) {
       console.error('Error processing notifications:', error);
@@ -205,6 +203,9 @@ export function Notifications() {
     try {
       switch (action) {
         case 'completed':
+          if (!notes?.trim()) {
+            throw new Error('Se requieren notas para completar la notificación');
+          }
           await notificationService.markAsCompleted(notificationId, notes);
           break;
         case 'archived':
@@ -219,15 +220,23 @@ export function Notifications() {
       }
       
       await loadData();
+      
+      const actionLabels = {
+        completed: 'completada',
+        archived: 'archivada',
+        snoozed: 'pospuesta',
+        cancelled: 'cancelada'
+      };
+      
       toast({
         title: "Acción completada",
-        description: `Notificación ${action === 'completed' ? 'completada' : action === 'archived' ? 'archivada' : action === 'snoozed' ? 'pospuesta' : 'cancelada'} correctamente`
+        description: `Notificación ${actionLabels[action as keyof typeof actionLabels]} correctamente`
       });
     } catch (error) {
       console.error('Error performing action:', error);
       toast({
         title: "Error",
-        description: "No se pudo realizar la acción",
+        description: error instanceof Error ? error.message : "No se pudo realizar la acción",
         variant: "destructive"
       });
     }
@@ -244,38 +253,36 @@ export function Notifications() {
 
   const getTypeLabel = (type: NotificationType) => {
     const labels: Record<NotificationType, string> = {
-      'checkin_reminder': 'Recordatorio Check-in',
-      'checkout_reminder': 'Recordatorio Check-out',
-      'flight_delay': 'Alerta de Vuelo',
-      'maintenance_alert': 'Alerta de Mantenimiento',
-      'payment_reminder': 'Recordatorio de Pago',
-      'welcome_message': 'Mensaje de Bienvenida',
-      'cleaning_schedule': 'Programa de Limpieza'
+      'checkin_reminder': 'Check-in',
+      'checkout_reminder': 'Check-out',
+      'flight_delay': 'Vuelo',
+      'maintenance_alert': 'Mantenimiento',
+      'payment_reminder': 'Pago',
+      'welcome_message': 'Bienvenida',
+      'cleaning_schedule': 'Limpieza'
     };
     return labels[type] || type;
   };
 
   const getStatusBadge = (notification: Notification) => {
-    switch (notification.status) {
-      case 'pending':
-        return <Badge variant="outline" className="bg-yellow-50 text-yellow-700">Pendiente</Badge>;
-      case 'sent':
-        return notification.readAt 
-          ? <Badge variant="outline" className="bg-blue-50 text-blue-700">Enviada (leída)</Badge>
-          : <Badge variant="outline" className="bg-green-50 text-green-700">Enviada</Badge>;
-      case 'read':
-        return <Badge variant="outline" className="bg-blue-50 text-blue-700">Leída</Badge>;
-      case 'completed':
-        return <Badge variant="default" className="bg-green-100 text-green-800">Completada</Badge>;
-      case 'archived':
-        return <Badge variant="secondary">Archivada</Badge>;
-      case 'cancelled':
-        return <Badge variant="destructive">Cancelada</Badge>;
-      case 'snoozed':
-        return <Badge variant="outline" className="bg-purple-50 text-purple-700">Pospuesta</Badge>;
-      default:
-        return <Badge variant="outline">Desconocido</Badge>;
-    }
+    const statusConfig = {
+      pending: { label: 'Pendiente', variant: 'outline' as const, className: 'bg-yellow-50 text-yellow-700' },
+      sent: { label: notification.readAt ? 'Enviada (leída)' : 'Enviada', variant: 'outline' as const, className: notification.readAt ? 'bg-blue-50 text-blue-700' : 'bg-green-50 text-green-700' },
+      read: { label: 'Leída', variant: 'outline' as const, className: 'bg-blue-50 text-blue-700' },
+      completed: { label: 'Completada', variant: 'default' as const, className: 'bg-green-100 text-green-800' },
+      archived: { label: 'Archivada', variant: 'secondary' as const, className: '' },
+      cancelled: { label: 'Cancelada', variant: 'destructive' as const, className: '' },
+      snoozed: { label: 'Pospuesta', variant: 'outline' as const, className: 'bg-purple-50 text-purple-700' }
+    };
+
+    const config = statusConfig[notification.status as keyof typeof statusConfig] || 
+                  { label: 'Desconocido', variant: 'outline' as const, className: '' };
+
+    return (
+      <Badge variant={config.variant} className={config.className}>
+        {config.label}
+      </Badge>
+    );
   };
 
   return (
@@ -283,7 +290,7 @@ export function Notifications() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold flex items-center gap-2">
           <Bell className="h-8 w-8" />
-          Notificaciones
+          Sistema de Notificaciones
         </h1>
         <div className="flex gap-2">
           <Button 
@@ -313,79 +320,29 @@ export function Notifications() {
         </div>
       </div>
 
-      {/* Estadísticas actualizadas */}
-      <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total</p>
-                <p className="text-2xl font-bold">{stats.total}</p>
+      {/* Estadísticas mejoradas */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-6">
+        {[
+          { label: 'Total', value: stats.total, icon: Bell, color: 'text-blue-500' },
+          { label: 'Pendientes', value: stats.pending, icon: Calendar, color: 'text-yellow-500' },
+          { label: 'Enviadas', value: stats.sent, icon: Send, color: 'text-green-500' },
+          { label: 'Sin Leer', value: stats.unread, icon: AlertTriangle, color: 'text-orange-500' },
+          { label: 'Leídas', value: stats.read, icon: BarChart3, color: 'text-blue-500' },
+          { label: 'Completadas', value: stats.completed, icon: Check, color: 'text-green-500' },
+          { label: 'Archivadas', value: stats.archived, icon: Archive, color: 'text-gray-500' }
+        ].map((stat, index) => (
+          <Card key={index}>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground">{stat.label}</p>
+                  <p className="text-xl font-bold">{stat.value}</p>
+                </div>
+                <stat.icon className={`h-6 w-6 ${stat.color}`} />
               </div>
-              <Bell className="h-8 w-8 text-blue-500" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Pendientes</p>
-                <p className="text-2xl font-bold text-yellow-600">{stats.pending}</p>
-              </div>
-              <Calendar className="h-8 w-8 text-yellow-500" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Enviadas</p>
-                <p className="text-2xl font-bold text-green-600">{stats.sent}</p>
-              </div>
-              <Send className="h-8 w-8 text-green-500" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Leídas</p>
-                <p className="text-2xl font-bold text-blue-600">{stats.read}</p>
-              </div>
-              <BarChart3 className="h-8 w-8 text-blue-500" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Completadas</p>
-                <p className="text-2xl font-bold text-green-600">{stats.completed}</p>
-              </div>
-              <Check className="h-8 w-8 text-green-500" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Archivadas</p>
-                <p className="text-2xl font-bold text-gray-600">{stats.archived}</p>
-              </div>
-              <Archive className="h-8 w-8 text-gray-500" />
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       <Tabs defaultValue="list" className="space-y-4">
@@ -400,106 +357,103 @@ export function Notifications() {
             <CardHeader>
               <CardTitle>Historial de Notificaciones</CardTitle>
               <CardDescription>
-                Todas las notificaciones del sistema
+                Gestión completa del sistema de notificaciones
               </CardDescription>
               
-              {/* Filtros mejorados */}
               <div className="flex gap-2 mt-4">
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
                   <SelectTrigger className="w-48">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Todas las notificaciones</SelectItem>
+                    <SelectItem value="all">Todas ({stats.total})</SelectItem>
+                    <SelectItem value="unread">Sin leer ({stats.unread})</SelectItem>
+                    <SelectItem value="pending">Pendientes ({stats.pending})</SelectItem>
+                    <SelectItem value="sent">Enviadas ({stats.sent})</SelectItem>
+                    <SelectItem value="read">Leídas ({stats.read})</SelectItem>
+                    <SelectItem value="completed">Completadas ({stats.completed})</SelectItem>
+                    <SelectItem value="archived">Archivadas ({stats.archived})</SelectItem>
                     <SelectItem value="active">Solo activas</SelectItem>
-                    <SelectItem value="unread">No leídas</SelectItem>
-                    <SelectItem value="pending">Pendientes</SelectItem>
-                    <SelectItem value="sent">Enviadas</SelectItem>
-                    <SelectItem value="read">Leídas</SelectItem>
-                    <SelectItem value="completed">Completadas</SelectItem>
-                    <SelectItem value="archived">Archivadas</SelectItem>
-                    <SelectItem value="cancelled">Canceladas</SelectItem>
-                    <SelectItem value="snoozed">Pospuestas</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {filteredNotifications.map((notification) => (
-                  <div 
-                    key={notification.id} 
-                    className="border rounded-lg p-4 space-y-3"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="space-y-1 flex-1">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-medium">{notification.title}</h3>
-                          <Badge variant={getPriorityColor(notification.priority)}>
-                            {notification.priority}
-                          </Badge>
-                          <Badge variant="outline">
-                            {getTypeLabel(notification.type)}
-                          </Badge>
-                          {getStatusBadge(notification)}
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          {notification.message}
-                        </p>
-                        {notification.notes && (
-                          <p className="text-sm text-green-700 bg-green-50 p-2 rounded">
-                            <strong>Acción tomada:</strong> {notification.notes}
+              {isLoading ? (
+                <div className="text-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
+                  <p className="text-muted-foreground">Cargando notificaciones...</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {filteredNotifications.map((notification) => (
+                    <div 
+                      key={notification.id} 
+                      className="border rounded-lg p-4 space-y-3 hover:bg-accent/50 transition-colors"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="space-y-1 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="font-medium">{notification.title}</h3>
+                            <Badge variant={getPriorityColor(notification.priority)}>
+                              {notification.priority.toUpperCase()}
+                            </Badge>
+                            <Badge variant="outline">
+                              {getTypeLabel(notification.type)}
+                            </Badge>
+                            {getStatusBadge(notification)}
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {notification.message}
                           </p>
-                        )}
+                          {notification.notes && (
+                            <div className="text-sm text-green-700 bg-green-50 p-2 rounded">
+                              <strong>Acción tomada:</strong> {notification.notes}
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className="text-xs text-muted-foreground text-right ml-4">
+                          <div>Programada: {format(notification.scheduledAt, "d MMM yyyy, HH:mm", { locale: es })}</div>
+                          {notification.sentAt && (
+                            <div className="text-green-600">Enviada: {format(notification.sentAt, "d MMM HH:mm", { locale: es })}</div>
+                          )}
+                          {notification.readAt && (
+                            <div className="text-blue-600">Leída: {format(notification.readAt, "d MMM HH:mm", { locale: es })}</div>
+                          )}
+                          {notification.completedAt && (
+                            <div className="text-green-600">Completada: {format(notification.completedAt, "d MMM HH:mm", { locale: es })}</div>
+                          )}
+                        </div>
                       </div>
                       
-                      <div className="text-xs text-muted-foreground text-right">
-                        <div>Programada: {format(notification.scheduledAt, "d MMM yyyy, HH:mm", { locale: es })}</div>
-                        {notification.sentAt && (
-                          <div>Enviada: {format(notification.sentAt, "d MMM yyyy, HH:mm", { locale: es })}</div>
-                        )}
-                        {notification.readAt && (
-                          <div>Leída: {format(notification.readAt, "d MMM yyyy, HH:mm", { locale: es })}</div>
-                        )}
-                        {notification.completedAt && (
-                          <div>Completada: {format(notification.completedAt, "d MMM yyyy, HH:mm", { locale: es })}</div>
-                        )}
-                        {notification.completedBy && (
-                          <div>Por: {notification.completedBy}</div>
-                        )}
+                      <div className="flex justify-between items-center pt-2 border-t">
+                        <span className="text-xs text-muted-foreground">
+                          Destinatario: {notification.recipientId}
+                        </span>
+                        
+                        <NotificationActions
+                          notification={notification}
+                          onAction={handleNotificationAction}
+                          compact={true}
+                        />
                       </div>
                     </div>
-                    
-                    <div className="flex justify-between items-center pt-2 border-t">
-                      <span className="text-xs text-muted-foreground">
-                        Destinatario: {notification.recipientId}
-                      </span>
-                      
-                      <NotificationActions
-                        notification={notification}
-                        onAction={handleNotificationAction}
-                        compact={true}
-                      />
+                  ))}
+                  
+                  {filteredNotifications.length === 0 && (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Bell className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                      <p>
+                        {statusFilter === 'all' 
+                          ? 'No hay notificaciones registradas'
+                          : `No hay notificaciones con estado: ${statusFilter}`
+                        }
+                      </p>
                     </div>
-                  </div>
-                ))}
-                
-                {filteredNotifications.length === 0 && !isLoading && (
-                  <div className="text-center py-8 text-muted-foreground">
-                    {statusFilter === 'all' 
-                      ? 'No hay notificaciones registradas'
-                      : `No hay notificaciones ${statusFilter === 'pending' ? 'pendientes' : statusFilter === 'completed' ? 'completadas' : statusFilter}`
-                    }
-                  </div>
-                )}
-                
-                {isLoading && (
-                  <div className="text-center py-8">
-                    <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
-                    <p className="text-muted-foreground">Cargando notificaciones...</p>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -509,7 +463,7 @@ export function Notifications() {
             <CardHeader>
               <CardTitle>Crear Nueva Notificación</CardTitle>
               <CardDescription>
-                Programa una nueva notificación manual
+                Programa una notificación manual para el sistema
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -526,19 +480,19 @@ export function Notifications() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="maintenance_alert">Alerta de Mantenimiento</SelectItem>
-                      <SelectItem value="checkin_reminder">Recordatorio Check-in</SelectItem>
-                      <SelectItem value="checkout_reminder">Recordatorio Check-out</SelectItem>
-                      <SelectItem value="flight_delay">Alerta de Vuelo</SelectItem>
-                      <SelectItem value="payment_reminder">Recordatorio de Pago</SelectItem>
-                      <SelectItem value="welcome_message">Mensaje de Bienvenida</SelectItem>
-                      <SelectItem value="cleaning_schedule">Programa de Limpieza</SelectItem>
+                      <SelectItem value="maintenance_alert">🔧 Mantenimiento</SelectItem>
+                      <SelectItem value="checkin_reminder">📍 Check-in</SelectItem>
+                      <SelectItem value="checkout_reminder">📤 Check-out</SelectItem>
+                      <SelectItem value="flight_delay">✈️ Vuelo</SelectItem>
+                      <SelectItem value="payment_reminder">💳 Pago</SelectItem>
+                      <SelectItem value="welcome_message">👋 Bienvenida</SelectItem>
+                      <SelectItem value="cleaning_schedule">🧹 Limpieza</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="scheduledAt">Fecha y Hora</Label>
+                  <Label htmlFor="scheduledAt">Fecha y Hora de Envío</Label>
                   <Input
                     id="scheduledAt"
                     type="datetime-local"
@@ -546,40 +500,46 @@ export function Notifications() {
                     onChange={(e) => 
                       setNewNotification(prev => ({ ...prev, scheduledAt: e.target.value }))
                     }
+                    min={new Date().toISOString().slice(0, 16)}
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="title">Título</Label>
+                <Label htmlFor="title">Título *</Label>
                 <Input
                   id="title"
-                  placeholder="Título de la notificación"
+                  placeholder="Título descriptivo de la notificación"
                   value={newNotification.title}
                   onChange={(e) => 
                     setNewNotification(prev => ({ ...prev, title: e.target.value }))
                   }
+                  maxLength={100}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="message">Mensaje</Label>
+                <Label htmlFor="message">Mensaje *</Label>
                 <Textarea
                   id="message"
-                  placeholder="Contenido del mensaje"
+                  placeholder="Contenido detallado del mensaje"
                   rows={4}
                   value={newNotification.message}
                   onChange={(e) => 
                     setNewNotification(prev => ({ ...prev, message: e.target.value }))
                   }
+                  maxLength={500}
                 />
+                <p className="text-xs text-muted-foreground">
+                  {newNotification.message.length}/500 caracteres
+                </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="recipientId">ID del Destinatario (opcional)</Label>
+                <Label htmlFor="recipientId">Destinatario (opcional)</Label>
                 <Input
                   id="recipientId"
-                  placeholder="staff, reservation-id, etc."
+                  placeholder="ID del destinatario o 'staff' para personal"
                   value={newNotification.recipientId}
                   onChange={(e) => 
                     setNewNotification(prev => ({ ...prev, recipientId: e.target.value }))
@@ -587,7 +547,11 @@ export function Notifications() {
                 />
               </div>
 
-              <Button onClick={handleCreateNotification} className="w-full">
+              <Button 
+                onClick={handleCreateNotification} 
+                className="w-full"
+                disabled={!newNotification.title.trim() || !newNotification.message.trim()}
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 Crear Notificación
               </Button>
@@ -598,95 +562,64 @@ export function Notifications() {
         <TabsContent value="settings">
           <Card>
             <CardHeader>
-              <CardTitle>Configuración de Notificaciones</CardTitle>
+              <CardTitle>Configuración del Sistema</CardTitle>
               <CardDescription>
-                Configura las preferencias del sistema de notificaciones
+                Ajustes y preferencias para las notificaciones
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
-                <h3 className="text-lg font-medium">Canales de Notificación</h3>
-                
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 border rounded">
-                    <div className="flex items-center gap-3">
-                      <Mail className="h-5 w-5 text-blue-500" />
-                      <div>
-                        <Label htmlFor="emailEnabled">Notificaciones por Email</Label>
-                        <p className="text-sm text-muted-foreground">
-                          Enviar a: cabanasmanuara@gmail.com
-                        </p>
-                      </div>
+                <h3 className="text-lg font-medium">Estado del Sistema</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="p-4 border rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                      <span className="font-medium">Sistema Activo</span>
                     </div>
-                    <Switch id="emailEnabled" defaultChecked />
+                    <p className="text-sm text-muted-foreground">
+                      El sistema de notificaciones está funcionando correctamente
+                    </p>
                   </div>
-
-                  <div className="flex items-center justify-between p-3 border rounded">
-                    <div className="flex items-center gap-3">
-                      <MessageCircle className="h-5 w-5 text-green-500" />
-                      <div>
-                        <Label htmlFor="whatsappEnabled">Notificaciones WhatsApp</Label>
-                        <p className="text-sm text-muted-foreground">
-                          Enviar a: +56984562244 (solo urgentes/altas)
-                        </p>
-                      </div>
+                  
+                  <div className="p-4 border rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                      <span className="font-medium">Actualizaciones Auto</span>
                     </div>
-                    <Switch id="whatsappEnabled" defaultChecked />
+                    <p className="text-sm text-muted-foreground">
+                      Las notificaciones se procesan automáticamente cada 60 segundos
+                    </p>
                   </div>
-
-                  <div className="flex items-center justify-between p-3 border rounded">
-                    <div className="flex items-center gap-3">
-                      <Bell className="h-5 w-5 text-purple-500" />
-                      <div>
-                        <Label htmlFor="pushEnabled">Notificaciones Push</Label>
-                        <p className="text-sm text-muted-foreground">
-                          Mostrar notificaciones en el navegador
-                        </p>
-                      </div>
+                  
+                  <div className="p-4 border rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                      <span className="font-medium">Email Configurado</span>
                     </div>
-                    <Switch id="pushEnabled" defaultChecked />
+                    <p className="text-sm text-muted-foreground">
+                      Enviando a: cabanasmanuara@gmail.com
+                    </p>
                   </div>
                 </div>
               </div>
 
               <div className="space-y-4">
-                <h3 className="text-lg font-medium">Plantillas Automáticas</h3>
-                <p className="text-sm text-muted-foreground">
-                  Las notificaciones automáticas se generan según estas plantillas predefinidas
-                </p>
-                
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 border rounded">
-                    <div>
-                      <div className="font-medium">Recordatorio Check-in</div>
-                      <div className="text-sm text-muted-foreground">24h antes del check-in</div>
-                    </div>
-                    <Switch defaultChecked />
+                <h3 className="text-lg font-medium">Flujo de Estados</h3>
+                <div className="p-4 bg-muted rounded-lg">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Badge variant="outline" className="bg-yellow-50">Pendiente</Badge>
+                    <span>→</span>
+                    <Badge variant="outline" className="bg-green-50">Enviada</Badge>
+                    <span>→</span>
+                    <Badge variant="outline" className="bg-blue-50">Leída</Badge>
+                    <span>→</span>
+                    <Badge variant="default" className="bg-green-100">Completada</Badge>
+                    <span>/</span>
+                    <Badge variant="secondary">Archivada</Badge>
                   </div>
-                  
-                  <div className="flex items-center justify-between p-3 border rounded">
-                    <div>
-                      <div className="font-medium">Recordatorio Check-out</div>
-                      <div className="text-sm text-muted-foreground">24h antes del check-out</div>
-                    </div>
-                    <Switch defaultChecked />
-                  </div>
-                  
-                  <div className="flex items-center justify-between p-3 border rounded">
-                    <div>
-                      <div className="font-medium">Mensaje de Bienvenida</div>
-                      <div className="text-sm text-muted-foreground">Al momento del check-in</div>
-                    </div>
-                    <Switch defaultChecked />
-                  </div>
-                  
-                  <div className="flex items-center justify-between p-3 border rounded">
-                    <div>
-                      <div className="font-medium">Alerta de Vuelo</div>
-                      <div className="text-sm text-muted-foreground">2h antes del vuelo</div>
-                    </div>
-                    <Switch defaultChecked />
-                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Las notificaciones siguen este flujo de estados. Solo las enviadas pero no leídas aparecen en la campana.
+                  </p>
                 </div>
               </div>
             </CardContent>

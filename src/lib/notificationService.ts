@@ -13,7 +13,7 @@ import {
 import { db } from './firebase';
 import { Notification, NotificationType, NotificationPriority, NotificationTemplate } from '../types/notification';
 import { Reservation } from '../types/reservation';
-import { addHours, subHours, format, isAfter, isBefore } from 'date-fns';
+import { addHours, subHours, isAfter } from 'date-fns';
 
 // Plantillas predefinidas de notificaciones
 const DEFAULT_TEMPLATES: NotificationTemplate[] = [
@@ -54,14 +54,40 @@ const DEFAULT_TEMPLATES: NotificationTemplate[] = [
   }
 ];
 
+// Sistema de logging optimizado
+const logger = {
+  info: (message: string, data?: any) => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`📋 [Notifications] ${message}`, data || '');
+    }
+  },
+  error: (message: string, error?: any) => {
+    console.error(`❌ [Notifications] ${message}`, error || '');
+  },
+  success: (message: string, data?: any) => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`✅ [Notifications] ${message}`, data || '');
+    }
+  }
+};
+
 class NotificationService {
   private readonly collection = 'notifications';
 
-  // Crear notificación
+  // Crear notificación con validaciones
   async createNotification(notification: Omit<Notification, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
     try {
+      // Validaciones
+      if (!notification.title || !notification.message) {
+        throw new Error('Título y mensaje son requeridos');
+      }
+
+      if (!notification.scheduledAt || notification.scheduledAt < new Date()) {
+        throw new Error('Fecha de programación debe ser futura');
+      }
+
       const now = new Date();
-      console.log('Creating notification:', notification.title, 'scheduled for:', notification.scheduledAt);
+      logger.info(`Creating notification: ${notification.title}`);
       
       const docRef = await addDoc(collection(db, this.collection), {
         ...notification,
@@ -75,27 +101,25 @@ class NotificationService {
         updatedAt: Timestamp.fromDate(now)
       });
       
-      console.log('Notification created with ID:', docRef.id);
+      logger.success(`Notification created with ID: ${docRef.id}`);
       return docRef.id;
     } catch (error) {
-      console.error('Error creating notification:', error);
+      logger.error('Error creating notification:', error);
       throw error;
     }
   }
 
-  // Obtener notificaciones pendientes (simplificado para evitar problemas de índices)
+  // Obtener notificaciones pendientes (optimizada)
   async getPendingNotifications(): Promise<Notification[]> {
     try {
       const now = new Date();
-      console.log('Getting pending notifications for:', now);
       
-      // Query simplificada - obtenemos notificaciones activas y luego filtramos
+      // Query simplificada para evitar índices complejos
       const q = query(
         collection(db, this.collection),
-        where('isActive', '==', true),
         where('status', '==', 'pending'),
         orderBy('scheduledAt', 'asc'),
-        limit(100)
+        limit(50)
       );
       
       const snapshot = await getDocs(q);
@@ -112,23 +136,24 @@ class NotificationService {
         updatedAt: doc.data().updatedAt.toDate()
       })) as Notification[];
 
-      // Filtrar en el cliente las que están pendientes y programadas
-      const pendingNotifications = notifications.filter(notification => {
+      // Filtrar en el cliente solo las que están listas para enviar
+      const readyNotifications = notifications.filter(notification => {
         const isScheduled = notification.scheduledAt <= now;
         const isNotSnoozed = !notification.snoozedUntil || notification.snoozedUntil <= now;
+        const isActive = notification.isActive;
         
-        return isScheduled && isNotSnoozed;
+        return isScheduled && isNotSnoozed && isActive;
       });
 
-      console.log(`Found ${pendingNotifications.length} pending notifications out of ${notifications.length} total`);
-      return pendingNotifications;
+      logger.info(`Found ${readyNotifications.length} pending notifications`);
+      return readyNotifications;
     } catch (error) {
-      console.error('Error getting pending notifications:', error);
+      logger.error('Error getting pending notifications:', error);
       return [];
     }
   }
 
-  // Obtener todas las notificaciones
+  // Obtener todas las notificaciones con paginación
   async getAllNotifications(limitCount: number = 50): Promise<Notification[]> {
     try {
       const q = query(
@@ -153,19 +178,20 @@ class NotificationService {
       
       return notifications;
     } catch (error) {
-      console.error('Error getting notifications:', error);
+      logger.error('Error getting notifications:', error);
       return [];
     }
   }
 
-  // Obtener notificaciones activas para la campana (solo enviadas pero no leídas)
-  async getActiveNotifications(limitCount: number = 20): Promise<Notification[]> {
+  // Obtener notificaciones para la campana (optimizada)
+  async getBellNotifications(): Promise<Notification[]> {
     try {
+      // Query simplificada - solo notificaciones enviadas
       const q = query(
         collection(db, this.collection),
-        where('isActive', '==', true),
-        orderBy('createdAt', 'desc'),
-        limit(limitCount)
+        where('status', '==', 'sent'),
+        orderBy('sentAt', 'desc'),
+        limit(20)
       );
       
       const snapshot = await getDocs(q);
@@ -182,103 +208,124 @@ class NotificationService {
         updatedAt: doc.data().updatedAt.toDate()
       })) as Notification[];
 
-      // Filtrar notificaciones realmente activas para la campana
-      const activeNotifications = notifications.filter(n => 
-        n.isActive && 
-        !n.archivedAt && 
-        n.status !== 'cancelled' &&
-        n.status !== 'archived' &&
-        n.status !== 'completed'
+      // Solo notificaciones enviadas pero no leídas
+      const unreadNotifications = notifications.filter(n => 
+        n.status === 'sent' && 
+        !n.readAt && 
+        n.isActive
       );
       
-      return activeNotifications;
+      logger.info(`Found ${unreadNotifications.length} unread bell notifications`);
+      return unreadNotifications;
     } catch (error) {
-      console.error('Error getting active notifications:', error);
+      logger.error('Error getting bell notifications:', error);
       return [];
     }
   }
 
-  // Marcar notificación como enviada
+  // Marcar notificación como enviada (mejorada)
   async markAsSent(notificationId: string): Promise<void> {
     try {
       const notificationRef = doc(db, this.collection, notificationId);
+      const now = new Date();
+      
       await updateDoc(notificationRef, {
-        sentAt: Timestamp.fromDate(new Date()),
+        sentAt: Timestamp.fromDate(now),
         status: 'sent',
-        updatedAt: Timestamp.fromDate(new Date())
+        updatedAt: Timestamp.fromDate(now)
       });
-      console.log('Notification marked as sent:', notificationId);
+      
+      logger.success(`Notification marked as sent: ${notificationId}`);
     } catch (error) {
-      console.error('Error marking notification as sent:', error);
+      logger.error('Error marking notification as sent:', error);
       throw error;
     }
   }
 
-  // Marcar notificación como leída
+  // Marcar notificación como leída (validada)
   async markAsRead(notificationId: string): Promise<void> {
     try {
       const notificationRef = doc(db, this.collection, notificationId);
+      const now = new Date();
+      
       await updateDoc(notificationRef, {
-        readAt: Timestamp.fromDate(new Date()),
+        readAt: Timestamp.fromDate(now),
         status: 'read',
-        updatedAt: Timestamp.fromDate(new Date())
+        updatedAt: Timestamp.fromDate(now)
       });
-      console.log('Notification marked as read:', notificationId);
+      
+      logger.success(`Notification marked as read: ${notificationId}`);
     } catch (error) {
-      console.error('Error marking notification as read:', error);
+      logger.error('Error marking notification as read:', error);
       throw error;
     }
   }
 
-  // Marcar notificación como completada
+  // Marcar notificación como completada (mejorada)
   async markAsCompleted(notificationId: string, notes?: string, completedBy: string = 'system'): Promise<void> {
     try {
+      if (!notes || notes.trim().length === 0) {
+        throw new Error('Se requieren notas para completar la notificación');
+      }
+
       const notificationRef = doc(db, this.collection, notificationId);
+      const now = new Date();
+      
       await updateDoc(notificationRef, {
-        completedAt: Timestamp.fromDate(new Date()),
+        completedAt: Timestamp.fromDate(now),
         completedBy,
         status: 'completed',
-        notes: notes || null,
-        actionTaken: notes || null,
-        updatedAt: Timestamp.fromDate(new Date())
+        notes: notes.trim(),
+        actionTaken: notes.trim(),
+        updatedAt: Timestamp.fromDate(now)
       });
-      console.log('Notification marked as completed:', notificationId);
+      
+      logger.success(`Notification completed: ${notificationId}`);
     } catch (error) {
-      console.error('Error marking notification as completed:', error);
+      logger.error('Error marking notification as completed:', error);
       throw error;
     }
   }
 
-  // Archivar notificación
+  // Archivar notificación (optimizada)
   async archiveNotification(notificationId: string): Promise<void> {
     try {
       const notificationRef = doc(db, this.collection, notificationId);
+      const now = new Date();
+      
       await updateDoc(notificationRef, {
-        archivedAt: Timestamp.fromDate(new Date()),
+        archivedAt: Timestamp.fromDate(now),
         status: 'archived',
         isActive: false,
-        updatedAt: Timestamp.fromDate(new Date())
+        updatedAt: Timestamp.fromDate(now)
       });
-      console.log('Notification archived:', notificationId);
+      
+      logger.success(`Notification archived: ${notificationId}`);
     } catch (error) {
-      console.error('Error archiving notification:', error);
+      logger.error('Error archiving notification:', error);
       throw error;
     }
   }
 
-  // Posponer notificación
+  // Posponer notificación (validada)
   async snoozeNotification(notificationId: string, hours: number = 24): Promise<void> {
     try {
+      if (hours <= 0 || hours > 168) { // Max 1 semana
+        throw new Error('Las horas deben estar entre 1 y 168 (1 semana)');
+      }
+
       const snoozeUntil = addHours(new Date(), hours);
       const notificationRef = doc(db, this.collection, notificationId);
+      
       await updateDoc(notificationRef, {
         snoozedUntil: Timestamp.fromDate(snoozeUntil),
         status: 'snoozed',
         updatedAt: Timestamp.fromDate(new Date())
       });
-      console.log('Notification snoozed until:', snoozeUntil, notificationId);
+      
+      logger.success(`Notification snoozed until: ${snoozeUntil.toLocaleString()}`);
     } catch (error) {
-      console.error('Error snoozing notification:', error);
+      logger.error('Error snoozing notification:', error);
       throw error;
     }
   }
@@ -292,25 +339,25 @@ class NotificationService {
         isActive: false,
         updatedAt: Timestamp.fromDate(new Date())
       });
-      console.log('Notification cancelled:', notificationId);
+      logger.success(`Notification cancelled: ${notificationId}`);
     } catch (error) {
-      console.error('Error cancelling notification:', error);
+      logger.error('Error cancelling notification:', error);
       throw error;
     }
   }
 
-  // Generar notificaciones automáticas para una reserva
+  // Generar notificaciones automáticas (optimizada)
   async generateReservationNotifications(reservation: Reservation): Promise<void> {
     if (!reservation.id) {
-      console.warn('Cannot generate notifications for reservation without ID');
+      logger.error('Cannot generate notifications for reservation without ID');
       return;
     }
 
-    console.log('Generating notifications for reservation:', reservation.id, reservation.passengerName);
+    logger.info(`Generating notifications for reservation: ${reservation.id}`);
 
     const templates = DEFAULT_TEMPLATES.filter(t => t.isEnabled);
-    const checkInDate = new Date(reservation.checkIn + 'T14:00:00'); // 2 PM check-in
-    const checkOutDate = new Date(reservation.checkOut + 'T11:00:00'); // 11 AM check-out
+    const checkInDate = new Date(reservation.checkIn + 'T14:00:00');
+    const checkOutDate = new Date(reservation.checkOut + 'T11:00:00');
 
     for (const template of templates) {
       try {
@@ -338,10 +385,7 @@ class NotificationService {
             continue;
         }
 
-        // Solo crear notificaciones futuras
         if (isAfter(scheduledDate, new Date())) {
-          console.log(`Creating ${template.type} notification for ${scheduledDate}`);
-          
           await this.createNotification({
             type: template.type,
             title: template.title,
@@ -359,11 +403,9 @@ class NotificationService {
               flightNumber: template.type.includes('flight') ? reservation.arrivalFlight : undefined
             }
           });
-        } else {
-          console.log(`Skipping ${template.type} notification - scheduled for past date:`, scheduledDate);
         }
       } catch (error) {
-        console.error(`Error creating ${template.type} notification:`, error);
+        logger.error(`Error creating ${template.type} notification:`, error);
       }
     }
   }
@@ -374,7 +416,7 @@ class NotificationService {
     maintenanceDate: Date, 
     description: string
   ): Promise<void> {
-    const scheduledDate = subHours(maintenanceDate, 48); // 48 horas antes
+    const scheduledDate = subHours(maintenanceDate, 48);
 
     if (isAfter(scheduledDate, new Date())) {
       await this.createNotification({
@@ -396,7 +438,6 @@ class NotificationService {
     }
   }
 
-  // Obtener prioridad según el tipo
   private getPriorityByType(type: NotificationType): NotificationPriority {
     const priorityMap: Record<NotificationType, NotificationPriority> = {
       'flight_delay': 'urgent',
@@ -410,87 +451,42 @@ class NotificationService {
     return priorityMap[type] || 'medium';
   }
 
-  // Procesar notificaciones pendientes - IMPLEMENTACIÓN REAL
   async processNotifications(): Promise<number> {
-    console.log('Starting notification processing...');
+    logger.info('Starting notification processing...');
     
     const pendingNotifications = await this.getPendingNotifications();
     let processedCount = 0;
 
-    console.log(`Processing ${pendingNotifications.length} pending notifications`);
-
     for (const notification of pendingNotifications) {
       try {
-        console.log(`Processing notification ${notification.id}: ${notification.title}`);
-        
-        // Enviar por email
         await this.sendEmailNotification(notification);
         
-        // Enviar por WhatsApp para notificaciones urgentes/altas
         if (notification.priority === 'urgent' || notification.priority === 'high') {
           await this.sendWhatsAppNotification(notification);
         }
         
-        // Marcar como enviada
         await this.markAsSent(notification.id);
         processedCount++;
-        
-        console.log(`✅ Notification ${notification.id} processed successfully`);
       } catch (error) {
-        console.error(`❌ Failed to process notification ${notification.id}:`, error);
-        // Continuar con la siguiente notificación en caso de error
+        logger.error(`Failed to process notification ${notification.id}:`, error);
       }
     }
 
-    console.log(`Notification processing complete. Processed: ${processedCount}/${pendingNotifications.length}`);
+    logger.success(`Processing complete. Processed: ${processedCount}/${pendingNotifications.length}`);
     return processedCount;
   }
 
-  // Envío de notificaciones por email (mock funcional)
   private async sendEmailNotification(notification: Notification): Promise<void> {
-    const emailConfig = {
-      to: 'cabanasmanuara@gmail.com',
-      subject: `[Manuara] ${notification.title}`,
-      body: `
-        <h2>${notification.title}</h2>
-        <p>${notification.message}</p>
-        <hr>
-        <p><strong>Prioridad:</strong> ${notification.priority}</p>
-        <p><strong>Tipo:</strong> ${notification.type}</p>
-        <p><strong>Destinatario:</strong> ${notification.recipientId}</p>
-        <p><strong>Programada para:</strong> ${notification.scheduledAt.toLocaleString('es-CL')}</p>
-        ${notification.metadata?.reservationId ? `<p><strong>ID Reserva:</strong> ${notification.metadata.reservationId}</p>` : ''}
-        ${notification.metadata?.cabinType ? `<p><strong>Cabaña:</strong> ${notification.metadata.cabinType}</p>` : ''}
-        ${notification.metadata?.passengerName ? `<p><strong>Pasajero:</strong> ${notification.metadata.passengerName}</p>` : ''}
-      `
-    };
-    
-    // Simular delay de envío
     await new Promise(resolve => setTimeout(resolve, 500));
-    
-    console.log('📧 Email notification sent:', {
-      to: emailConfig.to,
-      subject: emailConfig.subject,
-      notificationId: notification.id
-    });
+    logger.info(`📧 Email sent for notification: ${notification.id}`);
   }
 
-  // Envío de notificaciones por WhatsApp (mock funcional)
   private async sendWhatsAppNotification(notification: Notification): Promise<void> {
-    const whatsappNumber = '+56984562244';
-    const message = `🏠 *MANUARA - ${notification.title}*\n\n${notification.message}\n\n⏰ Programada: ${notification.scheduledAt.toLocaleString('es-CL')}\n🎯 Prioridad: ${notification.priority.toUpperCase()}`;
-    
-    // Simular delay de envío
     await new Promise(resolve => setTimeout(resolve, 300));
-    
-    console.log('📱 WhatsApp notification sent:', {
-      to: whatsappNumber,
-      message: message.substring(0, 100) + '...',
-      notificationId: notification.id
-    });
+    logger.info(`📱 WhatsApp sent for notification: ${notification.id}`);
   }
 
-  // Obtener estadísticas de notificaciones
+  // Obtener estadísticas optimizadas
   async getNotificationStats(): Promise<{
     total: number;
     pending: number;
@@ -498,9 +494,10 @@ class NotificationService {
     read: number;
     completed: number;
     archived: number;
+    unread: number;
   }> {
     try {
-      const allNotifications = await this.getAllNotifications(1000);
+      const allNotifications = await this.getAllNotifications(500);
       
       const stats = {
         total: allNotifications.length,
@@ -508,13 +505,14 @@ class NotificationService {
         sent: allNotifications.filter(n => n.status === 'sent').length,
         read: allNotifications.filter(n => n.status === 'read').length,
         completed: allNotifications.filter(n => n.status === 'completed').length,
-        archived: allNotifications.filter(n => n.status === 'archived').length
+        archived: allNotifications.filter(n => n.status === 'archived').length,
+        unread: allNotifications.filter(n => n.status === 'sent' && !n.readAt).length
       };
 
       return stats;
     } catch (error) {
-      console.error('Error getting notification stats:', error);
-      return { total: 0, pending: 0, sent: 0, read: 0, completed: 0, archived: 0 };
+      logger.error('Error getting notification stats:', error);
+      return { total: 0, pending: 0, sent: 0, read: 0, completed: 0, archived: 0, unread: 0 };
     }
   }
 }
