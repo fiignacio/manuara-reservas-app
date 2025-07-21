@@ -32,7 +32,7 @@ export const calculatePrice = (data: ReservationFormData): number => {
   return costPerNight * nights;
 };
 
-// Validar disponibilidad de cabaña con fechas inclusivas
+// Validar disponibilidad de cabaña - CORREGIDA para permitir check-in el día de check-out
 export const checkCabinAvailability = async (
   cabinType: string,
   checkIn: string,
@@ -54,28 +54,113 @@ export const checkCabinAvailability = async (
         return false;
       }
 
-      // Verificar solapamiento de fechas (inclusivo)
-      // Las fechas son inclusivas: check-in y check-out ambos cuentan como días ocupados
+      // LÓGICA CORREGIDA: Verificar solapamiento de fechas 
+      // Una cabaña se libera el día de check-out, permitiendo check-in ese mismo día
+      // 
+      // Hay conflicto SOLO si:
+      // - La nueva reserva empieza ANTES de que termine la existente (checkIn < resCheckOut) Y
+      // - La nueva reserva termina DESPUÉS de que empiece la existente (checkOut > resCheckIn)
+      //
+      // Ejemplos:
+      // Reserva existente: 2025-01-20 a 2025-01-25
+      // Nueva reserva: 2025-01-25 a 2025-01-30 → NO HAY CONFLICTO (check-in el día de check-out)
+      // Nueva reserva: 2025-01-24 a 2025-01-26 → SÍ HAY CONFLICTO (se solapa)
       const resCheckIn = reservation.checkIn;
       const resCheckOut = reservation.checkOut;
 
-      // Hay conflicto si las fechas se solapan de forma inclusiva:
-      // - La nueva reserva empieza antes o igual a cuando termina la existente Y
-      // - La nueva reserva termina después o igual a cuando empieza la existente
-      return checkIn <= resCheckOut && checkOut >= resCheckIn;
+      return checkIn < resCheckOut && checkOut > resCheckIn;
     });
 
   return conflictingReservations.length === 0;
 };
 
+// Validar fechas de reserva
+export const validateReservationDates = (checkIn: string, checkOut: string): { isValid: boolean; error?: string } => {
+  const today = new Date().toISOString().split('T')[0];
+  const checkInDate = new Date(checkIn);
+  const checkOutDate = new Date(checkOut);
+  const maxDate = addDays(today, 730); // 2 años en el futuro
+  const daysDifference = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
+
+  // Validar que check-in no sea en el pasado
+  if (checkIn < today) {
+    return {
+      isValid: false,
+      error: `La fecha de check-in no puede ser anterior a hoy (${new Date(today).toLocaleDateString('es-ES')})`
+    };
+  }
+
+  // Validar que check-out sea posterior a check-in
+  if (checkOut <= checkIn) {
+    return {
+      isValid: false,
+      error: 'La fecha de check-out debe ser al menos un día después del check-in'
+    };
+  }
+
+  // Validar que no sea muy lejana en el futuro
+  if (checkIn > maxDate) {
+    return {
+      isValid: false,
+      error: 'No se pueden hacer reservas con más de 2 años de anticipación'
+    };
+  }
+
+  // Validar duración máxima de estancia
+  if (daysDifference > 30) {
+    return {
+      isValid: false,
+      error: 'La estancia máxima permitida es de 30 días'
+    };
+  }
+
+  return { isValid: true };
+};
+
+// Obtener próxima fecha disponible para una cabaña
+export const getNextAvailableDate = async (cabinType: string, preferredCheckIn: string): Promise<string | null> => {
+  const q = query(
+    collection(db, COLLECTION_NAME),
+    where('cabinType', '==', cabinType),
+    where('checkOut', '>', preferredCheckIn),
+    orderBy('checkOut', 'asc')
+  );
+
+  const querySnapshot = await getDocs(q);
+  
+  if (querySnapshot.empty) {
+    return preferredCheckIn; // Cabaña disponible desde la fecha preferida
+  }
+
+  // Buscar el primer gap disponible
+  const reservations = querySnapshot.docs.map(doc => doc.data() as Reservation);
+  
+  for (const reservation of reservations) {
+    if (preferredCheckIn < reservation.checkIn) {
+      return preferredCheckIn; // Hay un gap antes de esta reserva
+    }
+    // La cabaña estará disponible desde el día de check-out de esta reserva
+    preferredCheckIn = reservation.checkOut;
+  }
+
+  return preferredCheckIn;
+};
+
 export const createReservation = async (data: ReservationFormData): Promise<string> => {
   console.log('Creating reservation for:', data.passengerName);
+  
+  // Validar fechas antes de verificar disponibilidad
+  const dateValidation = validateReservationDates(data.checkIn, data.checkOut);
+  if (!dateValidation.isValid) {
+    throw new Error(dateValidation.error);
+  }
   
   // Validar disponibilidad antes de crear
   const isAvailable = await checkCabinAvailability(data.cabinType, data.checkIn, data.checkOut);
   
   if (!isAvailable) {
-    throw new Error(`La ${data.cabinType} no está disponible para las fechas seleccionadas (${new Date(data.checkIn).toLocaleDateString('es-ES')} - ${new Date(data.checkOut).toLocaleDateString('es-ES')}). Ya existe una reserva que se solapa con este período.`);
+    const nextAvailable = await getNextAvailableDate(data.cabinType, data.checkIn);
+    throw new Error(`La ${data.cabinType} no está disponible para las fechas seleccionadas (${new Date(data.checkIn).toLocaleDateString('es-ES')} - ${new Date(data.checkOut).toLocaleDateString('es-ES')}). Próxima fecha disponible: ${nextAvailable ? new Date(nextAvailable).toLocaleDateString('es-ES') : 'No disponible'}`);
   }
 
   const totalPrice = calculatePrice(data);
@@ -108,11 +193,18 @@ export const createReservation = async (data: ReservationFormData): Promise<stri
 export const updateReservation = async (id: string, data: ReservationFormData): Promise<void> => {
   console.log('Updating reservation:', id);
   
+  // Validar fechas antes de verificar disponibilidad
+  const dateValidation = validateReservationDates(data.checkIn, data.checkOut);
+  if (!dateValidation.isValid) {
+    throw new Error(dateValidation.error);
+  }
+  
   // Validar disponibilidad antes de actualizar (excluyendo la reserva actual)
   const isAvailable = await checkCabinAvailability(data.cabinType, data.checkIn, data.checkOut, id);
   
   if (!isAvailable) {
-    throw new Error(`La ${data.cabinType} no está disponible para las fechas seleccionadas (${new Date(data.checkIn).toLocaleDateString('es-ES')} - ${new Date(data.checkOut).toLocaleDateString('es-ES')}). Ya existe una reserva que se solapa con este período.`);
+    const nextAvailable = await getNextAvailableDate(data.cabinType, data.checkIn);
+    throw new Error(`La ${data.cabinType} no está disponible para las fechas seleccionadas (${new Date(data.checkIn).toLocaleDateString('es-ES')} - ${new Date(data.checkOut).toLocaleDateString('es-ES')}). Próxima fecha disponible: ${nextAvailable ? new Date(nextAvailable).toLocaleDateString('es-ES') : 'No disponible'}`);
   }
 
   const totalPrice = calculatePrice(data);

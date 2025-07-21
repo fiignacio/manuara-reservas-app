@@ -1,13 +1,23 @@
+
 import { useState, useEffect } from 'react';
-import { X, Save, Loader2 } from 'lucide-react';
+import { X, Save, Loader2, Calendar, AlertCircle, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { Reservation, ReservationFormData } from '@/types/reservation';
-import { calculatePrice, createReservation, updateReservation } from '@/lib/reservationService';
+import { 
+  calculatePrice, 
+  createReservation, 
+  updateReservation, 
+  checkCabinAvailability,
+  validateReservationDates,
+  getNextAvailableDate
+} from '@/lib/reservationService';
+import { addDays } from '@/lib/dateUtils';
 
 interface ReservationModalProps {
   isOpen: boolean;
@@ -19,6 +29,11 @@ interface ReservationModalProps {
 const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: ReservationModalProps) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [checkingAvailability, setCheckingAvailability] = useState(false);
+  const [availabilityStatus, setAvailabilityStatus] = useState<'available' | 'unavailable' | 'checking' | null>(null);
+  const [nextAvailableDate, setNextAvailableDate] = useState<string | null>(null);
+  const [dateValidationError, setDateValidationError] = useState<string | null>(null);
+  
   const [formData, setFormData] = useState<ReservationFormData>({
     passengerName: '',
     checkIn: '',
@@ -32,6 +47,11 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
   });
 
   const [calculatedPrice, setCalculatedPrice] = useState(0);
+
+  // Configurar límites de fechas
+  const today = new Date().toISOString().split('T')[0];
+  const maxDate = addDays(today, 730); // 2 años en el futuro
+  const minCheckOut = formData.checkIn ? addDays(formData.checkIn, 1) : '';
 
   useEffect(() => {
     if (reservation) {
@@ -59,22 +79,88 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
         departureFlight: 'LA842'
       });
     }
+    setAvailabilityStatus(null);
+    setNextAvailableDate(null);
+    setDateValidationError(null);
   }, [reservation]);
 
+  // Validar fechas en tiempo real
   useEffect(() => {
     if (formData.checkIn && formData.checkOut) {
+      const validation = validateReservationDates(formData.checkIn, formData.checkOut);
+      if (!validation.isValid) {
+        setDateValidationError(validation.error || null);
+        setAvailabilityStatus(null);
+        return;
+      } else {
+        setDateValidationError(null);
+      }
+
       const price = calculatePrice(formData);
       setCalculatedPrice(price);
+    } else {
+      setCalculatedPrice(0);
+      setDateValidationError(null);
+      setAvailabilityStatus(null);
     }
   }, [formData]);
+
+  // Verificar disponibilidad cuando cambien las fechas o tipo de cabaña
+  useEffect(() => {
+    const checkAvailability = async () => {
+      if (formData.checkIn && formData.checkOut && formData.cabinType && !dateValidationError) {
+        setCheckingAvailability(true);
+        setAvailabilityStatus('checking');
+        
+        try {
+          const isAvailable = await checkCabinAvailability(
+            formData.cabinType, 
+            formData.checkIn, 
+            formData.checkOut,
+            reservation?.id
+          );
+          
+          if (isAvailable) {
+            setAvailabilityStatus('available');
+            setNextAvailableDate(null);
+          } else {
+            setAvailabilityStatus('unavailable');
+            const nextDate = await getNextAvailableDate(formData.cabinType, formData.checkIn);
+            setNextAvailableDate(nextDate);
+          }
+        } catch (error) {
+          console.error('Error checking availability:', error);
+          setAvailabilityStatus(null);
+        } finally {
+          setCheckingAvailability(false);
+        }
+      } else {
+        setAvailabilityStatus(null);
+        setNextAvailableDate(null);
+      }
+    };
+
+    const timeoutId = setTimeout(checkAvailability, 500); // Debounce para evitar demasiadas consultas
+    return () => clearTimeout(timeoutId);
+  }, [formData.checkIn, formData.checkOut, formData.cabinType, dateValidationError, reservation?.id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (new Date(formData.checkOut) <= new Date(formData.checkIn)) {
+    // Validaciones finales
+    if (dateValidationError) {
       toast({
-        title: "📅 Fechas inválidas",
-        description: `La fecha de check-out (${new Date(formData.checkOut).toLocaleDateString('es-ES')}) debe ser posterior a la fecha de check-in (${new Date(formData.checkIn).toLocaleDateString('es-ES')}). Por favor, corrige las fechas.`,
+        title: "📅 Error en las fechas",
+        description: dateValidationError,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (availabilityStatus === 'unavailable') {
+      toast({
+        title: "❌ Cabaña no disponible",
+        description: `La ${formData.cabinType} no está disponible para las fechas seleccionadas. ${nextAvailableDate ? `Próxima fecha disponible: ${new Date(nextAvailableDate).toLocaleDateString('es-ES')}` : ''}`,
         variant: "destructive"
       });
       return;
@@ -115,22 +201,72 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
     } catch (error: any) {
       const errorMessage = error.message || "Hubo un problema al guardar la reserva.";
       
-      if (errorMessage.includes('no está disponible')) {
-        toast({
-          title: "❌ Cabaña no disponible",
-          description: `La ${formData.cabinType} ya está reservada para las fechas seleccionadas (${new Date(formData.checkIn).toLocaleDateString('es-ES')} - ${new Date(formData.checkOut).toLocaleDateString('es-ES')}). Por favor, selecciona otras fechas o una cabaña diferente.`,
-          variant: "destructive"
-        });
-      } else {
-        toast({
-          title: "⚠️ Error al procesar la reserva",
-          description: `No se pudo ${reservation?.id ? 'actualizar' : 'crear'} la reserva. ${errorMessage}`,
-          variant: "destructive"
-        });
-      }
+      toast({
+        title: "⚠️ Error al procesar la reserva",
+        description: `No se pudo ${reservation?.id ? 'actualizar' : 'crear'} la reserva. ${errorMessage}`,
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleUseNextAvailableDate = () => {
+    if (nextAvailableDate) {
+      setFormData({ 
+        ...formData, 
+        checkIn: nextAvailableDate,
+        checkOut: addDays(nextAvailableDate, Math.ceil((new Date(formData.checkOut).getTime() - new Date(formData.checkIn).getTime()) / (1000 * 60 * 60 * 24)))
+      });
+    }
+  };
+
+  const getAvailabilityIndicator = () => {
+    if (checkingAvailability || availabilityStatus === 'checking') {
+      return (
+        <Alert>
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <AlertDescription>Verificando disponibilidad...</AlertDescription>
+        </Alert>
+      );
+    }
+
+    if (availabilityStatus === 'available') {
+      return (
+        <Alert className="border-green-500 bg-green-50">
+          <CheckCircle className="h-4 w-4 text-green-600" />
+          <AlertDescription className="text-green-800">
+            ✅ {formData.cabinType} disponible para las fechas seleccionadas
+          </AlertDescription>
+        </Alert>
+      );
+    }
+
+    if (availabilityStatus === 'unavailable') {
+      return (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            ❌ {formData.cabinType} no disponible para estas fechas.
+            {nextAvailableDate && (
+              <div className="mt-2 space-y-2">
+                <div>Próxima fecha disponible: {new Date(nextAvailableDate).toLocaleDateString('es-ES')}</div>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleUseNextAvailableDate}
+                >
+                  Usar esta fecha
+                </Button>
+              </div>
+            )}
+          </AlertDescription>
+        </Alert>
+      );
+    }
+
+    return null;
   };
 
   return (
@@ -156,12 +292,14 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
               />
             </div>
 
-            {/* Fechas */}
+            {/* Fechas con validaciones mejoradas */}
             <div>
               <Label htmlFor="checkIn">Fecha de Check-in</Label>
               <Input
                 id="checkIn"
                 type="date"
+                min={today}
+                max={maxDate}
                 value={formData.checkIn}
                 onChange={(e) => setFormData({ ...formData, checkIn: e.target.value })}
                 required
@@ -174,6 +312,8 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
               <Input
                 id="checkOut"
                 type="date"
+                min={minCheckOut}
+                max={maxDate}
                 value={formData.checkOut}
                 onChange={(e) => setFormData({ ...formData, checkOut: e.target.value })}
                 required
@@ -181,6 +321,38 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
               />
             </div>
 
+            {/* Tipo de Cabaña */}
+            <div className="md:col-span-2">
+              <Label>Tipo de Cabaña</Label>
+              <Select
+                value={formData.cabinType}
+                onValueChange={(value: any) => setFormData({ ...formData, cabinType: value })}
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Cabaña Pequeña (Max 3p)">Cabaña Pequeña (Max 3p)</SelectItem>
+                  <SelectItem value="Cabaña Mediana 1 (Max 4p)">Cabaña Mediana 1 (Max 4p)</SelectItem>
+                  <SelectItem value="Cabaña Mediana 2 (Max 4p)">Cabaña Mediana 2 (Max 4p)</SelectItem>
+                  <SelectItem value="Cabaña Grande (Max 6p)">Cabaña Grande (Max 6p)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Indicador de validación de fechas */}
+          {dateValidationError && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{dateValidationError}</AlertDescription>
+            </Alert>
+          )}
+
+          {/* Indicador de disponibilidad */}
+          {!dateValidationError && getAvailabilityIndicator()}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Número de personas */}
             <div>
               <Label htmlFor="adults">Número de Adultos</Label>
@@ -226,25 +398,6 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
               </Select>
             </div>
 
-            {/* Tipo de Cabaña */}
-            <div>
-              <Label>Tipo de Cabaña</Label>
-              <Select
-                value={formData.cabinType}
-                onValueChange={(value: any) => setFormData({ ...formData, cabinType: value })}
-              >
-                <SelectTrigger className="mt-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Cabaña Pequeña (Max 3p)">Cabaña Pequeña (Max 3p)</SelectItem>
-                  <SelectItem value="Cabaña Mediana 1 (Max 4p)">Cabaña Mediana 1 (Max 4p)</SelectItem>
-                  <SelectItem value="Cabaña Mediana 2 (Max 4p)">Cabaña Mediana 2 (Max 4p)</SelectItem>
-                  <SelectItem value="Cabaña Grande (Max 6p)">Cabaña Grande (Max 6p)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
             {/* Vuelos */}
             <div>
               <Label>Vuelo de Llegada</Label>
@@ -280,11 +433,14 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
           </div>
 
           {/* Precio calculado */}
-          {calculatedPrice > 0 && (
+          {calculatedPrice > 0 && !dateValidationError && (
             <div className="bg-accent p-4 rounded-lg">
               <div className="text-sm text-muted-foreground">Precio Total</div>
               <div className="text-2xl font-bold text-primary">
                 ${calculatedPrice.toLocaleString('es-CL')}
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">
+                {Math.ceil((new Date(formData.checkOut).getTime() - new Date(formData.checkIn).getTime()) / (1000 * 60 * 60 * 24))} noches
               </div>
             </div>
           )}
@@ -301,7 +457,7 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
             </Button>
             <Button
               type="submit"
-              disabled={loading}
+              disabled={loading || availabilityStatus === 'unavailable' || !!dateValidationError}
               className="flex-1 btn-cabin"
             >
               {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
