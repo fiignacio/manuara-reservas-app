@@ -217,16 +217,30 @@ export const getUpcomingArrivals = async (days: number = 5): Promise<Reservation
 
 export const getTomorrowDepartures = async (): Promise<Reservation[]> => {
   const tomorrow = getTomorrowDate();
+  console.log('Getting tomorrow departures for date:', tomorrow);
+  
   const q = query(
     collection(db, COLLECTION_NAME),
     where('checkOut', '==', tomorrow)
   );
   const querySnapshot = await getDocs(q);
   
-  return querySnapshot.docs.map(doc => ({
+  const departures = querySnapshot.docs.map(doc => ({
     id: doc.id,
     ...doc.data()
   } as Reservation));
+  
+  console.log(`Found ${departures.length} departures for tomorrow (${tomorrow}):`, 
+    departures.map(d => ({
+      id: d.id,
+      passenger: d.passengerName,
+      cabin: d.cabinType,
+      checkOut: d.checkOut,
+      flight: d.departureFlight
+    }))
+  );
+  
+  return departures;
 };
 
 export const getArrivalsForDate = async (date: string): Promise<Reservation[]> => {
@@ -247,23 +261,28 @@ export const deleteExpiredReservations = async (): Promise<number> => {
   console.log('Checking for expired reservations...');
   
   const today = new Date().toISOString().split('T')[0];
-  const yesterday = addDays(today, -1);
+  console.log('Today date:', today);
   
-  // Buscar reservas que salieron ayer o antes
+  // Buscar reservas que salieron antes de hoy (no igual a hoy)
+  // Si checkout es '2025-01-21', se debe eliminar a partir del '2025-01-22'
   const q = query(
     collection(db, COLLECTION_NAME),
-    where('checkOut', '<=', yesterday)
+    where('checkOut', '<', today)
   );
   
   const querySnapshot = await getDocs(q);
   let deletedCount = 0;
   
+  console.log(`Found ${querySnapshot.docs.length} reservations to evaluate for deletion`);
+  
   // Eliminar reservas vencidas
   for (const docSnapshot of querySnapshot.docs) {
     try {
+      const reservationData = docSnapshot.data();
+      console.log(`Deleting expired reservation: ${docSnapshot.id}, checkout: ${reservationData.checkOut}, passenger: ${reservationData.passengerName}`);
+      
       await deleteDoc(doc(db, COLLECTION_NAME, docSnapshot.id));
       deletedCount++;
-      console.log(`Deleted expired reservation: ${docSnapshot.id}`);
     } catch (error) {
       console.error(`Error deleting expired reservation ${docSnapshot.id}:`, error);
     }

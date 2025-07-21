@@ -11,8 +11,28 @@ import Reservations from "./pages/Reservations";
 import Analytics from "./pages/Analytics";
 import { Notifications } from "./pages/Notifications";
 import NotFound from "./pages/NotFound";
+import { useNotificationProcessor } from "./hooks/useNotificationProcessor";
 
 const queryClient = new QueryClient();
+
+const AppContent = () => {
+  // Activar el procesador de notificaciones automático
+  useNotificationProcessor();
+
+  return (
+    <Layout>
+      <Routes>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/calendar" element={<Calendar />} />
+        <Route path="/reservations" element={<Reservations />} />
+        <Route path="/analytics" element={<Analytics />} />
+        <Route path="/notifications" element={<Notifications />} />
+        {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </Layout>
+  );
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -20,17 +40,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Layout>
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/calendar" element={<Calendar />} />
-            <Route path="/reservations" element={<Reservations />} />
-            <Route path="/analytics" element={<Analytics />} />
-            <Route path="/notifications" element={<Notifications />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Layout>
+        <AppContent />
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

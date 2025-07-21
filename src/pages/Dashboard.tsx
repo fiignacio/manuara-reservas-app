@@ -26,11 +26,16 @@ const Dashboard = () => {
   const [tomorrowArrivals, setTomorrowArrivals] = useState<Reservation[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [lastDataUpdate, setLastDataUpdate] = useState<string>('');
 
   const loadData = async () => {
     try {
       setLoading(true);
+      console.log('Loading dashboard data...');
+      
       const tomorrow = getTomorrowDate();
+      console.log('Tomorrow date for dashboard:', tomorrow);
+      
       const [allReservations, arrivals, departures, upcoming, tomorrowDeps, tomorrowArrs] = await Promise.all([
         getAllReservations(),
         getTodayArrivals(),
@@ -40,14 +45,25 @@ const Dashboard = () => {
         getArrivalsForDate(tomorrow)
       ]);
       
+      console.log('Dashboard data loaded:', {
+        totalReservations: allReservations.length,
+        todayArrivals: arrivals.length,
+        todayDepartures: departures.length,
+        upcomingArrivals: upcoming.length,
+        tomorrowDepartures: tomorrowDeps.length,
+        tomorrowArrivals: tomorrowArrs.length
+      });
+      
       setReservations(allReservations);
       setTodayArrivals(arrivals);
       setTodayDepartures(departures);
       setUpcomingArrivals(upcoming);
       setTomorrowDepartures(tomorrowDeps);
       setTomorrowArrivals(tomorrowArrs);
+      setLastDataUpdate(new Date().toLocaleTimeString('es-CL'));
+      
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error('Error loading dashboard data:', error);
     } finally {
       setLoading(false);
     }
@@ -65,7 +81,11 @@ const Dashboard = () => {
   });
 
   const hasSameDayConflict = (departure: Reservation): boolean => {
-    return tomorrowArrivals.some(arrival => arrival.cabinType === departure.cabinType);
+    const hasConflict = tomorrowArrivals.some(arrival => arrival.cabinType === departure.cabinType);
+    if (hasConflict) {
+      console.log(`Conflict detected for ${departure.cabinType}: departure ${departure.id} vs arrival ${tomorrowArrivals.find(a => a.cabinType === departure.cabinType)?.id}`);
+    }
+    return hasConflict;
   };
 
   return (
@@ -75,6 +95,11 @@ const Dashboard = () => {
         <div>
           <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
           <p className="text-muted-foreground capitalize">{today}</p>
+          {lastDataUpdate && (
+            <p className="text-xs text-muted-foreground">
+              Última actualización: {lastDataUpdate}
+            </p>
+          )}
         </div>
         <Button
           onClick={() => setIsModalOpen(true)}
@@ -114,6 +139,9 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-orange-600">{tomorrowDepartures.length}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {getTomorrowDate()}
+            </p>
           </CardContent>
         </Card>
 
@@ -202,6 +230,9 @@ const Dashboard = () => {
                         </p>
                         <p className="text-sm font-medium text-orange-600">
                           Vuelo: {reservation.departureFlight}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          ID: {reservation.id}
                         </p>
                       </div>
                       <div className="flex flex-col items-end gap-2">
