@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
 import ReservationModal from '@/components/ReservationModal';
 import { Reservation } from '@/types/reservation';
 import { getAllReservations } from '@/lib/reservationService';
 
 const Calendar = () => {
+  const { toast } = useToast();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
@@ -18,8 +20,20 @@ const Calendar = () => {
       setLoading(true);
       const data = await getAllReservations();
       setReservations(data);
+      
+      if (data.length > 0) {
+        toast({
+          title: "📊 Calendario actualizado",
+          description: `Se han cargado ${data.length} reserva${data.length === 1 ? '' : 's'} exitosamente.`
+        });
+      }
     } catch (error) {
       console.error('Error loading reservations:', error);
+      toast({
+        title: "⚠️ Error al cargar reservas",
+        description: "No se pudieron cargar las reservas desde la base de datos. Por favor, verifica la conexión.",
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }

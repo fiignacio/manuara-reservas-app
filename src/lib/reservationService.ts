@@ -77,7 +77,7 @@ export const createReservation = async (data: ReservationFormData): Promise<stri
   const isAvailable = await checkCabinAvailability(data.cabinType, data.checkIn, data.checkOut);
   
   if (!isAvailable) {
-    throw new Error('La cabaña no está disponible para las fechas seleccionadas');
+    throw new Error(`La ${data.cabinType} no está disponible para las fechas seleccionadas (${new Date(data.checkIn).toLocaleDateString('es-ES')} - ${new Date(data.checkOut).toLocaleDateString('es-ES')}). Ya existe una reserva que se solapa con este período.`);
   }
 
   const totalPrice = calculatePrice(data);
@@ -97,7 +97,7 @@ export const updateReservation = async (id: string, data: ReservationFormData): 
   const isAvailable = await checkCabinAvailability(data.cabinType, data.checkIn, data.checkOut, id);
   
   if (!isAvailable) {
-    throw new Error('La cabaña no está disponible para las fechas seleccionadas');
+    throw new Error(`La ${data.cabinType} no está disponible para las fechas seleccionadas (${new Date(data.checkIn).toLocaleDateString('es-ES')} - ${new Date(data.checkOut).toLocaleDateString('es-ES')}). Ya existe una reserva que se solapa con este período.`);
   }
 
   const totalPrice = calculatePrice(data);

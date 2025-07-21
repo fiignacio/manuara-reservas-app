@@ -73,8 +73,22 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
     
     if (new Date(formData.checkOut) <= new Date(formData.checkIn)) {
       toast({
-        title: "Error",
-        description: "La fecha de salida debe ser posterior a la de entrada.",
+        title: "📅 Fechas inválidas",
+        description: `La fecha de check-out (${new Date(formData.checkOut).toLocaleDateString('es-ES')}) debe ser posterior a la fecha de check-in (${new Date(formData.checkIn).toLocaleDateString('es-ES')}). Por favor, corrige las fechas.`,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Validar capacidad de la cabaña
+    const totalGuests = formData.adults + formData.children;
+    const maxCapacity = formData.cabinType.includes('Pequeña') ? 3 : 
+                       formData.cabinType.includes('Mediana') ? 4 : 6;
+    
+    if (totalGuests > maxCapacity) {
+      toast({
+        title: "👥 Capacidad excedida",
+        description: `La ${formData.cabinType} tiene capacidad máxima para ${maxCapacity} personas, pero has seleccionado ${totalGuests} huéspedes (${formData.adults} adultos + ${formData.children} niños).`,
         variant: "destructive"
       });
       return;
@@ -86,24 +100,34 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
       if (reservation?.id) {
         await updateReservation(reservation.id, formData);
         toast({
-          title: "Éxito",
-          description: "Reserva actualizada correctamente."
+          title: "✅ Reserva actualizada exitosamente",
+          description: `La reserva de ${formData.passengerName} para la ${formData.cabinType} ha sido modificada del ${new Date(formData.checkIn).toLocaleDateString('es-ES')} al ${new Date(formData.checkOut).toLocaleDateString('es-ES')}.`
         });
       } else {
         await createReservation(formData);
         toast({
-          title: "Éxito",
-          description: "Reserva creada correctamente."
+          title: "🎉 Reserva creada exitosamente",
+          description: `Se ha registrado la reserva de ${formData.passengerName} para la ${formData.cabinType} del ${new Date(formData.checkIn).toLocaleDateString('es-ES')} al ${new Date(formData.checkOut).toLocaleDateString('es-ES')}.`
         });
       }
       onSuccess();
       onClose();
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Hubo un problema al guardar la reserva.",
-        variant: "destructive"
-      });
+    } catch (error: any) {
+      const errorMessage = error.message || "Hubo un problema al guardar la reserva.";
+      
+      if (errorMessage.includes('no está disponible')) {
+        toast({
+          title: "❌ Cabaña no disponible",
+          description: `La ${formData.cabinType} ya está reservada para las fechas seleccionadas (${new Date(formData.checkIn).toLocaleDateString('es-ES')} - ${new Date(formData.checkOut).toLocaleDateString('es-ES')}). Por favor, selecciona otras fechas o una cabaña diferente.`,
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "⚠️ Error al procesar la reserva",
+          description: `No se pudo ${reservation?.id ? 'actualizar' : 'crear'} la reserva. ${errorMessage}`,
+          variant: "destructive"
+        });
+      }
     } finally {
       setLoading(false);
     }
