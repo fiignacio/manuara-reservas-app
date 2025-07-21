@@ -1,5 +1,6 @@
 
-import { Home, Calendar, Table, Settings } from 'lucide-react';
+import { Home, Calendar, Table, Settings, Bell, BarChart3 } from 'lucide-react';
+import { NotificationBell } from './NotificationBell';
 import { NavLink } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
@@ -12,6 +13,8 @@ const Layout = ({ children }: LayoutProps) => {
     { name: 'Dashboard', href: '/', icon: Home },
     { name: 'Calendario & Reservas', href: '/calendar', icon: Calendar },
     { name: 'Solo Reservas', href: '/reservations', icon: Table },
+    { name: 'Analytics', href: '/analytics', icon: BarChart3 },
+    { name: 'Notificaciones', href: '/notifications', icon: Bell },
   ];
 
   return (
@@ -27,6 +30,10 @@ const Layout = ({ children }: LayoutProps) => {
                 </div>
                 <h1 className="text-xl font-bold text-foreground">Manuara Reservas</h1>
               </div>
+            </div>
+            
+            <div className="flex items-center space-x-4">
+              <NotificationBell />
             </div>
             
             {/* Navigation */}
