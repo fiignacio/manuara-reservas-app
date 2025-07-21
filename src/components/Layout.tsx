@@ -1,3 +1,4 @@
+
 import { Home, Calendar, Table, Settings } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -9,8 +10,8 @@ interface LayoutProps {
 const Layout = ({ children }: LayoutProps) => {
   const navigation = [
     { name: 'Dashboard', href: '/', icon: Home },
-    { name: 'Calendario', href: '/calendar', icon: Calendar },
-    { name: 'Reservas', href: '/reservations', icon: Table },
+    { name: 'Calendario & Reservas', href: '/calendar', icon: Calendar },
+    { name: 'Solo Reservas', href: '/reservations', icon: Table },
   ];
 
   return (
@@ -69,7 +70,7 @@ const Layout = ({ children }: LayoutProps) => {
               }
             >
               <item.icon className="w-5 h-5" />
-              <span>{item.name}</span>
+              <span className="text-center">{item.name}</span>
             </NavLink>
           ))}
         </div>
