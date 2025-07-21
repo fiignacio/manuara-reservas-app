@@ -30,7 +30,56 @@ export const calculatePrice = (data: ReservationFormData): number => {
   return costPerNight * nights;
 };
 
+// Validar disponibilidad de cabaña
+export const checkCabinAvailability = async (
+  cabinType: string,
+  checkIn: string,
+  checkOut: string,
+  excludeReservationId?: string
+): Promise<boolean> => {
+  // Ajustar checkout para hacer las fechas inclusivas
+  const adjustedCheckOut = new Date(checkOut);
+  adjustedCheckOut.setDate(adjustedCheckOut.getDate() - 1);
+  const adjustedCheckOutStr = adjustedCheckOut.toISOString().split('T')[0];
+
+  let q = query(
+    collection(db, COLLECTION_NAME),
+    where('cabinType', '==', cabinType)
+  );
+
+  const querySnapshot = await getDocs(q);
+  
+  const conflictingReservations = querySnapshot.docs
+    .map(doc => ({ id: doc.id, ...doc.data() } as Reservation))
+    .filter(reservation => {
+      // Excluir la reserva actual si estamos editando
+      if (excludeReservationId && reservation.id === excludeReservationId) {
+        return false;
+      }
+
+      // Verificar solapamiento de fechas (inclusivo)
+      const resCheckIn = reservation.checkIn;
+      const resCheckOut = new Date(reservation.checkOut);
+      resCheckOut.setDate(resCheckOut.getDate() - 1);
+      const resCheckOutStr = resCheckOut.toISOString().split('T')[0];
+
+      // Hay conflicto si:
+      // - La nueva reserva empieza antes de que termine la existente Y
+      // - La nueva reserva termina después de que empiece la existente
+      return checkIn <= resCheckOutStr && adjustedCheckOutStr >= resCheckIn;
+    });
+
+  return conflictingReservations.length === 0;
+};
+
 export const createReservation = async (data: ReservationFormData): Promise<string> => {
+  // Validar disponibilidad antes de crear
+  const isAvailable = await checkCabinAvailability(data.cabinType, data.checkIn, data.checkOut);
+  
+  if (!isAvailable) {
+    throw new Error('La cabaña no está disponible para las fechas seleccionadas');
+  }
+
   const totalPrice = calculatePrice(data);
   const reservation: Omit<Reservation, 'id'> = {
     ...data,
@@ -44,6 +93,13 @@ export const createReservation = async (data: ReservationFormData): Promise<stri
 };
 
 export const updateReservation = async (id: string, data: ReservationFormData): Promise<void> => {
+  // Validar disponibilidad antes de actualizar (excluyendo la reserva actual)
+  const isAvailable = await checkCabinAvailability(data.cabinType, data.checkIn, data.checkOut, id);
+  
+  if (!isAvailable) {
+    throw new Error('La cabaña no está disponible para las fechas seleccionadas');
+  }
+
   const totalPrice = calculatePrice(data);
   const reservation: Partial<Reservation> = {
     ...data,

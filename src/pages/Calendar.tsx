@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import ReservationModal from '@/components/ReservationModal';
@@ -46,6 +46,25 @@ const Calendar = () => {
     return days;
   };
 
+  const getCabinColor = (cabinType: string) => {
+    switch (cabinType) {
+      case 'Cabaña Pequeña (Max 3p)':
+        return 'hsl(var(--cabin-small))';
+      case 'Cabaña Mediana 1 (Max 4p)':
+        return 'hsl(var(--cabin-medium1))';
+      case 'Cabaña Mediana 2 (Max 4p)':
+        return 'hsl(var(--cabin-medium2))';
+      case 'Cabaña Grande (Max 6p)':
+        return 'hsl(var(--cabin-large))';
+      default:
+        return 'hsl(var(--primary))';
+    }
+  };
+
+  const goToToday = () => {
+    setCurrentDate(new Date());
+  };
+
   const processReservationsForCalendar = () => {
     const days = getDaysInMonth(currentDate);
     const processedReservations: Array<{
@@ -60,14 +79,18 @@ const Calendar = () => {
       const checkIn = new Date(reservation.checkIn);
       const checkOut = new Date(reservation.checkOut);
       
+      // Hacer las fechas inclusivas - el checkout debe incluir el día de salida
+      const adjustedCheckOut = new Date(checkOut);
+      adjustedCheckOut.setDate(adjustedCheckOut.getDate() - 1);
+      
       const startIndex = days.findIndex(day => 
         day.toISOString().split('T')[0] === reservation.checkIn
       );
       const endIndex = days.findIndex(day => 
-        day.toISOString().split('T')[0] === reservation.checkOut
-      ) - 1;
+        day.toISOString().split('T')[0] === adjustedCheckOut.toISOString().split('T')[0]
+      );
 
-      if (startIndex >= 0 && (endIndex >= 0 || checkOut > days[days.length - 1])) {
+      if (startIndex >= 0 && (endIndex >= 0 || adjustedCheckOut > days[days.length - 1])) {
         const actualEndIndex = endIndex >= 0 ? endIndex : days.length - 1;
         
         // Find available row to avoid conflicts
@@ -161,6 +184,15 @@ const Calendar = () => {
             >
               <ChevronRight className="w-4 h-4" />
             </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={goToToday}
+              className="ml-2"
+            >
+              <CalendarIcon className="w-4 h-4 mr-1" />
+              Hoy
+            </Button>
           </div>
         </div>
         <Button
@@ -240,7 +272,12 @@ const Calendar = () => {
                         }}
                         onClick={() => handleReservationClick(block.reservation)}
                       >
-                        <div className="h-full w-full bg-gradient-to-r from-primary/80 to-primary-glow/80 rounded-md px-2 py-1 text-white text-xs font-medium shadow-sm flex items-center justify-between overflow-hidden">
+                        <div 
+                          className="h-full w-full rounded-md px-2 py-1 text-white text-xs font-medium shadow-sm flex items-center justify-between overflow-hidden"
+                          style={{
+                            background: `linear-gradient(135deg, ${getCabinColor(block.reservation.cabinType)}, ${getCabinColor(block.reservation.cabinType)}dd)`
+                          }}
+                        >
                           {segmentIndex === 0 && (
                             <>
                               <span className="truncate">{block.reservation.passengerName}</span>
@@ -272,8 +309,20 @@ const Calendar = () => {
               <span className="text-sm">Día actual</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-gradient-to-r from-primary/80 to-primary-glow/80 rounded"></div>
-              <span className="text-sm">Período de reserva</span>
+              <div className="w-4 h-4 rounded" style={{ backgroundColor: 'hsl(var(--cabin-small))' }}></div>
+              <span className="text-sm">Cabaña Pequeña</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded" style={{ backgroundColor: 'hsl(var(--cabin-medium1))' }}></div>
+              <span className="text-sm">Cabaña Mediana 1</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded" style={{ backgroundColor: 'hsl(var(--cabin-medium2))' }}></div>
+              <span className="text-sm">Cabaña Mediana 2</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded" style={{ backgroundColor: 'hsl(var(--cabin-large))' }}></div>
+              <span className="text-sm">Cabaña Grande</span>
             </div>
           </div>
         </CardContent>
