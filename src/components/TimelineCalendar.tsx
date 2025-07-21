@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Reservation } from '@/types/reservation';
-import { formatDateForDisplay, parseDate, getDaysBetween, isSameDate, formatDateToISO } from '@/lib/dateUtils';
+import { formatDateForDisplay, parseDate, getDaysBetween } from '@/lib/dateUtils';
 
 interface TimelineCalendarProps {
   reservations: Reservation[];
@@ -41,22 +41,57 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading }: Timelin
     }
   };
 
-  const getTimelineDates = () => {
-    const start = new Date(currentDate);
+  // Helper function to add days to a date string
+  const addDaysToDateString = (dateStr: string, days: number): string => {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+    date.setDate(date.getDate() + days);
+    const newYear = date.getFullYear();
+    const newMonth = String(date.getMonth() + 1).padStart(2, '0');
+    const newDay = String(date.getDate()).padStart(2, '0');
+    return `${newYear}-${newMonth}-${newDay}`;
+  };
+
+  // Helper function to get start of week for a date string
+  const getWeekStart = (dateStr: string): string => {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+    const dayOfWeek = date.getDay();
+    const daysToSubtract = dayOfWeek; // Sunday = 0, so subtract day of week
+    return addDaysToDateString(dateStr, -daysToSubtract);
+  };
+
+  // Helper function to get first day of month
+  const getMonthStart = (dateStr: string): string => {
+    const [year, month] = dateStr.split('-').map(Number);
+    const firstDay = `${year}-${String(month).padStart(2, '0')}-01`;
+    return getWeekStart(firstDay);
+  };
+
+  // Helper function to format current date as ISO string
+  const getCurrentDateString = (): string => {
+    const year = currentDate.getFullYear();
+    const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+    const day = String(currentDate.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const getTimelineDates = (): string[] => {
+    const currentDateStr = getCurrentDateString();
+    
+    let startDateStr: string;
     if (viewMode === 'month') {
-      start.setDate(1);
-      start.setDate(start.getDate() - start.getDay()); // Start from Sunday
+      startDateStr = getMonthStart(currentDateStr);
     } else {
-      start.setDate(start.getDate() - start.getDay()); // Start from Sunday
+      startDateStr = getWeekStart(currentDateStr);
     }
 
-    const dates = [];
+    const dates: string[] = [];
     const totalDays = viewMode === 'month' ? 42 : 7;
     
     for (let i = 0; i < totalDays; i++) {
-      const date = new Date(start);
-      date.setDate(start.getDate() + i);
-      dates.push(date);
+      const dateStr = addDaysToDateString(startDateStr, i);
+      dates.push(dateStr);
     }
     
     return dates;
@@ -68,17 +103,13 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading }: Timelin
     const checkInDate = reservation.checkIn;
     const checkOutDate = reservation.checkOut;
     
-    const startIndex = timelineDates.findIndex(date => 
-      isSameDate(date, checkInDate)
-    );
-    const endIndex = timelineDates.findIndex(date => 
-      isSameDate(date, checkOutDate)
-    );
+    const startIndex = timelineDates.findIndex(dateStr => dateStr === checkInDate);
+    const endIndex = timelineDates.findIndex(dateStr => dateStr === checkOutDate);
 
     if (startIndex === -1 && endIndex === -1) {
       // Check if reservation overlaps with visible period
-      const firstDateStr = formatDateToISO(timelineDates[0]);
-      const lastDateStr = formatDateToISO(timelineDates[timelineDates.length - 1]);
+      const firstDateStr = timelineDates[0];
+      const lastDateStr = timelineDates[timelineDates.length - 1];
       
       if (checkInDate <= lastDateStr && checkOutDate >= firstDateStr) {
         const actualStart = checkInDate < firstDateStr ? 0 : startIndex;
@@ -189,6 +220,17 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading }: Timelin
       return `${start.toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })} - ${end.toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' })}`;
     }
   };
+
+  // Helper function to get today's date as ISO string
+  const getTodayString = (): string => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const todayString = getTodayString();
 
   if (loading) {
     return (
@@ -307,9 +349,10 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading }: Timelin
             <div style={{ width: `${timelineDates.length * dayWidth}px` }}>
               {/* Date Headers */}
               <div className="h-12 border-b border-border/50 flex bg-muted/30 sticky top-0 z-10">
-                {timelineDates.map((date, index) => {
+                {timelineDates.map((dateStr, index) => {
+                  const date = parseDate(dateStr);
                   const isCurrentMonth = date.getMonth() === currentDate.getMonth();
-                  const isToday = isSameDate(date, formatDateToISO(new Date()));
+                  const isToday = dateStr === todayString;
                   
                   return (
                     <div
