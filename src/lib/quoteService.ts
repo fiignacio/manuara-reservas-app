@@ -2,43 +2,54 @@
 import { Quote, QuoteFormData } from '@/types/quote';
 import { calculateNights } from './dateUtils';
 
-// Precios por temporada y tipo de cabaña
-const CABIN_PRICES = {
+// Precios por temporada y edad
+const PERSON_PRICES = {
   'Alta': {
-    'Cabaña Pequeña (Max 3p)': 120000,
-    'Cabaña Mediana 1 (Max 4p)': 150000,
-    'Cabaña Mediana 2 (Max 4p)': 150000,
-    'Cabaña Grande (Max 6p)': 200000,
+    adult: 30000,
+    child8to15: 15000,
+    childUnder7: 0,
   },
   'Baja': {
-    'Cabaña Pequeña (Max 3p)': 100000,
-    'Cabaña Mediana 1 (Max 4p)': 120000,
-    'Cabaña Mediana 2 (Max 4p)': 120000,
-    'Cabaña Grande (Max 6p)': 160000,
+    adult: 25000,
+    child8to15: 15000,
+    childUnder7: 0,
   },
 };
 
-export const calculateQuotePrice = (formData: QuoteFormData): { totalPrice: number; nights: number; pricePerNight: number } => {
+export const calculateQuotePrice = (formData: QuoteFormData): { totalPrice: number; nights: number; pricePerNight: number; breakdown: any } => {
   const nights = calculateNights(formData.checkIn, formData.checkOut);
   
   if (nights <= 0) {
     throw new Error('La fecha de salida debe ser posterior a la fecha de entrada');
   }
 
-  const pricePerNight = CABIN_PRICES[formData.season][formData.cabinType];
-  const totalPrice = pricePerNight * nights;
+  const prices = PERSON_PRICES[formData.season];
+  
+  // Calcular costo por persona por noche
+  const adultCostPerNight = formData.adults * prices.adult;
+  const children8to15CostPerNight = formData.children8to15 * prices.child8to15;
+  const childrenUnder7CostPerNight = formData.childrenUnder7 * prices.childUnder7;
+  
+  const totalCostPerNight = adultCostPerNight + children8to15CostPerNight + childrenUnder7CostPerNight;
+  const totalPrice = totalCostPerNight * nights;
+
+  const breakdown = {
+    adults: { count: formData.adults, pricePerNight: prices.adult, totalPerNight: adultCostPerNight },
+    children8to15: { count: formData.children8to15, pricePerNight: prices.child8to15, totalPerNight: children8to15CostPerNight },
+    childrenUnder7: { count: formData.childrenUnder7, pricePerNight: prices.childUnder7, totalPerNight: childrenUnder7CostPerNight }
+  };
 
   console.log('Quote calculation:', {
     checkIn: formData.checkIn,
     checkOut: formData.checkOut,
     nights,
-    pricePerNight,
+    pricePerNight: totalCostPerNight,
     totalPrice,
     season: formData.season,
-    cabinType: formData.cabinType
+    breakdown
   });
 
-  return { totalPrice, nights, pricePerNight };
+  return { totalPrice, nights, pricePerNight: totalCostPerNight, breakdown };
 };
 
 export const createQuote = (formData: QuoteFormData): Quote => {

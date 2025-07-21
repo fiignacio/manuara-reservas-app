@@ -26,7 +26,8 @@ const Quotes = () => {
     checkIn: '',
     checkOut: '',
     adults: 1,
-    children: 0,
+    children8to15: 0,
+    childrenUnder7: 0,
     season: 'Alta',
     cabinType: 'Cabaña Pequeña (Max 3p)',
     arrivalFlight: 'LA841',
@@ -34,7 +35,7 @@ const Quotes = () => {
     notes: '',
   });
 
-  const [calculatedPrice, setCalculatedPrice] = useState<{ totalPrice: number; nights: number; pricePerNight: number } | null>(null);
+  const [calculatedPrice, setCalculatedPrice] = useState<{ totalPrice: number; nights: number; pricePerNight: number; breakdown: any } | null>(null);
 
   const handleInputChange = (field: keyof QuoteFormData, value: any) => {
     const newFormData = { ...formData, [field]: value };
@@ -108,7 +109,8 @@ const Quotes = () => {
       checkIn: '',
       checkOut: '',
       adults: 1,
-      children: 0,
+      children8to15: 0,
+      childrenUnder7: 0,
       season: 'Alta',
       cabinType: 'Cabaña Pequeña (Max 3p)',
       arrivalFlight: 'LA841',
@@ -208,7 +210,7 @@ const Quotes = () => {
                       </div>
                     </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="adults">Adultos</Label>
                         <Input
@@ -217,16 +219,6 @@ const Quotes = () => {
                           min="1"
                           value={formData.adults}
                           onChange={(e) => handleInputChange('adults', parseInt(e.target.value))}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="children">Niños</Label>
-                        <Input
-                          id="children"
-                          type="number"
-                          min="0"
-                          value={formData.children}
-                          onChange={(e) => handleInputChange('children', parseInt(e.target.value))}
                         />
                       </div>
                       <div className="space-y-2">
@@ -240,6 +232,29 @@ const Quotes = () => {
                             <SelectItem value="Baja">Temporada Baja</SelectItem>
                           </SelectContent>
                         </Select>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="children8to15">Niños (8-15 años)</Label>
+                        <Input
+                          id="children8to15"
+                          type="number"
+                          min="0"
+                          value={formData.children8to15}
+                          onChange={(e) => handleInputChange('children8to15', parseInt(e.target.value))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="childrenUnder7">Menores de 7 años</Label>
+                        <Input
+                          id="childrenUnder7"
+                          type="number"
+                          min="0"
+                          value={formData.childrenUnder7}
+                          onChange={(e) => handleInputChange('childrenUnder7', parseInt(e.target.value))}
+                        />
                       </div>
                     </div>
 
@@ -342,7 +357,11 @@ const Quotes = () => {
                         <h4 className="font-semibold text-foreground mb-2">Estadía</h4>
                         <p>{formatDateRange(generatedQuote.checkIn, generatedQuote.checkOut)}</p>
                         <p className="text-sm text-muted-foreground">{generatedQuote.cabinType}</p>
-                        <p className="text-sm text-muted-foreground">{generatedQuote.adults} adultos{generatedQuote.children > 0 && `, ${generatedQuote.children} niños`}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {generatedQuote.adults} adultos
+                          {generatedQuote.children8to15 > 0 && `, ${generatedQuote.children8to15} niños (8-15 años)`}
+                          {generatedQuote.childrenUnder7 > 0 && `, ${generatedQuote.childrenUnder7} menores de 7 años`}
+                        </p>
                         <p className="text-sm text-muted-foreground">{calculateNights(generatedQuote.checkIn, generatedQuote.checkOut)} noches</p>
                       </div>
                     </div>
@@ -376,13 +395,13 @@ const Quotes = () => {
                       ${(generatedQuote?.totalPrice || calculatedPrice?.totalPrice || 0).toLocaleString('es-CL')}
                     </span>
                   </div>
-                  <div className="text-sm text-muted-foreground space-y-1">
+                  <div className="text-sm text-muted-foreground space-y-2">
                     <div className="flex justify-between">
                       <span>Temporada:</span>
                       <span>{generatedQuote?.season || formData.season}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Tipo:</span>
+                      <span>Tipo de Cabaña:</span>
                       <span>{generatedQuote?.cabinType || formData.cabinType}</span>
                     </div>
                     {(formData.checkIn && formData.checkOut) && (
@@ -391,9 +410,34 @@ const Quotes = () => {
                           <span>Noches:</span>
                           <span>{generatedQuote ? calculateNights(generatedQuote.checkIn, generatedQuote.checkOut) : calculatedPrice?.nights}</span>
                         </div>
-                        <div className="flex justify-between">
-                          <span>Precio por noche:</span>
-                          <span>${(generatedQuote ? (generatedQuote.totalPrice / calculateNights(generatedQuote.checkIn, generatedQuote.checkOut)) : calculatedPrice?.pricePerNight || 0).toLocaleString('es-CL')}</span>
+                        <div className="border-t pt-2 mt-2">
+                          <div className="text-xs font-medium mb-1">Desglose por persona/noche:</div>
+                          {calculatedPrice?.breakdown && (
+                            <>
+                              {calculatedPrice.breakdown.adults.count > 0 && (
+                                <div className="flex justify-between text-xs">
+                                  <span>{calculatedPrice.breakdown.adults.count} adultos × ${calculatedPrice.breakdown.adults.pricePerNight.toLocaleString('es-CL')}</span>
+                                  <span>${calculatedPrice.breakdown.adults.totalPerNight.toLocaleString('es-CL')}</span>
+                                </div>
+                              )}
+                              {calculatedPrice.breakdown.children8to15.count > 0 && (
+                                <div className="flex justify-between text-xs">
+                                  <span>{calculatedPrice.breakdown.children8to15.count} niños (8-15) × ${calculatedPrice.breakdown.children8to15.pricePerNight.toLocaleString('es-CL')}</span>
+                                  <span>${calculatedPrice.breakdown.children8to15.totalPerNight.toLocaleString('es-CL')}</span>
+                                </div>
+                              )}
+                              {calculatedPrice.breakdown.childrenUnder7.count > 0 && (
+                                <div className="flex justify-between text-xs">
+                                  <span>{calculatedPrice.breakdown.childrenUnder7.count} menores 7 años × ${calculatedPrice.breakdown.childrenUnder7.pricePerNight.toLocaleString('es-CL')}</span>
+                                  <span>${calculatedPrice.breakdown.childrenUnder7.totalPerNight.toLocaleString('es-CL')}</span>
+                                </div>
+                              )}
+                              <div className="flex justify-between text-xs font-medium border-t pt-1 mt-1">
+                                <span>Total por noche:</span>
+                                <span>${calculatedPrice.pricePerNight.toLocaleString('es-CL')}</span>
+                              </div>
+                            </>
+                          )}
                         </div>
                       </>
                     )}

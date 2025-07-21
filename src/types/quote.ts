@@ -6,7 +6,8 @@ export interface Quote {
   checkIn: string;
   checkOut: string;
   adults: number;
-  children: number;
+  children8to15: number;
+  childrenUnder7: number;
   season: 'Alta' | 'Baja';
   cabinType: 'Cabaña Pequeña (Max 3p)' | 'Cabaña Mediana 1 (Max 4p)' | 'Cabaña Mediana 2 (Max 4p)' | 'Cabaña Grande (Max 6p)';
   arrivalFlight: 'LA841' | 'LA843';

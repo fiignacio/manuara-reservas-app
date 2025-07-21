@@ -111,7 +111,7 @@ const createQuoteHTML = (quote: Quote): string => {
             <strong>Temporada:</strong> ${quote.season}
           </div>
           <div>
-            <strong>Huéspedes:</strong> ${quote.adults} adultos${quote.children > 0 ? `, ${quote.children} niños` : ''}<br>
+            <strong>Huéspedes:</strong> ${quote.adults} adultos${quote.children8to15 > 0 ? `, ${quote.children8to15} niños (8-15 años)` : ''}${quote.childrenUnder7 > 0 ? `, ${quote.childrenUnder7} menores de 7 años` : ''}<br>
             <strong>Tipo de Cabaña:</strong> ${quote.cabinType}
           </div>
         </div>
