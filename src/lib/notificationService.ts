@@ -68,6 +68,9 @@ class NotificationService {
         scheduledAt: Timestamp.fromDate(notification.scheduledAt),
         sentAt: notification.sentAt ? Timestamp.fromDate(notification.sentAt) : null,
         readAt: notification.readAt ? Timestamp.fromDate(notification.readAt) : null,
+        completedAt: notification.completedAt ? Timestamp.fromDate(notification.completedAt) : null,
+        archivedAt: notification.archivedAt ? Timestamp.fromDate(notification.archivedAt) : null,
+        snoozedUntil: notification.snoozedUntil ? Timestamp.fromDate(notification.snoozedUntil) : null,
         createdAt: Timestamp.fromDate(now),
         updatedAt: Timestamp.fromDate(now)
       });
@@ -90,6 +93,7 @@ class NotificationService {
       const q = query(
         collection(db, this.collection),
         where('isActive', '==', true),
+        where('status', '==', 'pending'),
         orderBy('scheduledAt', 'asc'),
         limit(100)
       );
@@ -110,13 +114,10 @@ class NotificationService {
 
       // Filtrar en el cliente las que están pendientes y programadas
       const pendingNotifications = notifications.filter(notification => {
-        const isNotSent = !notification.sentAt;
         const isScheduled = notification.scheduledAt <= now;
         const isNotSnoozed = !notification.snoozedUntil || notification.snoozedUntil <= now;
-        const isNotArchived = !notification.archivedAt;
-        const isNotCancelled = notification.status !== 'cancelled';
         
-        return isNotSent && isScheduled && isNotSnoozed && isNotArchived && isNotCancelled;
+        return isScheduled && isNotSnoozed;
       });
 
       console.log(`Found ${pendingNotifications.length} pending notifications out of ${notifications.length} total`);
@@ -157,12 +158,53 @@ class NotificationService {
     }
   }
 
+  // Obtener notificaciones activas para la campana (solo enviadas pero no leídas)
+  async getActiveNotifications(limitCount: number = 20): Promise<Notification[]> {
+    try {
+      const q = query(
+        collection(db, this.collection),
+        where('isActive', '==', true),
+        orderBy('createdAt', 'desc'),
+        limit(limitCount)
+      );
+      
+      const snapshot = await getDocs(q);
+      const notifications = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        scheduledAt: doc.data().scheduledAt.toDate(),
+        sentAt: doc.data().sentAt?.toDate() || null,
+        readAt: doc.data().readAt?.toDate() || null,
+        completedAt: doc.data().completedAt?.toDate() || null,
+        archivedAt: doc.data().archivedAt?.toDate() || null,
+        snoozedUntil: doc.data().snoozedUntil?.toDate() || null,
+        createdAt: doc.data().createdAt.toDate(),
+        updatedAt: doc.data().updatedAt.toDate()
+      })) as Notification[];
+
+      // Filtrar notificaciones realmente activas para la campana
+      const activeNotifications = notifications.filter(n => 
+        n.isActive && 
+        !n.archivedAt && 
+        n.status !== 'cancelled' &&
+        n.status !== 'archived' &&
+        n.status !== 'completed'
+      );
+      
+      return activeNotifications;
+    } catch (error) {
+      console.error('Error getting active notifications:', error);
+      return [];
+    }
+  }
+
   // Marcar notificación como enviada
   async markAsSent(notificationId: string): Promise<void> {
     try {
       const notificationRef = doc(db, this.collection, notificationId);
       await updateDoc(notificationRef, {
         sentAt: Timestamp.fromDate(new Date()),
+        status: 'sent',
         updatedAt: Timestamp.fromDate(new Date())
       });
       console.log('Notification marked as sent:', notificationId);
@@ -181,6 +223,7 @@ class NotificationService {
         status: 'read',
         updatedAt: Timestamp.fromDate(new Date())
       });
+      console.log('Notification marked as read:', notificationId);
     } catch (error) {
       console.error('Error marking notification as read:', error);
       throw error;
@@ -461,11 +504,11 @@ class NotificationService {
       
       const stats = {
         total: allNotifications.length,
-        pending: allNotifications.filter(n => !n.sentAt && n.isActive && n.status !== 'cancelled').length,
-        sent: allNotifications.filter(n => n.sentAt && !n.readAt && !n.completedAt).length,
-        read: allNotifications.filter(n => n.readAt && !n.completedAt).length,
-        completed: allNotifications.filter(n => n.completedAt).length,
-        archived: allNotifications.filter(n => n.archivedAt).length
+        pending: allNotifications.filter(n => n.status === 'pending' && n.isActive).length,
+        sent: allNotifications.filter(n => n.status === 'sent').length,
+        read: allNotifications.filter(n => n.status === 'read').length,
+        completed: allNotifications.filter(n => n.status === 'completed').length,
+        archived: allNotifications.filter(n => n.status === 'archived').length
       };
 
       return stats;

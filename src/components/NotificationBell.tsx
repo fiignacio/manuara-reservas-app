@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Bell, BellRing, Clock, Check, AlertTriangle } from 'lucide-react';
 import { Button } from './ui/button';
@@ -30,24 +31,34 @@ export function NotificationBell() {
 
   const loadNotifications = async () => {
     try {
-      const allNotifications = await notificationService.getAllNotifications(20);
+      setIsLoading(true);
+      const allNotifications = await notificationService.getActiveNotifications(20);
       
-      // Filtrar solo notificaciones activas y no archivadas
-      const activeNotifications = allNotifications.filter(n => 
+      console.log('Loaded notifications for bell:', allNotifications.length);
+      
+      // Filtrar solo notificaciones relevantes para la campana
+      const bellNotifications = allNotifications.filter(n => 
         n.isActive && 
         !n.archivedAt && 
         n.status !== 'cancelled' &&
-        n.status !== 'archived'
+        n.status !== 'archived' &&
+        n.status !== 'completed'
       );
       
-      setNotifications(activeNotifications);
+      console.log('Filtered bell notifications:', bellNotifications.length);
+      setNotifications(bellNotifications);
       
-      const unread = activeNotifications.filter(n => 
-        n.sentAt && !n.readAt && !n.completedAt
+      // Contar solo notificaciones enviadas pero no leídas
+      const unread = bellNotifications.filter(n => 
+        n.status === 'sent' && !n.readAt
       ).length;
+      
+      console.log('Unread count:', unread);
       setUnreadCount(unread);
     } catch (error) {
       console.error('Error loading notifications:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -103,10 +114,20 @@ export function NotificationBell() {
   };
 
   const getNotificationStatus = (notification: Notification) => {
-    if (notification.completedAt) return 'Completada';
-    if (notification.readAt) return 'Leída';
-    if (notification.sentAt) return 'Enviada';
-    return 'Pendiente';
+    switch (notification.status) {
+      case 'completed': return 'Completada';
+      case 'read': return 'Leída';
+      case 'sent': return 'Enviada';
+      case 'pending': return 'Pendiente';
+      case 'archived': return 'Archivada';
+      case 'cancelled': return 'Cancelada';
+      case 'snoozed': return 'Pospuesta';
+      default: return 'Desconocido';
+    }
+  };
+
+  const isUnread = (notification: Notification) => {
+    return notification.status === 'sent' && !notification.readAt;
   };
 
   return (
@@ -160,7 +181,7 @@ export function NotificationBell() {
                     <div key={notification.id}>
                       <div 
                         className={`p-4 border-l-4 transition-colors hover:bg-accent ${
-                          !notification.readAt && notification.sentAt && !notification.completedAt
+                          isUnread(notification)
                             ? getPriorityColor(notification.priority)
                             : 'border-l-gray-200 bg-gray-50'
                         }`}
@@ -173,13 +194,13 @@ export function NotificationBell() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between mb-1">
                               <h4 className={`text-sm font-medium truncate ${
-                                !notification.readAt && notification.sentAt && !notification.completedAt
+                                isUnread(notification)
                                   ? 'text-foreground' 
                                   : 'text-muted-foreground'
                               }`}>
                                 {notification.title}
                               </h4>
-                              {!notification.readAt && notification.sentAt && !notification.completedAt && (
+                              {isUnread(notification) && (
                                 <div className="flex-shrink-0 ml-2">
                                   <div className="w-2 h-2 bg-primary rounded-full" />
                                 </div>
@@ -187,7 +208,7 @@ export function NotificationBell() {
                             </div>
                             
                             <p className={`text-xs mb-2 line-clamp-2 ${
-                              !notification.readAt && notification.sentAt && !notification.completedAt
+                              isUnread(notification)
                                 ? 'text-foreground' 
                                 : 'text-muted-foreground'
                             }`}>
@@ -207,23 +228,21 @@ export function NotificationBell() {
                               </span>
                             </div>
 
-                            {/* Quick actions */}
-                            {notification.sentAt && !notification.completedAt && !notification.archivedAt && (
+                            {/* Quick actions - solo para notificaciones no leídas y activas */}
+                            {notification.status === 'sent' && !notification.readAt && (
                               <div className="flex gap-1 mt-2">
-                                {!notification.readAt && (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="h-6 px-2 text-xs"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleMarkAsRead(notification.id);
-                                    }}
-                                  >
-                                    <Check className="h-3 w-3 mr-1" />
-                                    Leer
-                                  </Button>
-                                )}
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-6 px-2 text-xs"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleMarkAsRead(notification.id);
+                                  }}
+                                >
+                                  <Check className="h-3 w-3 mr-1" />
+                                  Leer
+                                </Button>
                                 <Button
                                   size="sm"
                                   variant="outline"

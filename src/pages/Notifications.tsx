@@ -72,27 +72,42 @@ export function Notifications() {
     
     switch (statusFilter) {
       case 'pending':
-        filtered = notifications.filter(n => !n.sentAt && n.isActive && n.status !== 'cancelled');
+        filtered = notifications.filter(n => n.status === 'pending' && n.isActive);
         break;
       case 'sent':
-        filtered = notifications.filter(n => n.sentAt && !n.readAt && !n.completedAt);
+        filtered = notifications.filter(n => n.status === 'sent');
         break;
       case 'read':
-        filtered = notifications.filter(n => n.readAt && !n.completedAt);
+        filtered = notifications.filter(n => n.status === 'read');
         break;
       case 'completed':
-        filtered = notifications.filter(n => n.completedAt);
+        filtered = notifications.filter(n => n.status === 'completed');
         break;
       case 'archived':
-        filtered = notifications.filter(n => n.archivedAt);
+        filtered = notifications.filter(n => n.status === 'archived');
+        break;
+      case 'cancelled':
+        filtered = notifications.filter(n => n.status === 'cancelled');
+        break;
+      case 'snoozed':
+        filtered = notifications.filter(n => n.status === 'snoozed');
         break;
       case 'active':
-        filtered = notifications.filter(n => n.isActive && !n.archivedAt && n.status !== 'cancelled');
+        filtered = notifications.filter(n => 
+          n.isActive && 
+          !n.archivedAt && 
+          n.status !== 'cancelled' && 
+          n.status !== 'archived'
+        );
+        break;
+      case 'unread':
+        filtered = notifications.filter(n => n.status === 'sent' && !n.readAt);
         break;
       default:
         filtered = notifications;
     }
     
+    console.log(`Filtered ${filtered.length} notifications for status: ${statusFilter}`);
     setFilteredNotifications(filtered);
   };
 
@@ -240,6 +255,29 @@ export function Notifications() {
     return labels[type] || type;
   };
 
+  const getStatusBadge = (notification: Notification) => {
+    switch (notification.status) {
+      case 'pending':
+        return <Badge variant="outline" className="bg-yellow-50 text-yellow-700">Pendiente</Badge>;
+      case 'sent':
+        return notification.readAt 
+          ? <Badge variant="outline" className="bg-blue-50 text-blue-700">Enviada (leída)</Badge>
+          : <Badge variant="outline" className="bg-green-50 text-green-700">Enviada</Badge>;
+      case 'read':
+        return <Badge variant="outline" className="bg-blue-50 text-blue-700">Leída</Badge>;
+      case 'completed':
+        return <Badge variant="default" className="bg-green-100 text-green-800">Completada</Badge>;
+      case 'archived':
+        return <Badge variant="secondary">Archivada</Badge>;
+      case 'cancelled':
+        return <Badge variant="destructive">Cancelada</Badge>;
+      case 'snoozed':
+        return <Badge variant="outline" className="bg-purple-50 text-purple-700">Pospuesta</Badge>;
+      default:
+        return <Badge variant="outline">Desconocido</Badge>;
+    }
+  };
+
   return (
     <div className="container mx-auto p-6">
       <div className="flex items-center justify-between mb-6">
@@ -365,7 +403,7 @@ export function Notifications() {
                 Todas las notificaciones del sistema
               </CardDescription>
               
-              {/* Filtros */}
+              {/* Filtros mejorados */}
               <div className="flex gap-2 mt-4">
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
                   <SelectTrigger className="w-48">
@@ -374,11 +412,14 @@ export function Notifications() {
                   <SelectContent>
                     <SelectItem value="all">Todas las notificaciones</SelectItem>
                     <SelectItem value="active">Solo activas</SelectItem>
+                    <SelectItem value="unread">No leídas</SelectItem>
                     <SelectItem value="pending">Pendientes</SelectItem>
                     <SelectItem value="sent">Enviadas</SelectItem>
                     <SelectItem value="read">Leídas</SelectItem>
                     <SelectItem value="completed">Completadas</SelectItem>
                     <SelectItem value="archived">Archivadas</SelectItem>
+                    <SelectItem value="cancelled">Canceladas</SelectItem>
+                    <SelectItem value="snoozed">Pospuestas</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -400,6 +441,7 @@ export function Notifications() {
                           <Badge variant="outline">
                             {getTypeLabel(notification.type)}
                           </Badge>
+                          {getStatusBadge(notification)}
                         </div>
                         <p className="text-sm text-muted-foreground">
                           {notification.message}
