@@ -1,10 +1,9 @@
-
-import { useState, useEffect, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Eye, ZoomIn, ZoomOut } from 'lucide-react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Eye, ZoomIn, ZoomOut, ArrowLeft, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Reservation } from '@/types/reservation';
 import { formatDateForDisplay, parseDate, getDaysBetween } from '@/lib/dateUtils';
 
@@ -25,6 +24,8 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading }: Timelin
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'week' | 'month'>('month');
   const [dayWidth, setDayWidth] = useState(40);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const timelineRef = useRef<HTMLDivElement>(null);
 
   const getCabinColor = (cabinType: string) => {
     switch (cabinType) {
@@ -98,6 +99,125 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading }: Timelin
   };
 
   const timelineDates = getTimelineDates();
+
+  // Helper function to get today's date as ISO string
+  const getTodayString = (): string => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const todayString = getTodayString();
+
+  // Auto-scroll to today's date
+  const scrollToToday = useCallback(() => {
+    if (!scrollAreaRef.current) return;
+    
+    const todayIndex = timelineDates.findIndex(date => date === todayString);
+    if (todayIndex !== -1) {
+      const scrollPosition = todayIndex * dayWidth - (scrollAreaRef.current.clientWidth / 2);
+      scrollAreaRef.current.scrollTo({
+        left: Math.max(0, scrollPosition),
+        behavior: 'smooth'
+      });
+    }
+  }, [timelineDates, todayString, dayWidth]);
+
+  // Scroll to specific date
+  const scrollToDate = useCallback((dateStr: string) => {
+    if (!scrollAreaRef.current) return;
+    
+    const dateIndex = timelineDates.findIndex(date => date === dateStr);
+    if (dateIndex !== -1) {
+      const scrollPosition = dateIndex * dayWidth - (scrollAreaRef.current.clientWidth / 2);
+      scrollAreaRef.current.scrollTo({
+        left: Math.max(0, scrollPosition),
+        behavior: 'smooth'
+      });
+    }
+  }, [timelineDates, dayWidth]);
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!scrollAreaRef.current) return;
+      
+      switch (e.key) {
+        case 'ArrowLeft':
+          e.preventDefault();
+          scrollAreaRef.current.scrollBy({ left: -dayWidth * 2, behavior: 'smooth' });
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          scrollAreaRef.current.scrollBy({ left: dayWidth * 2, behavior: 'smooth' });
+          break;
+        case 'PageUp':
+          e.preventDefault();
+          scrollAreaRef.current.scrollBy({ left: -dayWidth * 7, behavior: 'smooth' });
+          break;
+        case 'PageDown':
+          e.preventDefault();
+          scrollAreaRef.current.scrollBy({ left: dayWidth * 7, behavior: 'smooth' });
+          break;
+        case 'Home':
+          if (e.ctrlKey) {
+            e.preventDefault();
+            scrollAreaRef.current.scrollTo({ left: 0, behavior: 'smooth' });
+          }
+          break;
+        case 'End':
+          if (e.ctrlKey) {
+            e.preventDefault();
+            scrollAreaRef.current.scrollTo({ left: scrollAreaRef.current.scrollWidth, behavior: 'smooth' });
+          }
+          break;
+        case 't':
+          if (e.ctrlKey) {
+            e.preventDefault();
+            scrollToToday();
+          }
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [dayWidth, scrollToToday]);
+
+  // Auto-scroll to today on mount
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      scrollToToday();
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [scrollToToday]);
+
+  // Manual scroll controls
+  const scrollLeft = () => {
+    if (scrollAreaRef.current) {
+      scrollAreaRef.current.scrollBy({ left: -dayWidth * 7, behavior: 'smooth' });
+    }
+  };
+
+  const scrollRight = () => {
+    if (scrollAreaRef.current) {
+      scrollAreaRef.current.scrollBy({ left: dayWidth * 7, behavior: 'smooth' });
+    }
+  };
+
+  const scrollToStart = () => {
+    if (scrollAreaRef.current) {
+      scrollAreaRef.current.scrollTo({ left: 0, behavior: 'smooth' });
+    }
+  };
+
+  const scrollToEnd = () => {
+    if (scrollAreaRef.current) {
+      scrollAreaRef.current.scrollTo({ left: scrollAreaRef.current.scrollWidth, behavior: 'smooth' });
+    }
+  };
 
   const getReservationPosition = (reservation: Reservation) => {
     const checkInDate = reservation.checkIn;
@@ -197,6 +317,7 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading }: Timelin
 
   const goToToday = () => {
     setCurrentDate(new Date());
+    setTimeout(() => scrollToToday(), 100);
   };
 
   const adjustZoom = (direction: 'in' | 'out') => {
@@ -220,17 +341,6 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading }: Timelin
       return `${start.toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })} - ${end.toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' })}`;
     }
   };
-
-  // Helper function to get today's date as ISO string
-  const getTodayString = (): string => {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
-
-  const todayString = getTodayString();
 
   if (loading) {
     return (
@@ -308,6 +418,50 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading }: Timelin
             </Button>
           </div>
         </div>
+
+        {/* Scroll Navigation Controls */}
+        <div className="flex items-center justify-between mt-4 p-2 bg-muted/30 rounded-lg">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={scrollToStart}
+              title="Ir al inicio"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Inicio
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={scrollLeft}
+              title="Scroll izquierda (← o Page Up)"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={scrollRight}
+              title="Scroll derecha (→ o Page Down)"
+            >
+              <ArrowRight className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={scrollToEnd}
+              title="Ir al final"
+            >
+              Final
+              <ArrowRight className="w-4 h-4" />
+            </Button>
+          </div>
+          
+          <div className="text-xs text-muted-foreground">
+            Usa ← → para navegar | Page Up/Down para saltos | Ctrl+T para ir a hoy
+          </div>
+        </div>
       </CardHeader>
       
       <CardContent className="p-0">
@@ -345,8 +499,12 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading }: Timelin
           </div>
 
           {/* Timeline Content */}
-          <ScrollArea className="flex-1">
-            <div style={{ width: `${timelineDates.length * dayWidth}px` }}>
+          <ScrollArea className="flex-1" ref={scrollAreaRef}>
+            <div 
+              ref={timelineRef}
+              style={{ width: `${timelineDates.length * dayWidth}px` }}
+              className="relative"
+            >
               {/* Date Headers */}
               <div className="h-12 border-b border-border/50 flex bg-muted/30 sticky top-0 z-10">
                 {timelineDates.map((dateStr, index) => {
@@ -358,11 +516,14 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading }: Timelin
                     <div
                       key={index}
                       className={`
-                        flex flex-col items-center justify-center border-r border-border/50 text-xs
+                        flex flex-col items-center justify-center border-r border-border/50 text-xs cursor-pointer
                         ${!isCurrentMonth && viewMode === 'month' ? 'text-muted-foreground bg-muted/20' : ''}
                         ${isToday ? 'bg-primary/10 text-primary font-medium' : ''}
+                        hover:bg-accent/50 transition-colors
                       `}
                       style={{ width: `${dayWidth}px` }}
+                      onClick={() => scrollToDate(dateStr)}
+                      title={`Click para centrar en ${formatDateForDisplay(dateStr)}`}
                     >
                       <div className="font-medium">{date.getDate()}</div>
                       <div className="text-xs opacity-70">
@@ -387,17 +548,20 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading }: Timelin
                     style={{ height: `${rowHeight}px` }}
                   >
                     {/* Day grid lines */}
-                    {timelineDates.map((_, index) => (
-                      <div
-                        key={index}
-                        className="absolute top-0 border-r border-border/20"
-                        style={{
-                          left: `${index * dayWidth}px`,
-                          width: '1px',
-                          height: '100%'
-                        }}
-                      />
-                    ))}
+                    {timelineDates.map((dateStr, index) => {
+                      const isToday = dateStr === todayString;
+                      return (
+                        <div
+                          key={index}
+                          className={`absolute top-0 border-r ${isToday ? 'border-primary/30 bg-primary/5' : 'border-border/20'}`}
+                          style={{
+                            left: `${index * dayWidth}px`,
+                            width: `${dayWidth}px`,
+                            height: '100%'
+                          }}
+                        />
+                      );
+                    })}
                     
                     {/* Reservation bars */}
                     {cabinReservations.map((item, index) => (
@@ -407,6 +571,7 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading }: Timelin
                           absolute cursor-pointer hover:scale-[1.02] transition-transform duration-200
                           ${getCabinColor(cabinType)} text-white rounded-md shadow-sm
                           flex items-center px-2 py-1 text-xs font-medium
+                          hover:shadow-md hover:z-10
                         `}
                         style={{
                           left: `${item.position.startIndex * dayWidth + 2}px`,
@@ -414,7 +579,10 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading }: Timelin
                           top: `${8 + item.row * 35}px`,
                           height: '28px'
                         }}
-                        onClick={() => onReservationClick(item.reservation)}
+                        onClick={() => {
+                          onReservationClick(item.reservation);
+                          scrollToDate(item.reservation.checkIn);
+                        }}
                         title={`${item.reservation.passengerName} - ${formatDateForDisplay(item.reservation.checkIn)} al ${formatDateForDisplay(item.reservation.checkOut)}`}
                       >
                         <div className="truncate flex-1">
@@ -429,6 +597,9 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading }: Timelin
                 );
               })}
             </div>
+            
+            {/* Horizontal ScrollBar */}
+            <ScrollBar orientation="horizontal" className="h-3 bg-muted" />
           </ScrollArea>
         </div>
       </CardContent>
