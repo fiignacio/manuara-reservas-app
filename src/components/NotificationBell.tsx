@@ -31,10 +31,19 @@ export function NotificationBell() {
   const loadNotifications = async () => {
     try {
       const allNotifications = await notificationService.getAllNotifications(20);
-      setNotifications(allNotifications);
       
-      const unread = allNotifications.filter(n => 
-        n.sentAt && !n.readAt && n.isActive
+      // Filtrar solo notificaciones activas y no archivadas
+      const activeNotifications = allNotifications.filter(n => 
+        n.isActive && 
+        !n.archivedAt && 
+        n.status !== 'cancelled' &&
+        n.status !== 'archived'
+      );
+      
+      setNotifications(activeNotifications);
+      
+      const unread = activeNotifications.filter(n => 
+        n.sentAt && !n.readAt && !n.completedAt
       ).length;
       setUnreadCount(unread);
     } catch (error) {
@@ -48,6 +57,22 @@ export function NotificationBell() {
       await loadNotifications();
     } catch (error) {
       console.error('Error marking notification as read:', error);
+    }
+  };
+
+  const handleQuickAction = async (notificationId: string, action: string) => {
+    try {
+      switch (action) {
+        case 'completed':
+          await notificationService.markAsCompleted(notificationId, 'Completada desde la campana');
+          break;
+        case 'archived':
+          await notificationService.archiveNotification(notificationId);
+          break;
+      }
+      await loadNotifications();
+    } catch (error) {
+      console.error('Error performing quick action:', error);
     }
   };
 
@@ -75,6 +100,13 @@ export function NotificationBell() {
 
   const formatNotificationTime = (date: Date) => {
     return format(date, "d MMM, HH:mm", { locale: es });
+  };
+
+  const getNotificationStatus = (notification: Notification) => {
+    if (notification.completedAt) return 'Completada';
+    if (notification.readAt) return 'Leída';
+    if (notification.sentAt) return 'Enviada';
+    return 'Pendiente';
   };
 
   return (
@@ -127,16 +159,11 @@ export function NotificationBell() {
                   {notifications.map((notification, index) => (
                     <div key={notification.id}>
                       <div 
-                        className={`p-4 border-l-4 cursor-pointer transition-colors hover:bg-accent ${
-                          !notification.readAt && notification.sentAt 
+                        className={`p-4 border-l-4 transition-colors hover:bg-accent ${
+                          !notification.readAt && notification.sentAt && !notification.completedAt
                             ? getPriorityColor(notification.priority)
                             : 'border-l-gray-200 bg-gray-50'
                         }`}
-                        onClick={() => {
-                          if (!notification.readAt && notification.sentAt) {
-                            handleMarkAsRead(notification.id);
-                          }
-                        }}
                       >
                         <div className="flex items-start gap-3">
                           <div className="flex-shrink-0 mt-1">
@@ -146,13 +173,13 @@ export function NotificationBell() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between mb-1">
                               <h4 className={`text-sm font-medium truncate ${
-                                !notification.readAt && notification.sentAt 
+                                !notification.readAt && notification.sentAt && !notification.completedAt
                                   ? 'text-foreground' 
                                   : 'text-muted-foreground'
                               }`}>
                                 {notification.title}
                               </h4>
-                              {!notification.readAt && notification.sentAt && (
+                              {!notification.readAt && notification.sentAt && !notification.completedAt && (
                                 <div className="flex-shrink-0 ml-2">
                                   <div className="w-2 h-2 bg-primary rounded-full" />
                                 </div>
@@ -160,14 +187,14 @@ export function NotificationBell() {
                             </div>
                             
                             <p className={`text-xs mb-2 line-clamp-2 ${
-                              !notification.readAt && notification.sentAt 
+                              !notification.readAt && notification.sentAt && !notification.completedAt
                                 ? 'text-foreground' 
                                 : 'text-muted-foreground'
                             }`}>
                               {notification.message}
                             </p>
                             
-                            <div className="flex items-center justify-between text-xs text-muted-foreground">
+                            <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
                               <span>
                                 {notification.sentAt 
                                   ? formatNotificationTime(notification.sentAt)
@@ -175,13 +202,42 @@ export function NotificationBell() {
                                 }
                               </span>
                               
-                              {notification.readAt && (
-                                <div className="flex items-center gap-1">
-                                  <Check className="h-3 w-3" />
-                                  <span>Leída</span>
-                                </div>
-                              )}
+                              <span className="text-xs font-medium">
+                                {getNotificationStatus(notification)}
+                              </span>
                             </div>
+
+                            {/* Quick actions */}
+                            {notification.sentAt && !notification.completedAt && !notification.archivedAt && (
+                              <div className="flex gap-1 mt-2">
+                                {!notification.readAt && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-6 px-2 text-xs"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleMarkAsRead(notification.id);
+                                    }}
+                                  >
+                                    <Check className="h-3 w-3 mr-1" />
+                                    Leer
+                                  </Button>
+                                )}
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-6 px-2 text-xs"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleQuickAction(notification.id, 'completed');
+                                  }}
+                                >
+                                  <Check className="h-3 w-3 mr-1" />
+                                  Completar
+                                </Button>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>

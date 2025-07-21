@@ -1,4 +1,3 @@
-
 import { 
   collection, 
   addDoc, 
@@ -102,6 +101,9 @@ class NotificationService {
         scheduledAt: doc.data().scheduledAt.toDate(),
         sentAt: doc.data().sentAt?.toDate() || null,
         readAt: doc.data().readAt?.toDate() || null,
+        completedAt: doc.data().completedAt?.toDate() || null,
+        archivedAt: doc.data().archivedAt?.toDate() || null,
+        snoozedUntil: doc.data().snoozedUntil?.toDate() || null,
         createdAt: doc.data().createdAt.toDate(),
         updatedAt: doc.data().updatedAt.toDate()
       })) as Notification[];
@@ -110,10 +112,11 @@ class NotificationService {
       const pendingNotifications = notifications.filter(notification => {
         const isNotSent = !notification.sentAt;
         const isScheduled = notification.scheduledAt <= now;
+        const isNotSnoozed = !notification.snoozedUntil || notification.snoozedUntil <= now;
+        const isNotArchived = !notification.archivedAt;
+        const isNotCancelled = notification.status !== 'cancelled';
         
-        console.log(`Notification ${notification.id}: sent=${!!notification.sentAt}, scheduled=${isScheduled}, scheduledAt=${notification.scheduledAt}`);
-        
-        return isNotSent && isScheduled;
+        return isNotSent && isScheduled && isNotSnoozed && isNotArchived && isNotCancelled;
       });
 
       console.log(`Found ${pendingNotifications.length} pending notifications out of ${notifications.length} total`);
@@ -140,6 +143,9 @@ class NotificationService {
         scheduledAt: doc.data().scheduledAt.toDate(),
         sentAt: doc.data().sentAt?.toDate() || null,
         readAt: doc.data().readAt?.toDate() || null,
+        completedAt: doc.data().completedAt?.toDate() || null,
+        archivedAt: doc.data().archivedAt?.toDate() || null,
+        snoozedUntil: doc.data().snoozedUntil?.toDate() || null,
         createdAt: doc.data().createdAt.toDate(),
         updatedAt: doc.data().updatedAt.toDate()
       })) as Notification[];
@@ -172,10 +178,80 @@ class NotificationService {
       const notificationRef = doc(db, this.collection, notificationId);
       await updateDoc(notificationRef, {
         readAt: Timestamp.fromDate(new Date()),
+        status: 'read',
         updatedAt: Timestamp.fromDate(new Date())
       });
     } catch (error) {
       console.error('Error marking notification as read:', error);
+      throw error;
+    }
+  }
+
+  // Marcar notificación como completada
+  async markAsCompleted(notificationId: string, notes?: string, completedBy: string = 'system'): Promise<void> {
+    try {
+      const notificationRef = doc(db, this.collection, notificationId);
+      await updateDoc(notificationRef, {
+        completedAt: Timestamp.fromDate(new Date()),
+        completedBy,
+        status: 'completed',
+        notes: notes || null,
+        actionTaken: notes || null,
+        updatedAt: Timestamp.fromDate(new Date())
+      });
+      console.log('Notification marked as completed:', notificationId);
+    } catch (error) {
+      console.error('Error marking notification as completed:', error);
+      throw error;
+    }
+  }
+
+  // Archivar notificación
+  async archiveNotification(notificationId: string): Promise<void> {
+    try {
+      const notificationRef = doc(db, this.collection, notificationId);
+      await updateDoc(notificationRef, {
+        archivedAt: Timestamp.fromDate(new Date()),
+        status: 'archived',
+        isActive: false,
+        updatedAt: Timestamp.fromDate(new Date())
+      });
+      console.log('Notification archived:', notificationId);
+    } catch (error) {
+      console.error('Error archiving notification:', error);
+      throw error;
+    }
+  }
+
+  // Posponer notificación
+  async snoozeNotification(notificationId: string, hours: number = 24): Promise<void> {
+    try {
+      const snoozeUntil = addHours(new Date(), hours);
+      const notificationRef = doc(db, this.collection, notificationId);
+      await updateDoc(notificationRef, {
+        snoozedUntil: Timestamp.fromDate(snoozeUntil),
+        status: 'snoozed',
+        updatedAt: Timestamp.fromDate(new Date())
+      });
+      console.log('Notification snoozed until:', snoozeUntil, notificationId);
+    } catch (error) {
+      console.error('Error snoozing notification:', error);
+      throw error;
+    }
+  }
+
+  // Cancelar notificación
+  async cancelNotification(notificationId: string): Promise<void> {
+    try {
+      const notificationRef = doc(db, this.collection, notificationId);
+      await updateDoc(notificationRef, {
+        status: 'cancelled',
+        isActive: false,
+        updatedAt: Timestamp.fromDate(new Date())
+      });
+      console.log('Notification cancelled:', notificationId);
+    } catch (error) {
+      console.error('Error cancelling notification:', error);
       throw error;
     }
   }
@@ -375,21 +451,25 @@ class NotificationService {
     pending: number;
     sent: number;
     read: number;
+    completed: number;
+    archived: number;
   }> {
     try {
       const allNotifications = await this.getAllNotifications(1000);
       
       const stats = {
         total: allNotifications.length,
-        pending: allNotifications.filter(n => !n.sentAt && n.isActive).length,
-        sent: allNotifications.filter(n => n.sentAt && !n.readAt).length,
-        read: allNotifications.filter(n => n.readAt).length
+        pending: allNotifications.filter(n => !n.sentAt && n.isActive && n.status !== 'cancelled').length,
+        sent: allNotifications.filter(n => n.sentAt && !n.readAt && !n.completedAt).length,
+        read: allNotifications.filter(n => n.readAt && !n.completedAt).length,
+        completed: allNotifications.filter(n => n.completedAt).length,
+        archived: allNotifications.filter(n => n.archivedAt).length
       };
 
       return stats;
     } catch (error) {
       console.error('Error getting notification stats:', error);
-      return { total: 0, pending: 0, sent: 0, read: 0 };
+      return { total: 0, pending: 0, sent: 0, read: 0, completed: 0, archived: 0 };
     }
   }
 }
