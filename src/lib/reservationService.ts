@@ -1,3 +1,4 @@
+
 import { 
   collection, 
   addDoc, 
@@ -12,6 +13,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { Reservation, ReservationFormData } from '@/types/reservation';
+import { addDays, getTomorrowDate } from './dateUtils';
 
 const COLLECTION_NAME = 'reservas';
 
@@ -151,6 +153,51 @@ export const getTodayDepartures = async (): Promise<Reservation[]> => {
   const q = query(
     collection(db, COLLECTION_NAME),
     where('checkOut', '==', today)
+  );
+  const querySnapshot = await getDocs(q);
+  
+  return querySnapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  } as Reservation));
+};
+
+export const getUpcomingArrivals = async (days: number = 5): Promise<Reservation[]> => {
+  const today = new Date().toISOString().split('T')[0];
+  const futureDate = addDays(today, days);
+  
+  const q = query(
+    collection(db, COLLECTION_NAME),
+    where('checkIn', '>', today),
+    where('checkIn', '<=', futureDate),
+    orderBy('checkIn', 'asc')
+  );
+  const querySnapshot = await getDocs(q);
+  
+  return querySnapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  } as Reservation));
+};
+
+export const getTomorrowDepartures = async (): Promise<Reservation[]> => {
+  const tomorrow = getTomorrowDate();
+  const q = query(
+    collection(db, COLLECTION_NAME),
+    where('checkOut', '==', tomorrow)
+  );
+  const querySnapshot = await getDocs(q);
+  
+  return querySnapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  } as Reservation));
+};
+
+export const getArrivalsForDate = async (date: string): Promise<Reservation[]> => {
+  const q = query(
+    collection(db, COLLECTION_NAME),
+    where('checkIn', '==', date)
   );
   const querySnapshot = await getDocs(q);
   

@@ -34,3 +34,24 @@ export const isSameDate = (date1: Date, date2: string): boolean => {
 export const formatDateToISO = (date: Date): string => {
   return date.toISOString().split('T')[0];
 };
+
+export const addDays = (dateStr: string, days: number): string => {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  date.setDate(date.getDate() + days);
+  return date.toISOString().split('T')[0];
+};
+
+export const getTomorrowDate = (): string => {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return tomorrow.toISOString().split('T')[0];
+};
+
+export const getDateRange = (startDate: string, endDays: number): string[] => {
+  const dates: string[] = [];
+  for (let i = 0; i < endDays; i++) {
+    dates.push(addDays(startDate, i));
+  }
+  return dates;
+};
