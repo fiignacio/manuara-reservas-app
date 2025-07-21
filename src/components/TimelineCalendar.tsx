@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Reservation } from '@/types/reservation';
-import { formatDateForDisplay, parseDate, getDaysBetween } from '@/lib/dateUtils';
+import { formatDateForDisplay, parseDate, getDaysBetween, isSameDate, formatDateToISO } from '@/lib/dateUtils';
 
 interface TimelineCalendarProps {
   reservations: Reservation[];
@@ -65,24 +65,24 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading }: Timelin
   const timelineDates = getTimelineDates();
 
   const getReservationPosition = (reservation: Reservation) => {
-    const checkInDate = parseDate(reservation.checkIn);
-    const checkOutDate = parseDate(reservation.checkOut);
+    const checkInDate = reservation.checkIn;
+    const checkOutDate = reservation.checkOut;
     
     const startIndex = timelineDates.findIndex(date => 
-      date.toISOString().split('T')[0] === checkInDate.toISOString().split('T')[0]
+      isSameDate(date, checkInDate)
     );
     const endIndex = timelineDates.findIndex(date => 
-      date.toISOString().split('T')[0] === checkOutDate.toISOString().split('T')[0]
+      isSameDate(date, checkOutDate)
     );
 
     if (startIndex === -1 && endIndex === -1) {
       // Check if reservation overlaps with visible period
-      const firstDate = timelineDates[0];
-      const lastDate = timelineDates[timelineDates.length - 1];
+      const firstDateStr = formatDateToISO(timelineDates[0]);
+      const lastDateStr = formatDateToISO(timelineDates[timelineDates.length - 1]);
       
-      if (checkInDate <= lastDate && checkOutDate >= firstDate) {
-        const actualStart = checkInDate < firstDate ? 0 : startIndex;
-        const actualEnd = checkOutDate > lastDate ? timelineDates.length - 1 : endIndex;
+      if (checkInDate <= lastDateStr && checkOutDate >= firstDateStr) {
+        const actualStart = checkInDate < firstDateStr ? 0 : startIndex;
+        const actualEnd = checkOutDate > lastDateStr ? timelineDates.length - 1 : endIndex;
         return { startIndex: actualStart, endIndex: actualEnd, width: (actualEnd - actualStart + 1) * dayWidth };
       }
       return null;
@@ -309,7 +309,7 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading }: Timelin
               <div className="h-12 border-b border-border/50 flex bg-muted/30 sticky top-0 z-10">
                 {timelineDates.map((date, index) => {
                   const isCurrentMonth = date.getMonth() === currentDate.getMonth();
-                  const isToday = date.toDateString() === new Date().toDateString();
+                  const isToday = isSameDate(date, formatDateToISO(new Date()));
                   
                   return (
                     <div

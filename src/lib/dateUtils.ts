@@ -25,3 +25,12 @@ export const getDaysBetween = (startDate: string, endDate: string): number => {
   const diffTime = end.getTime() - start.getTime();
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 for inclusive dates
 };
+
+export const isSameDate = (date1: Date, date2: string): boolean => {
+  const dateStr1 = date1.toISOString().split('T')[0];
+  return dateStr1 === date2;
+};
+
+export const formatDateToISO = (date: Date): string => {
+  return date.toISOString().split('T')[0];
+};
