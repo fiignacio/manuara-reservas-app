@@ -190,21 +190,24 @@ export const createReservation = async (data: ReservationFormData): Promise<stri
   return docRef.id;
 };
 
-export const updateReservation = async (id: string, data: ReservationFormData): Promise<void> => {
-  console.log('Updating reservation:', id);
+export const updateReservation = async (id: string, data: ReservationFormData, shouldUpdateDates: boolean = true): Promise<void> => {
+  console.log('Updating reservation:', id, 'shouldUpdateDates:', shouldUpdateDates);
   
-  // Validar fechas antes de verificar disponibilidad
-  const dateValidation = validateReservationDates(data.checkIn, data.checkOut);
-  if (!dateValidation.isValid) {
-    throw new Error(dateValidation.error);
-  }
-  
-  // Validar disponibilidad antes de actualizar (excluyendo la reserva actual)
-  const isAvailable = await checkCabinAvailability(data.cabinType, data.checkIn, data.checkOut, id);
-  
-  if (!isAvailable) {
-    const nextAvailable = await getNextAvailableDate(data.cabinType, data.checkIn);
-    throw new Error(`La ${data.cabinType} no está disponible para las fechas seleccionadas (${new Date(data.checkIn).toLocaleDateString('es-ES')} - ${new Date(data.checkOut).toLocaleDateString('es-ES')}). Próxima fecha disponible: ${nextAvailable ? new Date(nextAvailable).toLocaleDateString('es-ES') : 'No disponible'}`);
+  // Solo validar fechas si shouldUpdateDates es true
+  if (shouldUpdateDates) {
+    // Validar fechas antes de verificar disponibilidad
+    const dateValidation = validateReservationDates(data.checkIn, data.checkOut);
+    if (!dateValidation.isValid) {
+      throw new Error(dateValidation.error);
+    }
+    
+    // Validar disponibilidad antes de actualizar (excluyendo la reserva actual)
+    const isAvailable = await checkCabinAvailability(data.cabinType, data.checkIn, data.checkOut, id);
+    
+    if (!isAvailable) {
+      const nextAvailable = await getNextAvailableDate(data.cabinType, data.checkIn);
+      throw new Error(`La ${data.cabinType} no está disponible para las fechas seleccionadas (${new Date(data.checkIn).toLocaleDateString('es-ES')} - ${new Date(data.checkOut).toLocaleDateString('es-ES')}). Próxima fecha disponible: ${nextAvailable ? new Date(nextAvailable).toLocaleDateString('es-ES') : 'No disponible'}`);
+    }
   }
 
   const totalPrice = calculatePrice(data);
@@ -216,20 +219,24 @@ export const updateReservation = async (id: string, data: ReservationFormData): 
   
   await updateDoc(doc(db, COLLECTION_NAME, id), reservation);
   
-  // Regenerar notificaciones para la reserva actualizada
-  try {
-    const fullReservation: Reservation = {
-      ...reservation,
-      id,
-      createdAt: new Date(), // Este valor se sobreescribirá con el real
-      updatedAt: new Date()
-    } as Reservation;
-    
-    console.log('Regenerating notifications for updated reservation:', id);
-    await notificationService.generateReservationNotifications(fullReservation);
-  } catch (error) {
-    console.error('Error regenerating notifications for reservation:', error);
-    // No fallar la actualización de la reserva si hay error en notificaciones
+  // Regenerar notificaciones solo si las fechas se actualizaron
+  if (shouldUpdateDates) {
+    try {
+      const fullReservation: Reservation = {
+        ...reservation,
+        id,
+        createdAt: new Date(), // Este valor se sobreescribirá con el real
+        updatedAt: new Date()
+      } as Reservation;
+      
+      console.log('Regenerating notifications for updated reservation:', id);
+      await notificationService.generateReservationNotifications(fullReservation);
+    } catch (error) {
+      console.error('Error regenerating notifications for reservation:', error);
+      // No fallar la actualización de la reserva si hay error en notificaciones
+    }
+  } else {
+    console.log('Dates not updated, skipping notification regeneration for reservation:', id);
   }
 };
 

@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { Reservation, ReservationFormData } from '@/types/reservation';
 import { 
@@ -33,6 +34,7 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
   const [availabilityStatus, setAvailabilityStatus] = useState<'available' | 'unavailable' | 'checking' | null>(null);
   const [nextAvailableDate, setNextAvailableDate] = useState<string | null>(null);
   const [dateValidationError, setDateValidationError] = useState<string | null>(null);
+  const [updateDates, setUpdateDates] = useState(false);
   
   const [formData, setFormData] = useState<ReservationFormData>({
     passengerName: '',
@@ -47,11 +49,15 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
   });
 
   const [calculatedPrice, setCalculatedPrice] = useState(0);
+  const isEditing = !!reservation;
 
   // Configurar límites de fechas
   const today = new Date().toISOString().split('T')[0];
   const maxDate = addDays(today, 730); // 2 años en el futuro
   const minCheckOut = formData.checkIn ? addDays(formData.checkIn, 1) : '';
+
+  // Determinar si se deben validar las fechas
+  const shouldValidateDates = !isEditing || updateDates;
 
   useEffect(() => {
     if (reservation) {
@@ -66,6 +72,7 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
         arrivalFlight: reservation.arrivalFlight,
         departureFlight: reservation.departureFlight
       });
+      setUpdateDates(false); // Por defecto, no actualizar fechas al editar
     } else {
       setFormData({
         passengerName: '',
@@ -78,20 +85,28 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
         arrivalFlight: 'LA841',
         departureFlight: 'LA842'
       });
+      setUpdateDates(false);
     }
     setAvailabilityStatus(null);
     setNextAvailableDate(null);
     setDateValidationError(null);
   }, [reservation]);
 
-  // Validar fechas en tiempo real
+  // Validar fechas en tiempo real solo si se deben validar
   useEffect(() => {
     if (formData.checkIn && formData.checkOut) {
-      const validation = validateReservationDates(formData.checkIn, formData.checkOut);
-      if (!validation.isValid) {
-        setDateValidationError(validation.error || null);
-        setAvailabilityStatus(null);
-        return;
+      // Solo validar fechas si estamos creando nueva reserva o si el checkbox está marcado
+      if (shouldValidateDates) {
+        const validation = validateReservationDates(formData.checkIn, formData.checkOut);
+        if (!validation.isValid) {
+          setDateValidationError(validation.error || null);
+          setAvailabilityStatus(null);
+          const price = calculatePrice(formData);
+          setCalculatedPrice(price);
+          return;
+        } else {
+          setDateValidationError(null);
+        }
       } else {
         setDateValidationError(null);
       }
@@ -100,15 +115,18 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
       setCalculatedPrice(price);
     } else {
       setCalculatedPrice(0);
-      setDateValidationError(null);
-      setAvailabilityStatus(null);
+      if (shouldValidateDates) {
+        setDateValidationError(null);
+        setAvailabilityStatus(null);
+      }
     }
-  }, [formData]);
+  }, [formData, shouldValidateDates]);
 
   // Verificar disponibilidad cuando cambien las fechas o tipo de cabaña
   useEffect(() => {
     const checkAvailability = async () => {
-      if (formData.checkIn && formData.checkOut && formData.cabinType && !dateValidationError) {
+      // Solo verificar disponibilidad si debemos validar fechas
+      if (shouldValidateDates && formData.checkIn && formData.checkOut && formData.cabinType && !dateValidationError) {
         setCheckingAvailability(true);
         setAvailabilityStatus('checking');
         
@@ -137,36 +155,39 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
       } else {
         setAvailabilityStatus(null);
         setNextAvailableDate(null);
+        setCheckingAvailability(false);
       }
     };
 
-    const timeoutId = setTimeout(checkAvailability, 500); // Debounce para evitar demasiadas consultas
+    const timeoutId = setTimeout(checkAvailability, 500);
     return () => clearTimeout(timeoutId);
-  }, [formData.checkIn, formData.checkOut, formData.cabinType, dateValidationError, reservation?.id]);
+  }, [formData.checkIn, formData.checkOut, formData.cabinType, dateValidationError, reservation?.id, shouldValidateDates]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validaciones finales
-    if (dateValidationError) {
-      toast({
-        title: "📅 Error en las fechas",
-        description: dateValidationError,
-        variant: "destructive"
-      });
-      return;
+    // Validaciones finales solo si debemos validar fechas
+    if (shouldValidateDates) {
+      if (dateValidationError) {
+        toast({
+          title: "📅 Error en las fechas",
+          description: dateValidationError,
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (availabilityStatus === 'unavailable') {
+        toast({
+          title: "❌ Cabaña no disponible",
+          description: `La ${formData.cabinType} no está disponible para las fechas seleccionadas. ${nextAvailableDate ? `Próxima fecha disponible: ${new Date(nextAvailableDate).toLocaleDateString('es-ES')}` : ''}`,
+          variant: "destructive"
+        });
+        return;
+      }
     }
 
-    if (availabilityStatus === 'unavailable') {
-      toast({
-        title: "❌ Cabaña no disponible",
-        description: `La ${formData.cabinType} no está disponible para las fechas seleccionadas. ${nextAvailableDate ? `Próxima fecha disponible: ${new Date(nextAvailableDate).toLocaleDateString('es-ES')}` : ''}`,
-        variant: "destructive"
-      });
-      return;
-    }
-
-    // Validar capacidad de la cabaña
+    // Validar capacidad de la cabaña (siempre)
     const totalGuests = formData.adults + formData.children;
     const maxCapacity = formData.cabinType.includes('Pequeña') ? 3 : 
                        formData.cabinType.includes('Mediana') ? 4 : 6;
@@ -184,10 +205,10 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
     
     try {
       if (reservation?.id) {
-        await updateReservation(reservation.id, formData);
+        await updateReservation(reservation.id, formData, shouldValidateDates);
         toast({
           title: "✅ Reserva actualizada exitosamente",
-          description: `La reserva de ${formData.passengerName} para la ${formData.cabinType} ha sido modificada del ${new Date(formData.checkIn).toLocaleDateString('es-ES')} al ${new Date(formData.checkOut).toLocaleDateString('es-ES')}.`
+          description: `La reserva de ${formData.passengerName} para la ${formData.cabinType} ha sido modificada${shouldValidateDates ? ` del ${new Date(formData.checkIn).toLocaleDateString('es-ES')} al ${new Date(formData.checkOut).toLocaleDateString('es-ES')}` : ''}.`
         });
       } else {
         await createReservation(formData);
@@ -222,6 +243,18 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
   };
 
   const getAvailabilityIndicator = () => {
+    // No mostrar indicador si no estamos validando fechas
+    if (!shouldValidateDates) {
+      return (
+        <Alert className="border-blue-500 bg-blue-50">
+          <AlertCircle className="h-4 w-4 text-blue-600" />
+          <AlertDescription className="text-blue-800">
+            ℹ️ Las fechas no se actualizarán. Solo se modificarán los demás datos de la reserva.
+          </AlertDescription>
+        </Alert>
+      );
+    }
+
     if (checkingAvailability || availabilityStatus === 'checking') {
       return (
         <Alert>
@@ -279,6 +312,28 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Checkbox para actualizar fechas - solo al editar */}
+          {isEditing && (
+            <div className="bg-accent/50 p-4 rounded-lg border">
+              <div className="flex items-center space-x-3">
+                <Checkbox
+                  id="updateDates"
+                  checked={updateDates}
+                  onCheckedChange={(checked) => setUpdateDates(!!checked)}
+                />
+                <div className="grid gap-1.5 leading-none">
+                  <Label htmlFor="updateDates" className="text-sm font-medium cursor-pointer">
+                    Actualizar fechas de la reserva
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Marcar si deseas cambiar las fechas de check-in y check-out. 
+                    Si no está marcado, podrás editar otros datos sin restricciones de disponibilidad.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Nombre del Pasajero */}
             <div className="md:col-span-2">
@@ -298,12 +353,13 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
               <Input
                 id="checkIn"
                 type="date"
-                min={today}
-                max={maxDate}
+                min={shouldValidateDates ? today : undefined}
+                max={shouldValidateDates ? maxDate : undefined}
                 value={formData.checkIn}
                 onChange={(e) => setFormData({ ...formData, checkIn: e.target.value })}
+                disabled={isEditing && !updateDates}
                 required
-                className="mt-1"
+                className={`mt-1 ${isEditing && !updateDates ? 'bg-muted cursor-not-allowed' : ''}`}
               />
             </div>
 
@@ -312,12 +368,13 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
               <Input
                 id="checkOut"
                 type="date"
-                min={minCheckOut}
-                max={maxDate}
+                min={shouldValidateDates ? minCheckOut : undefined}
+                max={shouldValidateDates ? maxDate : undefined}
                 value={formData.checkOut}
                 onChange={(e) => setFormData({ ...formData, checkOut: e.target.value })}
+                disabled={isEditing && !updateDates}
                 required
-                className="mt-1"
+                className={`mt-1 ${isEditing && !updateDates ? 'bg-muted cursor-not-allowed' : ''}`}
               />
             </div>
 
@@ -342,7 +399,7 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
           </div>
 
           {/* Indicador de validación de fechas */}
-          {dateValidationError && (
+          {shouldValidateDates && dateValidationError && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>{dateValidationError}</AlertDescription>
@@ -350,7 +407,7 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
           )}
 
           {/* Indicador de disponibilidad */}
-          {!dateValidationError && getAvailabilityIndicator()}
+          {getAvailabilityIndicator()}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Número de personas */}
@@ -433,7 +490,7 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
           </div>
 
           {/* Precio calculado */}
-          {calculatedPrice > 0 && !dateValidationError && (
+          {calculatedPrice > 0 && (
             <div className="bg-accent p-4 rounded-lg">
               <div className="text-sm text-muted-foreground">Precio Total</div>
               <div className="text-2xl font-bold text-primary">
@@ -457,7 +514,7 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
             </Button>
             <Button
               type="submit"
-              disabled={loading || availabilityStatus === 'unavailable' || !!dateValidationError}
+              disabled={loading || (shouldValidateDates && (availabilityStatus === 'unavailable' || !!dateValidationError))}
               className="flex-1 btn-cabin"
             >
               {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
