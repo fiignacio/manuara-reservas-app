@@ -26,16 +26,25 @@ interface ReservationModalProps {
   reservation?: Reservation | null;
 }
 
-const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: ReservationModalProps) => {
-  const { toast } = useToast();
-  const [loading, setLoading] = useState(false);
-  const [checkingAvailability, setCheckingAvailability] = useState(false);
-  const [availabilityStatus, setAvailabilityStatus] = useState<'available' | 'unavailable' | 'checking' | null>(null);
-  const [nextAvailableDate, setNextAvailableDate] = useState<string | null>(null);
-  const [dateValidationError, setDateValidationError] = useState<string | null>(null);
-  const [updateDates, setUpdateDates] = useState(false);
+// Helper function to ensure proper default values for form data
+const initializeFormData = (reservation?: Reservation | null): ReservationFormData => {
+  if (reservation) {
+    return {
+      passengerName: reservation.passengerName || '',
+      checkIn: reservation.checkIn || '',
+      checkOut: reservation.checkOut || '',
+      adults: reservation.adults || 1,
+      children: reservation.children || 0,
+      season: reservation.season || 'Baja',
+      cabinType: reservation.cabinType || 'Cabaña Pequeña (Max 3p)',
+      arrivalFlight: reservation.arrivalFlight || 'LA841',
+      departureFlight: reservation.departureFlight || 'LA842',
+      useCustomPrice: reservation.useCustomPrice ?? false, // Use nullish coalescing to handle undefined
+      customPrice: reservation.customPrice || 0
+    };
+  }
   
-  const [formData, setFormData] = useState<ReservationFormData>({
+  return {
     passengerName: '',
     checkIn: '',
     checkOut: '',
@@ -47,7 +56,19 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
     departureFlight: 'LA842',
     useCustomPrice: false,
     customPrice: 0
-  });
+  };
+};
+
+const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: ReservationModalProps) => {
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
+  const [checkingAvailability, setCheckingAvailability] = useState(false);
+  const [availabilityStatus, setAvailabilityStatus] = useState<'available' | 'unavailable' | 'checking' | null>(null);
+  const [nextAvailableDate, setNextAvailableDate] = useState<string | null>(null);
+  const [dateValidationError, setDateValidationError] = useState<string | null>(null);
+  const [updateDates, setUpdateDates] = useState(false);
+  
+  const [formData, setFormData] = useState<ReservationFormData>(initializeFormData());
 
   const [calculatedPrice, setCalculatedPrice] = useState(0);
   const [automaticPrice, setAutomaticPrice] = useState(0);
@@ -63,34 +84,11 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
 
   useEffect(() => {
     if (reservation) {
-      setFormData({
-        passengerName: reservation.passengerName,
-        checkIn: reservation.checkIn,
-        checkOut: reservation.checkOut,
-        adults: reservation.adults,
-        children: reservation.children,
-        season: reservation.season,
-        cabinType: reservation.cabinType,
-        arrivalFlight: reservation.arrivalFlight,
-        departureFlight: reservation.departureFlight,
-        useCustomPrice: reservation.useCustomPrice,
-        customPrice: reservation.customPrice || 0
-      });
+      const initializedData = initializeFormData(reservation);
+      setFormData(initializedData);
       setUpdateDates(false);
     } else {
-      setFormData({
-        passengerName: '',
-        checkIn: '',
-        checkOut: '',
-        adults: 1,
-        children: 0,
-        season: 'Baja',
-        cabinType: 'Cabaña Pequeña (Max 3p)',
-        arrivalFlight: 'LA841',
-        departureFlight: 'LA842',
-        useCustomPrice: false,
-        customPrice: 0
-      });
+      setFormData(initializeFormData());
       setUpdateDates(false);
     }
     setAvailabilityStatus(null);
@@ -102,7 +100,7 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
   useEffect(() => {
     if (formData.checkIn && formData.checkOut) {
       // Calculate automatic price (for comparison)
-      const autoFormData = { ...formData, useCustomPrice: false };
+      const autoFormData = { ...formData, useCustomPrice: false, customPrice: 0 };
       const autoPrice = calculatePrice(autoFormData);
       setAutomaticPrice(autoPrice);
       
@@ -225,14 +223,21 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
     setLoading(true);
     
     try {
+      // Clean form data before submission
+      const cleanFormData = {
+        ...formData,
+        useCustomPrice: !!formData.useCustomPrice, // Ensure boolean
+        customPrice: formData.useCustomPrice ? (formData.customPrice || 0) : 0
+      };
+
       if (reservation?.id) {
-        await updateReservation(reservation.id, formData, shouldValidateDates);
+        await updateReservation(reservation.id, cleanFormData, shouldValidateDates);
         toast({
           title: "✅ Reserva actualizada exitosamente",
           description: `La reserva de ${formData.passengerName} para la ${formData.cabinType} ha sido modificada${shouldValidateDates ? ` del ${new Date(formData.checkIn).toLocaleDateString('es-ES')} al ${new Date(formData.checkOut).toLocaleDateString('es-ES')}` : ''}.`
         });
       } else {
-        await createReservation(formData);
+        await createReservation(cleanFormData);
         toast({
           title: "🎉 Reserva creada exitosamente",
           description: `Se ha registrado la reserva de ${formData.passengerName} para la ${formData.cabinType} del ${new Date(formData.checkIn).toLocaleDateString('es-ES')} al ${new Date(formData.checkOut).toLocaleDateString('es-ES')}.`
@@ -261,6 +266,15 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
         checkOut: addDays(nextAvailableDate, Math.ceil((new Date(formData.checkOut).getTime() - new Date(formData.checkIn).getTime()) / (1000 * 60 * 60 * 24)))
       });
     }
+  };
+
+  // Handle custom price toggle with proper cleanup
+  const handleCustomPriceToggle = (checked: boolean) => {
+    setFormData({ 
+      ...formData, 
+      useCustomPrice: checked,
+      customPrice: checked ? formData.customPrice : 0
+    });
   };
 
   const getAvailabilityIndicator = () => {
@@ -516,7 +530,7 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
               <Checkbox
                 id="useCustomPrice"
                 checked={formData.useCustomPrice}
-                onCheckedChange={(checked) => setFormData({ ...formData, useCustomPrice: !!checked })}
+                onCheckedChange={handleCustomPriceToggle}
               />
               <div className="grid gap-1.5 leading-none">
                 <Label htmlFor="useCustomPrice" className="text-sm font-medium cursor-pointer flex items-center gap-2">

@@ -18,6 +18,33 @@ import { notificationService } from './notificationService';
 
 const COLLECTION_NAME = 'reservas';
 
+// Clean reservation data to remove undefined fields and set defaults
+const cleanReservationData = (data: Partial<Reservation>): Partial<Reservation> => {
+  const cleaned: Partial<Reservation> = {};
+  
+  // Copy all defined values
+  Object.keys(data).forEach(key => {
+    const value = data[key as keyof Reservation];
+    if (value !== undefined) {
+      cleaned[key as keyof Reservation] = value;
+    }
+  });
+  
+  // Ensure critical fields have default values
+  if (cleaned.useCustomPrice === undefined) {
+    cleaned.useCustomPrice = false;
+  }
+  
+  // Only include customPrice if useCustomPrice is true
+  if (!cleaned.useCustomPrice) {
+    delete cleaned.customPrice;
+  } else if (cleaned.customPrice === undefined) {
+    cleaned.customPrice = 0;
+  }
+  
+  return cleaned;
+};
+
 export const calculatePrice = (data: ReservationFormData): number => {
   // If using custom price, return that value
   if (data.useCustomPrice && data.customPrice) {
@@ -101,12 +128,14 @@ export const addPayment = async (reservationId: string, paymentData: PaymentForm
   const newRemainingBalance = calculateRemainingBalance(updatedReservation);
   const newPaymentStatus = updatePaymentStatus(updatedReservation);
   
-  await updateDoc(doc(db, COLLECTION_NAME, reservationId), {
+  const updateData = cleanReservationData({
     payments: updatedPayments,
     remainingBalance: newRemainingBalance,
     paymentStatus: newPaymentStatus,
     updatedAt: new Date()
   });
+  
+  await updateDoc(doc(db, COLLECTION_NAME, reservationId), updateData);
 };
 
 // Validar disponibilidad de cabaña - CORREGIDA para permitir check-in el día de check-out
@@ -251,7 +280,10 @@ export const createReservation = async (data: ReservationFormData): Promise<stri
     updatedAt: new Date()
   };
   
-  const docRef = await addDoc(collection(db, COLLECTION_NAME), reservation);
+  // Clean the data before sending to Firebase
+  const cleanedReservation = cleanReservationData(reservation);
+  
+  const docRef = await addDoc(collection(db, COLLECTION_NAME), cleanedReservation);
   
   // Generar notificaciones automáticas para la nueva reserva
   try {
@@ -312,7 +344,10 @@ export const updateReservation = async (id: string, data: ReservationFormData, s
     updatedAt: new Date()
   };
   
-  await updateDoc(doc(db, COLLECTION_NAME, id), reservation);
+  // Clean the data before sending to Firebase
+  const cleanedReservation = cleanReservationData(reservation);
+  
+  await updateDoc(doc(db, COLLECTION_NAME, id), cleanedReservation);
   
   // Regenerar notificaciones solo si las fechas se actualizaron
   if (shouldUpdateDates) {
@@ -480,7 +515,6 @@ export const getArrivalsForDate = async (date: string): Promise<Reservation[]> =
   } as Reservation));
 };
 
-// Eliminar reservas vencidas (checkout + 1 día)
 export const deleteExpiredReservations = async (): Promise<number> => {
   console.log('Checking for expired reservations...');
   
@@ -520,5 +554,3 @@ export const deleteExpiredReservations = async (): Promise<number> => {
   
   return deletedCount;
 };
-
-
