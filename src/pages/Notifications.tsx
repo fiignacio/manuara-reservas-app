@@ -11,6 +11,7 @@ import { Textarea } from '../components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Bell, Send, Settings, BarChart3, Plus, Calendar, AlertTriangle, Mail, MessageCircle, Phone, Loader2, RefreshCw } from 'lucide-react';
 import { notificationService } from '../lib/notificationService';
+import { deleteExpiredReservations } from '../lib/reservationService';
 import { Notification, NotificationType } from '../types/notification';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -115,10 +116,24 @@ export function Notifications() {
       console.log('Processing notifications...');
       
       const processedCount = await notificationService.processNotifications();
+      const deletedReservations = await deleteExpiredReservations();
+      
+      let message = '';
+      if (processedCount > 0) {
+        message += `Se enviaron ${processedCount} notificaciones correctamente.`;
+      }
+      if (deletedReservations > 0) {
+        if (message) message += ' ';
+        message += `Se eliminaron ${deletedReservations} reservas vencidas.`;
+      }
+      
+      if (!message) {
+        message = 'No hay notificaciones pendientes ni reservas vencidas.';
+      }
       
       toast({
-        title: "✅ Notificaciones procesadas",
-        description: `Se enviaron ${processedCount} notificaciones correctamente`
+        title: "✅ Procesamiento completado",
+        description: message
       });
       
       // Recargar datos después del procesamiento

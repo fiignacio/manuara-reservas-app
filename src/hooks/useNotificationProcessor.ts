@@ -1,6 +1,7 @@
 
 import { useEffect, useRef } from 'react';
 import { notificationService } from '../lib/notificationService';
+import { deleteExpiredReservations } from '../lib/reservationService';
 
 export const useNotificationProcessor = () => {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -13,6 +14,12 @@ export const useNotificationProcessor = () => {
         const processedCount = await notificationService.processNotifications();
         if (processedCount > 0) {
           console.log(`Auto-processed ${processedCount} notifications`);
+        }
+
+        // También eliminar reservas vencidas
+        const deletedReservations = await deleteExpiredReservations();
+        if (deletedReservations > 0) {
+          console.log(`Auto-deleted ${deletedReservations} expired reservations`);
         }
       } catch (error) {
         console.error('Error in auto-processing notifications:', error);
@@ -35,7 +42,8 @@ export const useNotificationProcessor = () => {
   const manualProcess = async () => {
     try {
       const processedCount = await notificationService.processNotifications();
-      return processedCount;
+      const deletedReservations = await deleteExpiredReservations();
+      return { processedCount, deletedReservations };
     } catch (error) {
       console.error('Error in manual processing:', error);
       throw error;

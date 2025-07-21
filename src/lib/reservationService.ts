@@ -241,3 +241,39 @@ export const getArrivalsForDate = async (date: string): Promise<Reservation[]> =
     ...doc.data()
   } as Reservation));
 };
+
+// Eliminar reservas vencidas (checkout + 1 día)
+export const deleteExpiredReservations = async (): Promise<number> => {
+  console.log('Checking for expired reservations...');
+  
+  const today = new Date().toISOString().split('T')[0];
+  const yesterday = addDays(today, -1);
+  
+  // Buscar reservas que salieron ayer o antes
+  const q = query(
+    collection(db, COLLECTION_NAME),
+    where('checkOut', '<=', yesterday)
+  );
+  
+  const querySnapshot = await getDocs(q);
+  let deletedCount = 0;
+  
+  // Eliminar reservas vencidas
+  for (const docSnapshot of querySnapshot.docs) {
+    try {
+      await deleteDoc(doc(db, COLLECTION_NAME, docSnapshot.id));
+      deletedCount++;
+      console.log(`Deleted expired reservation: ${docSnapshot.id}`);
+    } catch (error) {
+      console.error(`Error deleting expired reservation ${docSnapshot.id}:`, error);
+    }
+  }
+  
+  if (deletedCount > 0) {
+    console.log(`Successfully deleted ${deletedCount} expired reservations`);
+  } else {
+    console.log('No expired reservations found');
+  }
+  
+  return deletedCount;
+};
