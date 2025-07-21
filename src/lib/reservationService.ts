@@ -215,6 +215,38 @@ export const getUpcomingArrivals = async (days: number = 5): Promise<Reservation
   } as Reservation));
 };
 
+export const getUpcomingDepartures = async (days: number = 5): Promise<Reservation[]> => {
+  const today = new Date().toISOString().split('T')[0];
+  const futureDate = addDays(today, days);
+  
+  console.log(`Getting upcoming departures from ${today} to ${futureDate}`);
+  
+  const q = query(
+    collection(db, COLLECTION_NAME),
+    where('checkOut', '>', today),
+    where('checkOut', '<=', futureDate),
+    orderBy('checkOut', 'asc')
+  );
+  const querySnapshot = await getDocs(q);
+  
+  const departures = querySnapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  } as Reservation));
+  
+  console.log(`Found ${departures.length} upcoming departures:`, 
+    departures.map(d => ({
+      id: d.id,
+      passenger: d.passengerName,
+      cabin: d.cabinType,
+      checkOut: d.checkOut,
+      flight: d.departureFlight
+    }))
+  );
+  
+  return departures;
+};
+
 export const getTomorrowDepartures = async (): Promise<Reservation[]> => {
   const tomorrow = getTomorrowDate();
   console.log('Getting tomorrow departures for date:', tomorrow);
