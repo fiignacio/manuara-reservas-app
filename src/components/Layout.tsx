@@ -1,5 +1,5 @@
 
-import { Home, Calendar, Table, Settings, Bell, BarChart3 } from 'lucide-react';
+import { Home, Calendar, Table, Settings, Bell, BarChart3, FileText } from 'lucide-react';
 import { NotificationBell } from './NotificationBell';
 import { NavLink } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -12,6 +12,7 @@ const Layout = ({ children }: LayoutProps) => {
   const navigation = [
     { name: 'Dashboard', href: '/', icon: Home },
     { name: 'Calendario & Reservas', href: '/calendar', icon: Calendar },
+    { name: 'Cotizaciones', href: '/quotes', icon: FileText },
     { name: 'Analytics', href: '/analytics', icon: BarChart3 },
     { name: 'Notificaciones', href: '/notifications', icon: Bell },
   ];

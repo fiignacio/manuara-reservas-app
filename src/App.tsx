@@ -8,6 +8,7 @@ import Layout from "./components/Layout";
 import Dashboard from "./pages/Dashboard";
 import Calendar from "./pages/Calendar";
 import Reservations from "./pages/Reservations";
+import Quotes from "./pages/Quotes";
 import Analytics from "./pages/Analytics";
 import { Notifications } from "./pages/Notifications";
 import NotFound from "./pages/NotFound";
@@ -25,6 +26,7 @@ const AppContent = () => {
         <Route path="/" element={<Dashboard />} />
         <Route path="/calendar" element={<Calendar />} />
         <Route path="/reservations" element={<Reservations />} />
+        <Route path="/quotes" element={<Quotes />} />
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/notifications" element={<Notifications />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
