@@ -521,4 +521,4 @@ export const deleteExpiredReservations = async (): Promise<number> => {
   return deletedCount;
 };
 
-export { checkCabinAvailability, validateReservationDates, getNextAvailableDate, deleteReservation, getAllReservations, getReservationsForDate, getTodayArrivals, getTodayDepartures, getUpcomingArrivals, getUpcomingDepartures, getTomorrowDepartures, getArrivalsForDate, deleteExpiredReservations };
+
