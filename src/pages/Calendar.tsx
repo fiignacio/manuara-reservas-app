@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon, Edit, Trash2, Search, Filter } from 'lucide-react';
+import { Plus, Search, Filter, Edit, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -19,13 +19,13 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import ReservationModal from '@/components/ReservationModal';
+import TimelineCalendar from '@/components/TimelineCalendar';
 import { Reservation } from '@/types/reservation';
 import { getAllReservations, deleteReservation } from '@/lib/reservationService';
 import { formatDateForDisplay } from '@/lib/dateUtils';
 
 const Calendar = () => {
   const { toast } = useToast();
-  const [currentDate, setCurrentDate] = useState(new Date());
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [filteredReservations, setFilteredReservations] = useState<Reservation[]>([]);
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
@@ -44,7 +44,7 @@ const Calendar = () => {
       
       if (data.length > 0) {
         toast({
-          title: "📊 Calendario actualizado",
+          title: "📊 Timeline actualizado",
           description: `Se han cargado ${data.length} reserva${data.length === 1 ? '' : 's'} exitosamente.`
         });
       }
@@ -98,155 +98,6 @@ const Calendar = () => {
     setFilteredReservations(filtered);
   }, [reservations, searchTerm, filterCabin, sortBy]);
 
-  const getCabinColor = (cabinType: string) => {
-    switch (cabinType) {
-      case 'Cabaña Pequeña (Max 3p)':
-        return '#3B82F6'; // Blue
-      case 'Cabaña Mediana 1 (Max 4p)':
-        return '#8B5CF6'; // Purple
-      case 'Cabaña Mediana 2 (Max 4p)':
-        return '#F59E0B'; // Orange
-      case 'Cabaña Grande (Max 6p)':
-        return '#EC4899'; // Pink
-      default:
-        return '#10B981'; // Green
-    }
-  };
-
-  const goToToday = () => {
-    setCurrentDate(new Date());
-  };
-
-  const getDaysInMonth = (date: Date) => {
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const startDate = new Date(firstDay);
-    startDate.setDate(startDate.getDate() - firstDay.getDay());
-    
-    const days = [];
-    for (let i = 0; i < 42; i++) {
-      const day = new Date(startDate);
-      day.setDate(startDate.getDate() + i);
-      days.push(day);
-    }
-    return days;
-  };
-
-  const processReservationsForCalendar = () => {
-    const days = getDaysInMonth(currentDate);
-    const processedReservations: Array<{
-      reservation: Reservation;
-      startIndex: number;
-      endIndex: number;
-      row: number;
-      segments: Array<{ startIndex: number; endIndex: number; weekRow: number }>;
-    }> = [];
-
-    // Filtrar reservas que están en el mes actual
-    const monthReservations = reservations.filter(reservation => {
-      const checkIn = new Date(reservation.checkIn + 'T12:00:00');
-      const checkOut = new Date(reservation.checkOut + 'T12:00:00');
-      const monthStart = days[0];
-      const monthEnd = days[days.length - 1];
-      
-      return checkIn <= monthEnd && checkOut >= monthStart;
-    });
-
-    // Crear una matriz para rastrear ocupación por día y fila
-    const occupancyMatrix: boolean[][] = Array(42).fill(null).map(() => Array(10).fill(false));
-
-    monthReservations.forEach(reservation => {
-      const checkIn = new Date(reservation.checkIn + 'T12:00:00');
-      const checkOut = new Date(reservation.checkOut + 'T12:00:00');
-
-      const startIndex = days.findIndex(day => 
-        day.toISOString().split('T')[0] === checkIn.toISOString().split('T')[0]
-      );
-      const endIndex = days.findIndex(day => 
-        day.toISOString().split('T')[0] === checkOut.toISOString().split('T')[0]
-      );
-
-      if (startIndex >= 0 && (endIndex >= 0 || checkOut > days[days.length - 1])) {
-        const actualEndIndex = endIndex >= 0 ? endIndex : days.length - 1;
-        
-        // Encontrar la primera fila disponible
-        let row = 0;
-        let canPlace = false;
-        
-        while (row < 10 && !canPlace) {
-          canPlace = true;
-          for (let dayIndex = startIndex; dayIndex <= actualEndIndex; dayIndex++) {
-            if (occupancyMatrix[dayIndex][row]) {
-              canPlace = false;
-              break;
-            }
-          }
-          if (!canPlace) row++;
-        }
-
-        // Marcar los días como ocupados en esta fila
-        for (let dayIndex = startIndex; dayIndex <= actualEndIndex; dayIndex++) {
-          occupancyMatrix[dayIndex][row] = true;
-        }
-
-        // Crear segmentos para reservas que abarcan múltiples semanas
-        const segments = [];
-        let currentStart = startIndex;
-        
-        while (currentStart <= actualEndIndex) {
-          const weekRow = Math.floor(currentStart / 7);
-          const weekEnd = Math.min((weekRow + 1) * 7 - 1, actualEndIndex);
-          
-          segments.push({
-            startIndex: currentStart,
-            endIndex: weekEnd,
-            weekRow
-          });
-          
-          currentStart = weekEnd + 1;
-        }
-
-        processedReservations.push({
-          reservation,
-          startIndex,
-          endIndex: actualEndIndex,
-          row,
-          segments
-        });
-      }
-    });
-
-    return { processedReservations, occupancyMatrix };
-  };
-
-  const { processedReservations, occupancyMatrix } = processReservationsForCalendar();
-
-  // Calcular la altura máxima necesaria para cada fila de semana
-  const getMaxRowsForWeek = (weekIndex: number) => {
-    let maxRows = 0;
-    for (let day = weekIndex * 7; day < (weekIndex + 1) * 7; day++) {
-      const rowsInDay = occupancyMatrix[day] ? occupancyMatrix[day].map((occupied, index) => occupied ? index : -1).reduce((last, current) => current > last ? current : last, -1) + 1 : 0;
-      maxRows = Math.max(maxRows, rowsInDay);
-    }
-    return Math.max(maxRows, 1);
-  };
-
-  const navigateMonth = (direction: 'prev' | 'next') => {
-    setCurrentDate(prev => {
-      const newDate = new Date(prev);
-      newDate.setMonth(prev.getMonth() + (direction === 'next' ? 1 : -1));
-      return newDate;
-    });
-  };
-
-  const days = getDaysInMonth(currentDate);
-  const monthName = currentDate.toLocaleDateString('es-CL', { 
-    month: 'long', 
-    year: 'numeric' 
-  });
-
   const handleReservationClick = (reservation: Reservation) => {
     setSelectedReservation(reservation);
     setIsModalOpen(true);
@@ -288,35 +139,7 @@ const Calendar = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex items-center gap-4">
-          <h1 className="text-3xl font-bold text-foreground">Calendario & Reservas</h1>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigateMonth('prev')}
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-            <span className="text-lg font-medium capitalize min-w-[200px] text-center">
-              {monthName}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigateMonth('next')}
-            >
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={goToToday}
-              className="ml-2"
-            >
-              <CalendarIcon className="w-4 h-4 mr-1" />
-              Hoy
-            </Button>
-          </div>
+          <h1 className="text-3xl font-bold text-foreground">Timeline de Reservas</h1>
         </div>
         <Button
           onClick={() => setIsModalOpen(true)}
@@ -327,105 +150,12 @@ const Calendar = () => {
         </Button>
       </div>
 
-      {/* Calendar */}
-      <Card className="card-cabin">
-        <CardContent className="p-6">
-          {loading ? (
-            <div className="text-center py-8 text-muted-foreground">Cargando calendario...</div>
-          ) : (
-            <div className="relative">
-              {/* Day headers */}
-              <div className="grid grid-cols-7 gap-2 mb-2">
-                {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(day => (
-                  <div key={day} className="p-2 text-center font-medium text-muted-foreground">
-                    {day}
-                  </div>
-                ))}
-              </div>
-
-              {/* Calendar grid */}
-              <div className="space-y-2">
-                {Array.from({ length: 6 }).map((_, weekIndex) => {
-                  const maxRows = getMaxRowsForWeek(weekIndex);
-                  const weekHeight = 60 + (maxRows * 30);
-                  
-                  return (
-                    <div key={weekIndex} className="grid grid-cols-7 gap-2 relative" style={{ height: `${weekHeight}px` }}>
-                      {/* Week days */}
-                      {days.slice(weekIndex * 7, (weekIndex + 1) * 7).map((day, dayIndex) => {
-                        const dayIndexInMonth = weekIndex * 7 + dayIndex;
-                        const isCurrentMonth = day.getMonth() === currentDate.getMonth();
-                        const isToday = day.toDateString() === new Date().toDateString();
-
-                        return (
-                          <div
-                            key={dayIndexInMonth}
-                            className={`
-                              calendar-cell p-2 border border-border/50 relative
-                              ${!isCurrentMonth ? 'text-muted-foreground bg-muted/20' : ''}
-                              ${isToday ? 'bg-primary/10 border-primary' : ''}
-                            `}
-                            style={{ height: `${weekHeight}px` }}
-                          >
-                            <div className="text-sm font-medium mb-1 relative z-10">
-                              {day.getDate()}
-                            </div>
-                          </div>
-                        );
-                      })}
-
-                      {/* Reservation blocks for this week */}
-                      {processedReservations
-                        .filter(block => block.segments.some(segment => segment.weekRow === weekIndex))
-                        .map((block, blockIndex) => 
-                          block.segments
-                            .filter(segment => segment.weekRow === weekIndex)
-                            .map((segment, segmentIndex) => {
-                              const startCol = segment.startIndex % 7;
-                              const endCol = segment.endIndex % 7;
-                              const segmentWidth = endCol - startCol + 1;
-                              
-                              return (
-                                <div
-                                  key={`${block.reservation.id}-${weekIndex}-${segmentIndex}`}
-                                  className="absolute z-20 reservation-continuous cursor-pointer hover:scale-[1.02] transition-transform duration-200"
-                                  style={{
-                                    left: `${(startCol * 100) / 7 + 0.5}%`,
-                                    width: `${(segmentWidth * 100) / 7 - 1}%`,
-                                    top: `${35 + block.row * 30}px`,
-                                    height: '24px'
-                                  }}
-                                  onClick={() => handleReservationClick(block.reservation)}
-                                  title={`${block.reservation.passengerName} - ${formatDateForDisplay(block.reservation.checkIn)} al ${formatDateForDisplay(block.reservation.checkOut)}`}
-                                >
-                                  <div 
-                                    className="h-full w-full rounded-md px-2 py-1 text-white text-xs font-medium shadow-sm flex items-center justify-between overflow-hidden"
-                                    style={{
-                                      backgroundColor: getCabinColor(block.reservation.cabinType),
-                                      color: 'white'
-                                    }}
-                                  >
-                                    {segmentIndex === 0 && (
-                                      <>
-                                        <span className="truncate">{block.reservation.passengerName}</span>
-                                        <span className="text-xs opacity-90 ml-1">
-                                          {block.reservation.cabinType.split(' ')[1]}
-                                        </span>
-                                      </>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            })
-                        )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Timeline Calendar */}
+      <TimelineCalendar
+        reservations={reservations}
+        onReservationClick={handleReservationClick}
+        loading={loading}
+      />
 
       {/* Legend */}
       <Card className="card-cabin">
@@ -439,19 +169,19 @@ const Calendar = () => {
               <span className="text-sm">Día actual</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded" style={{ backgroundColor: '#3B82F6' }}></div>
+              <div className="w-4 h-4 bg-blue-500 rounded"></div>
               <span className="text-sm">Cabaña Pequeña</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded" style={{ backgroundColor: '#8B5CF6' }}></div>
+              <div className="w-4 h-4 bg-purple-500 rounded"></div>
               <span className="text-sm">Cabaña Mediana 1</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded" style={{ backgroundColor: '#F59E0B' }}></div>
+              <div className="w-4 h-4 bg-amber-500 rounded"></div>
               <span className="text-sm">Cabaña Mediana 2</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded" style={{ backgroundColor: '#EC4899' }}></div>
+              <div className="w-4 h-4 bg-pink-500 rounded"></div>
               <span className="text-sm">Cabaña Grande</span>
             </div>
           </div>
@@ -541,10 +271,6 @@ const Calendar = () => {
                     <tr key={reservation.id} className="border-b border-border/50 hover:bg-accent/50 transition-colors">
                       <td className="p-4">
                         <div className="flex items-center gap-2">
-                          <div 
-                            className="w-3 h-3 rounded-full" 
-                            style={{ backgroundColor: getCabinColor(reservation.cabinType) }}
-                          ></div>
                           <div className="font-medium">{reservation.passengerName}</div>
                         </div>
                       </td>
