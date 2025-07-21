@@ -1,3 +1,6 @@
+
+import { Payment } from './payment';
+
 export interface Reservation {
   id?: string;
   passengerName: string;
@@ -10,8 +13,13 @@ export interface Reservation {
   arrivalFlight: 'LA841' | 'LA843';
   departureFlight: 'LA842' | 'LA844';
   totalPrice: number;
+  useCustomPrice: boolean;
+  customPrice?: number;
+  payments: Payment[];
+  remainingBalance: number;
+  paymentStatus: 'pending' | 'partially_paid' | 'fully_paid' | 'overdue';
   createdAt?: Date;
   updatedAt?: Date;
 }
 
-export interface ReservationFormData extends Omit<Reservation, 'id' | 'totalPrice' | 'createdAt' | 'updatedAt'> {}
+export interface ReservationFormData extends Omit<Reservation, 'id' | 'totalPrice' | 'payments' | 'remainingBalance' | 'paymentStatus' | 'createdAt' | 'updatedAt'> {}

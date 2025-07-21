@@ -1,6 +1,5 @@
-
 import { useState, useEffect } from 'react';
-import { X, Save, Loader2, Calendar, AlertCircle, CheckCircle } from 'lucide-react';
+import { X, Save, Loader2, Calendar, AlertCircle, CheckCircle, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -45,10 +44,13 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
     season: 'Baja',
     cabinType: 'Cabaña Pequeña (Max 3p)',
     arrivalFlight: 'LA841',
-    departureFlight: 'LA842'
+    departureFlight: 'LA842',
+    useCustomPrice: false,
+    customPrice: 0
   });
 
   const [calculatedPrice, setCalculatedPrice] = useState(0);
+  const [automaticPrice, setAutomaticPrice] = useState(0);
   const isEditing = !!reservation;
 
   // Configurar límites de fechas
@@ -70,9 +72,11 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
         season: reservation.season,
         cabinType: reservation.cabinType,
         arrivalFlight: reservation.arrivalFlight,
-        departureFlight: reservation.departureFlight
+        departureFlight: reservation.departureFlight,
+        useCustomPrice: reservation.useCustomPrice,
+        customPrice: reservation.customPrice || 0
       });
-      setUpdateDates(false); // Por defecto, no actualizar fechas al editar
+      setUpdateDates(false);
     } else {
       setFormData({
         passengerName: '',
@@ -83,7 +87,9 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
         season: 'Baja',
         cabinType: 'Cabaña Pequeña (Max 3p)',
         arrivalFlight: 'LA841',
-        departureFlight: 'LA842'
+        departureFlight: 'LA842',
+        useCustomPrice: false,
+        customPrice: 0
       });
       setUpdateDates(false);
     }
@@ -92,17 +98,24 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
     setDateValidationError(null);
   }, [reservation]);
 
-  // Validar fechas en tiempo real solo si se deben validar
+  // Calculate prices
   useEffect(() => {
     if (formData.checkIn && formData.checkOut) {
-      // Solo validar fechas si estamos creando nueva reserva o si el checkbox está marcado
+      // Calculate automatic price (for comparison)
+      const autoFormData = { ...formData, useCustomPrice: false };
+      const autoPrice = calculatePrice(autoFormData);
+      setAutomaticPrice(autoPrice);
+      
+      // Calculate final price
+      const finalPrice = calculatePrice(formData);
+      setCalculatedPrice(finalPrice);
+      
+      // Validate dates if needed
       if (shouldValidateDates) {
         const validation = validateReservationDates(formData.checkIn, formData.checkOut);
         if (!validation.isValid) {
           setDateValidationError(validation.error || null);
           setAvailabilityStatus(null);
-          const price = calculatePrice(formData);
-          setCalculatedPrice(price);
           return;
         } else {
           setDateValidationError(null);
@@ -110,11 +123,9 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
       } else {
         setDateValidationError(null);
       }
-
-      const price = calculatePrice(formData);
-      setCalculatedPrice(price);
     } else {
       setCalculatedPrice(0);
+      setAutomaticPrice(0);
       if (shouldValidateDates) {
         setDateValidationError(null);
         setAvailabilityStatus(null);
@@ -185,6 +196,16 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
         });
         return;
       }
+    }
+
+    // Validar precio personalizado
+    if (formData.useCustomPrice && (!formData.customPrice || formData.customPrice <= 0)) {
+      toast({
+        title: "💰 Precio inválido",
+        description: "Debes especificar un precio personalizado válido mayor a 0.",
+        variant: "destructive"
+      });
+      return;
     }
 
     // Validar capacidad de la cabaña (siempre)
@@ -489,7 +510,63 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
             </div>
           </div>
 
-          {/* Precio calculado */}
+          {/* Custom Price Section */}
+          <div className="bg-accent/50 p-4 rounded-lg border">
+            <div className="flex items-center space-x-3 mb-4">
+              <Checkbox
+                id="useCustomPrice"
+                checked={formData.useCustomPrice}
+                onCheckedChange={(checked) => setFormData({ ...formData, useCustomPrice: !!checked })}
+              />
+              <div className="grid gap-1.5 leading-none">
+                <Label htmlFor="useCustomPrice" className="text-sm font-medium cursor-pointer flex items-center gap-2">
+                  <DollarSign className="w-4 h-4" />
+                  Usar precio personalizado
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Marcar para establecer un precio manual en lugar del cálculo automático.
+                </p>
+              </div>
+            </div>
+
+            {formData.useCustomPrice && (
+              <div>
+                <Label htmlFor="customPrice">Precio Personalizado</Label>
+                <Input
+                  id="customPrice"
+                  type="number"
+                  min="1"
+                  value={formData.customPrice || ''}
+                  onChange={(e) => setFormData({ ...formData, customPrice: parseInt(e.target.value) || 0 })}
+                  placeholder="Ingrese el precio personalizado"
+                  required={formData.useCustomPrice}
+                  className="mt-1"
+                />
+              </div>
+            )}
+
+            {/* Price comparison */}
+            {automaticPrice > 0 && (
+              <div className="mt-3 text-sm space-y-1">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Precio automático:</span>
+                  <span className={formData.useCustomPrice ? "line-through text-muted-foreground" : "font-medium"}>
+                    ${automaticPrice.toLocaleString('es-CL')}
+                  </span>
+                </div>
+                {formData.useCustomPrice && calculatedPrice > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Precio personalizado:</span>
+                    <span className="font-medium text-primary">
+                      ${calculatedPrice.toLocaleString('es-CL')}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Final price display */}
           {calculatedPrice > 0 && (
             <div className="bg-accent p-4 rounded-lg">
               <div className="text-sm text-muted-foreground">Precio Total</div>
@@ -498,6 +575,7 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
               </div>
               <div className="text-xs text-muted-foreground mt-1">
                 {Math.ceil((new Date(formData.checkOut).getTime() - new Date(formData.checkIn).getTime()) / (1000 * 60 * 60 * 24))} noches
+                {formData.useCustomPrice && <span className="ml-2">(Precio personalizado)</span>}
               </div>
             </div>
           )}

@@ -12,12 +12,19 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { Reservation, ReservationFormData } from '@/types/reservation';
+import { Payment, PaymentFormData } from '@/types/payment';
 import { addDays, getTomorrowDate } from './dateUtils';
 import { notificationService } from './notificationService';
 
 const COLLECTION_NAME = 'reservas';
 
 export const calculatePrice = (data: ReservationFormData): number => {
+  // If using custom price, return that value
+  if (data.useCustomPrice && data.customPrice) {
+    return data.customPrice;
+  }
+
+  // Otherwise calculate automatically
   const checkInDate = new Date(data.checkIn);
   const checkOutDate = new Date(data.checkOut);
   const nights = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
@@ -30,6 +37,76 @@ export const calculatePrice = (data: ReservationFormData): number => {
   const costPerNight = (data.adults * costPerNightAdults) + (data.children * costPerNightChildren);
   
   return costPerNight * nights;
+};
+
+export const calculateRemainingBalance = (reservation: Reservation): number => {
+  const totalPaid = reservation.payments.reduce((sum, payment) => sum + payment.amount, 0);
+  return Math.max(0, reservation.totalPrice - totalPaid);
+};
+
+export const updatePaymentStatus = (reservation: Reservation): 'pending' | 'partially_paid' | 'fully_paid' | 'overdue' => {
+  const remainingBalance = calculateRemainingBalance(reservation);
+  const totalPaid = reservation.payments.reduce((sum, payment) => sum + payment.amount, 0);
+  
+  if (remainingBalance === 0) {
+    return 'fully_paid';
+  } else if (totalPaid > 0) {
+    return 'partially_paid';
+  } else {
+    // Check if overdue (checkout date has passed)
+    const checkOutDate = new Date(reservation.checkOut);
+    const today = new Date();
+    if (checkOutDate < today) {
+      return 'overdue';
+    }
+    return 'pending';
+  }
+};
+
+export const addPayment = async (reservationId: string, paymentData: PaymentFormData): Promise<void> => {
+  console.log('Adding payment for reservation:', reservationId);
+  
+  // Get current reservation
+  const reservations = await getAllReservations();
+  const reservation = reservations.find(r => r.id === reservationId);
+  
+  if (!reservation) {
+    throw new Error('Reserva no encontrada');
+  }
+  
+  // Validate payment amount
+  const currentBalance = calculateRemainingBalance(reservation);
+  if (paymentData.amount > currentBalance) {
+    throw new Error(`El monto del pago (${paymentData.amount.toLocaleString('es-CL')}) excede el balance pendiente (${currentBalance.toLocaleString('es-CL')})`);
+  }
+  
+  if (paymentData.amount <= 0) {
+    throw new Error('El monto del pago debe ser mayor a 0');
+  }
+  
+  // Create new payment
+  const newPayment: Payment = {
+    ...paymentData,
+    id: Date.now().toString(), // Simple ID generation
+    createdAt: new Date()
+  };
+  
+  // Update reservation with new payment
+  const updatedPayments = [...reservation.payments, newPayment];
+  const updatedReservation = {
+    ...reservation,
+    payments: updatedPayments
+  };
+  
+  const newRemainingBalance = calculateRemainingBalance(updatedReservation);
+  const newPaymentStatus = updatePaymentStatus(updatedReservation);
+  
+  await updateDoc(doc(db, COLLECTION_NAME, reservationId), {
+    payments: updatedPayments,
+    remainingBalance: newRemainingBalance,
+    paymentStatus: newPaymentStatus,
+    updatedAt: new Date()
+  });
 };
 
 // Validar disponibilidad de cabaña - CORREGIDA para permitir check-in el día de check-out
@@ -167,6 +244,9 @@ export const createReservation = async (data: ReservationFormData): Promise<stri
   const reservation: Omit<Reservation, 'id'> = {
     ...data,
     totalPrice,
+    payments: [],
+    remainingBalance: totalPrice,
+    paymentStatus: 'pending',
     createdAt: new Date(),
     updatedAt: new Date()
   };
@@ -184,7 +264,6 @@ export const createReservation = async (data: ReservationFormData): Promise<stri
     await notificationService.generateReservationNotifications(fullReservation);
   } catch (error) {
     console.error('Error generating notifications for reservation:', error);
-    // No fallar la creación de la reserva si hay error en notificaciones
   }
   
   return docRef.id;
@@ -195,13 +274,11 @@ export const updateReservation = async (id: string, data: ReservationFormData, s
   
   // Solo validar fechas si shouldUpdateDates es true
   if (shouldUpdateDates) {
-    // Validar fechas antes de verificar disponibilidad
     const dateValidation = validateReservationDates(data.checkIn, data.checkOut);
     if (!dateValidation.isValid) {
       throw new Error(dateValidation.error);
     }
     
-    // Validar disponibilidad antes de actualizar (excluyendo la reserva actual)
     const isAvailable = await checkCabinAvailability(data.cabinType, data.checkIn, data.checkOut, id);
     
     if (!isAvailable) {
@@ -211,9 +288,27 @@ export const updateReservation = async (id: string, data: ReservationFormData, s
   }
 
   const totalPrice = calculatePrice(data);
+  
+  // Get current reservation to preserve payments
+  const reservations = await getAllReservations();
+  const currentReservation = reservations.find(r => r.id === id);
+  const payments = currentReservation?.payments || [];
+  
+  // Recalculate remaining balance and payment status
+  const updatedReservation = {
+    ...data,
+    totalPrice,
+    payments
+  } as Reservation;
+  
+  const remainingBalance = calculateRemainingBalance(updatedReservation);
+  const paymentStatus = updatePaymentStatus(updatedReservation);
+  
   const reservation: Partial<Reservation> = {
     ...data,
     totalPrice,
+    remainingBalance,
+    paymentStatus,
     updatedAt: new Date()
   };
   
@@ -225,7 +320,8 @@ export const updateReservation = async (id: string, data: ReservationFormData, s
       const fullReservation: Reservation = {
         ...reservation,
         id,
-        createdAt: new Date(), // Este valor se sobreescribirá con el real
+        payments,
+        createdAt: new Date(),
         updatedAt: new Date()
       } as Reservation;
       
@@ -233,10 +329,7 @@ export const updateReservation = async (id: string, data: ReservationFormData, s
       await notificationService.generateReservationNotifications(fullReservation);
     } catch (error) {
       console.error('Error regenerating notifications for reservation:', error);
-      // No fallar la actualización de la reserva si hay error en notificaciones
     }
-  } else {
-    console.log('Dates not updated, skipping notification regeneration for reservation:', id);
   }
 };
 
@@ -427,3 +520,5 @@ export const deleteExpiredReservations = async (): Promise<number> => {
   
   return deletedCount;
 };
+
+export { checkCabinAvailability, validateReservationDates, getNextAvailableDate, deleteReservation, getAllReservations, getReservationsForDate, getTodayArrivals, getTodayDepartures, getUpcomingArrivals, getUpcomingDepartures, getTomorrowDepartures, getArrivalsForDate, deleteExpiredReservations };

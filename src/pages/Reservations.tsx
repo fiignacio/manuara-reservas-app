@@ -1,5 +1,6 @@
+
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Search, Filter } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Filter, DollarSign, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,18 +18,22 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import ReservationModal from '@/components/ReservationModal';
+import PaymentModal from '@/components/PaymentModal';
 import { Reservation } from '@/types/reservation';
-import { getAllReservations, deleteReservation } from '@/lib/reservationService';
+import { getAllReservations, deleteReservation, calculateRemainingBalance } from '@/lib/reservationService';
 import { useToast } from '@/hooks/use-toast';
 
 const Reservations = () => {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [filteredReservations, setFilteredReservations] = useState<Reservation[]>([]);
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
+  const [selectedPaymentReservation, setSelectedPaymentReservation] = useState<Reservation | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCabin, setFilterCabin] = useState('all');
+  const [filterPaymentStatus, setFilterPaymentStatus] = useState('all');
   const [sortBy, setSortBy] = useState('checkIn');
   const { toast } = useToast();
 
@@ -69,6 +74,11 @@ const Reservations = () => {
       filtered = filtered.filter(r => r.cabinType === filterCabin);
     }
 
+    // Filtrar por estado de pago
+    if (filterPaymentStatus !== 'all') {
+      filtered = filtered.filter(r => r.paymentStatus === filterPaymentStatus);
+    }
+
     // Ordenar
     filtered.sort((a, b) => {
       switch (sortBy) {
@@ -80,17 +90,26 @@ const Reservations = () => {
           return a.passengerName.localeCompare(b.passengerName);
         case 'totalPrice':
           return b.totalPrice - a.totalPrice;
+        case 'remainingBalance':
+          const balanceA = calculateRemainingBalance(a);
+          const balanceB = calculateRemainingBalance(b);
+          return balanceB - balanceA;
         default:
           return 0;
       }
     });
 
     setFilteredReservations(filtered);
-  }, [reservations, searchTerm, filterCabin, sortBy]);
+  }, [reservations, searchTerm, filterCabin, filterPaymentStatus, sortBy]);
 
   const handleEdit = (reservation: Reservation) => {
     setSelectedReservation(reservation);
     setIsModalOpen(true);
+  };
+
+  const handleAddPayment = (reservation: Reservation) => {
+    setSelectedPaymentReservation(reservation);
+    setIsPaymentModalOpen(true);
   };
 
   const handleDelete = async (id: string) => {
@@ -115,6 +134,11 @@ const Reservations = () => {
     setSelectedReservation(null);
   };
 
+  const handlePaymentModalClose = () => {
+    setIsPaymentModalOpen(false);
+    setSelectedPaymentReservation(null);
+  };
+
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
     return date.toLocaleDateString('es-CL', {
@@ -126,6 +150,19 @@ const Reservations = () => {
 
   const getSeasonBadge = (season: string) => {
     return season === 'Alta' ? 'destructive' : 'secondary';
+  };
+
+  const getPaymentStatusBadge = (status: string) => {
+    switch (status) {
+      case 'fully_paid':
+        return { variant: 'default' as const, label: 'Pagado', color: 'bg-green-500' };
+      case 'partially_paid':
+        return { variant: 'secondary' as const, label: 'Parcial', color: 'bg-yellow-500' };
+      case 'overdue':
+        return { variant: 'destructive' as const, label: 'Vencido', color: 'bg-red-500' };
+      default:
+        return { variant: 'outline' as const, label: 'Pendiente', color: 'bg-gray-500' };
+    }
   };
 
   return (
@@ -150,7 +187,7 @@ const Reservations = () => {
       {/* Filters */}
       <Card className="card-cabin">
         <CardContent className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
@@ -174,6 +211,19 @@ const Reservations = () => {
               </SelectContent>
             </Select>
 
+            <Select value={filterPaymentStatus} onValueChange={setFilterPaymentStatus}>
+              <SelectTrigger>
+                <SelectValue placeholder="Estado de pago" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los estados</SelectItem>
+                <SelectItem value="pending">Pendiente</SelectItem>
+                <SelectItem value="partially_paid">Pago parcial</SelectItem>
+                <SelectItem value="fully_paid">Pagado completo</SelectItem>
+                <SelectItem value="overdue">Vencido</SelectItem>
+              </SelectContent>
+            </Select>
+
             <Select value={sortBy} onValueChange={setSortBy}>
               <SelectTrigger>
                 <SelectValue placeholder="Ordenar por" />
@@ -182,7 +232,8 @@ const Reservations = () => {
                 <SelectItem value="checkIn">Fecha de entrada</SelectItem>
                 <SelectItem value="checkOut">Fecha de salida</SelectItem>
                 <SelectItem value="passengerName">Nombre</SelectItem>
-                <SelectItem value="totalPrice">Precio</SelectItem>
+                <SelectItem value="totalPrice">Precio total</SelectItem>
+                <SelectItem value="remainingBalance">Balance pendiente</SelectItem>
               </SelectContent>
             </Select>
 
@@ -214,82 +265,122 @@ const Reservations = () => {
                     <th className="p-4 font-medium">Cabaña</th>
                     <th className="p-4 font-medium">Huéspedes</th>
                     <th className="p-4 font-medium">Temporada</th>
-                    <th className="p-4 font-medium">Vuelos</th>
-                    <th className="p-4 font-medium">Precio</th>
+                    <th className="p-4 font-medium">Precio Total</th>
+                    <th className="p-4 font-medium">Estado Pago</th>
+                    <th className="p-4 font-medium">Balance</th>
                     <th className="p-4 font-medium">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredReservations.map((reservation) => (
-                    <tr key={reservation.id} className="border-b border-border/50 hover:bg-accent/50 transition-colors">
-                      <td className="p-4">
-                        <div className="font-medium">{reservation.passengerName}</div>
-                      </td>
-                      <td className="p-4 text-sm">
-                        {formatDate(reservation.checkIn)}
-                      </td>
-                      <td className="p-4 text-sm">
-                        {formatDate(reservation.checkOut)}
-                      </td>
-                      <td className="p-4 text-sm">
-                        {reservation.cabinType.split(' (')[0]}
-                      </td>
-                      <td className="p-4 text-sm">
-                        {reservation.adults} + {reservation.children}
-                      </td>
-                      <td className="p-4">
-                        <Badge variant={getSeasonBadge(reservation.season)}>
-                          {reservation.season}
-                        </Badge>
-                      </td>
-                      <td className="p-4 text-sm">
-                        <div>{reservation.arrivalFlight}</div>
-                        <div>{reservation.departureFlight}</div>
-                      </td>
-                      <td className="p-4 font-medium text-primary">
-                        ${reservation.totalPrice.toLocaleString('es-CL')}
-                      </td>
-                      <td className="p-4">
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEdit(reservation)}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
+                  {filteredReservations.map((reservation) => {
+                    const paymentBadge = getPaymentStatusBadge(reservation.paymentStatus);
+                    const remainingBalance = calculateRemainingBalance(reservation);
+                    
+                    return (
+                      <tr key={reservation.id} className="border-b border-border/50 hover:bg-accent/50 transition-colors">
+                        <td className="p-4">
+                          <div className="font-medium">{reservation.passengerName}</div>
+                          {reservation.useCustomPrice && (
+                            <div className="text-xs text-muted-foreground flex items-center gap-1">
+                              <DollarSign className="w-3 h-3" />
+                              Precio personalizado
+                            </div>
+                          )}
+                        </td>
+                        <td className="p-4 text-sm">
+                          {formatDate(reservation.checkIn)}
+                        </td>
+                        <td className="p-4 text-sm">
+                          {formatDate(reservation.checkOut)}
+                        </td>
+                        <td className="p-4 text-sm">
+                          {reservation.cabinType.split(' (')[0]}
+                        </td>
+                        <td className="p-4 text-sm">
+                          {reservation.adults} + {reservation.children}
+                        </td>
+                        <td className="p-4">
+                          <Badge variant={getSeasonBadge(reservation.season)}>
+                            {reservation.season}
+                          </Badge>
+                        </td>
+                        <td className="p-4 font-medium text-primary">
+                          ${reservation.totalPrice.toLocaleString('es-CL')}
+                        </td>
+                        <td className="p-4">
+                          <Badge variant={paymentBadge.variant}>
+                            {paymentBadge.label}
+                          </Badge>
+                        </td>
+                        <td className="p-4">
+                          <div className="text-sm">
+                            <div className={remainingBalance > 0 ? "font-medium text-destructive" : "text-muted-foreground"}>
+                              ${remainingBalance.toLocaleString('es-CL')}
+                            </div>
+                            {reservation.payments.length > 0 && (
+                              <div className="text-xs text-muted-foreground">
+                                {reservation.payments.length} pago{reservation.payments.length !== 1 ? 's' : ''}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEdit(reservation)}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            {remainingBalance > 0 && (
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="text-destructive hover:text-destructive"
+                                onClick={() => handleAddPayment(reservation)}
+                                className="text-primary hover:text-primary"
                               >
-                                <Trash2 className="w-4 h-4" />
+                                <CreditCard className="w-4 h-4" />
                               </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>¿Eliminar reserva?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Esta acción no se puede deshacer. Se eliminará permanentemente la reserva de {reservation.passengerName}.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => handleDelete(reservation.id!)}
-                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            )}
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-destructive hover:text-destructive"
                                 >
-                                  Eliminar
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>¿Eliminar reserva?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Esta acción no se puede deshacer. Se eliminará permanentemente la reserva de {reservation.passengerName}.
+                                    {reservation.payments.length > 0 && (
+                                      <div className="mt-2 text-destructive font-medium">
+                                        ⚠️ Esta reserva tiene {reservation.payments.length} pago{reservation.payments.length !== 1 ? 's' : ''} registrado{reservation.payments.length !== 1 ? 's' : ''}.
+                                      </div>
+                                    )}
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => handleDelete(reservation.id!)}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  >
+                                    Eliminar
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -303,6 +394,15 @@ const Reservations = () => {
         onSuccess={loadReservations}
         reservation={selectedReservation}
       />
+
+      {selectedPaymentReservation && (
+        <PaymentModal
+          isOpen={isPaymentModalOpen}
+          onClose={handlePaymentModalClose}
+          onSuccess={loadReservations}
+          reservation={selectedPaymentReservation}
+        />
+      )}
     </div>
   );
 };
