@@ -48,11 +48,11 @@ All colors MUST be HSL.
     --gradient-secondary: linear-gradient(180deg, hsl(35 15% 97%), hsl(35 25% 90%));
     --gradient-accent: linear-gradient(45deg, hsl(145 25% 88%), hsl(35 35% 85%));
     
-    /* Cabin-specific colors - using hsl values */
-    --cabin-small: 195 85% 55%;
-    --cabin-medium1: 270 70% 60%;
-    --cabin-medium2: 25 80% 55%;
-    --cabin-large: 330 75% 60%;
+    /* Cabin-specific colors - using distinct hsl values for better visibility */
+    --cabin-small: 195 85% 50%;      /* Sky Blue */
+    --cabin-medium1: 270 75% 55%;    /* Purple */
+    --cabin-medium2: 30 85% 60%;     /* Orange */
+    --cabin-large: 330 80% 55%;      /* Pink/Magenta */
     
     /* Shadows */
     --shadow-soft: 0 4px 20px -4px hsl(145 35% 25% / 0.1);
@@ -115,11 +115,11 @@ All colors MUST be HSL.
     --gradient-secondary: linear-gradient(180deg, hsl(25 20% 10%), hsl(25 15% 15%));
     --gradient-accent: linear-gradient(45deg, hsl(145 25% 20%), hsl(25 15% 18%));
     
-    /* Dark cabin-specific colors */
-    --cabin-small: 195 75% 65%;
-    --cabin-medium1: 270 60% 70%;
-    --cabin-medium2: 25 70% 65%;
-    --cabin-large: 330 65% 70%;
+    /* Dark cabin-specific colors - adjusted for dark theme */
+    --cabin-small: 195 75% 60%;      /* Lighter Sky Blue for dark */
+    --cabin-medium1: 270 65% 65%;    /* Lighter Purple for dark */
+    --cabin-medium2: 30 75% 65%;     /* Lighter Orange for dark */
+    --cabin-large: 330 75% 60%;      /* Lighter Pink/Magenta for dark */
     
     --shadow-soft: 0 4px 20px -4px hsl(0 0% 0% / 0.3);
     --shadow-glow: 0 0 30px hsl(145 55% 45% / 0.2);

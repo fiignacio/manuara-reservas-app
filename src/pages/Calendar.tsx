@@ -90,21 +90,15 @@ const Calendar = () => {
     }> = [];
 
     reservations.forEach(reservation => {
-      const checkIn = new Date(reservation.checkIn);
-      const checkOut = new Date(reservation.checkOut);
-      
-      // Hacer las fechas inclusivas - el checkout debe incluir el día de salida
-      const adjustedCheckOut = new Date(checkOut);
-      adjustedCheckOut.setDate(adjustedCheckOut.getDate() - 1);
-      
+      // Fechas inclusivas: tanto check-in como check-out deben ser visibles
       const startIndex = days.findIndex(day => 
         day.toISOString().split('T')[0] === reservation.checkIn
       );
       const endIndex = days.findIndex(day => 
-        day.toISOString().split('T')[0] === adjustedCheckOut.toISOString().split('T')[0]
+        day.toISOString().split('T')[0] === reservation.checkOut
       );
 
-      if (startIndex >= 0 && (endIndex >= 0 || adjustedCheckOut > days[days.length - 1])) {
+      if (startIndex >= 0 && (endIndex >= 0 || new Date(reservation.checkOut) > days[days.length - 1])) {
         const actualEndIndex = endIndex >= 0 ? endIndex : days.length - 1;
         
         // Find available row to avoid conflicts

@@ -30,18 +30,13 @@ export const calculatePrice = (data: ReservationFormData): number => {
   return costPerNight * nights;
 };
 
-// Validar disponibilidad de cabaña
+// Validar disponibilidad de cabaña con fechas inclusivas
 export const checkCabinAvailability = async (
   cabinType: string,
   checkIn: string,
   checkOut: string,
   excludeReservationId?: string
 ): Promise<boolean> => {
-  // Ajustar checkout para hacer las fechas inclusivas
-  const adjustedCheckOut = new Date(checkOut);
-  adjustedCheckOut.setDate(adjustedCheckOut.getDate() - 1);
-  const adjustedCheckOutStr = adjustedCheckOut.toISOString().split('T')[0];
-
   let q = query(
     collection(db, COLLECTION_NAME),
     where('cabinType', '==', cabinType)
@@ -58,15 +53,14 @@ export const checkCabinAvailability = async (
       }
 
       // Verificar solapamiento de fechas (inclusivo)
+      // Las fechas son inclusivas: check-in y check-out ambos cuentan como días ocupados
       const resCheckIn = reservation.checkIn;
-      const resCheckOut = new Date(reservation.checkOut);
-      resCheckOut.setDate(resCheckOut.getDate() - 1);
-      const resCheckOutStr = resCheckOut.toISOString().split('T')[0];
+      const resCheckOut = reservation.checkOut;
 
-      // Hay conflicto si:
-      // - La nueva reserva empieza antes de que termine la existente Y
-      // - La nueva reserva termina después de que empiece la existente
-      return checkIn <= resCheckOutStr && adjustedCheckOutStr >= resCheckIn;
+      // Hay conflicto si las fechas se solapan de forma inclusiva:
+      // - La nueva reserva empieza antes o igual a cuando termina la existente Y
+      // - La nueva reserva termina después o igual a cuando empieza la existente
+      return checkIn <= resCheckOut && checkOut >= resCheckIn;
     });
 
   return conflictingReservations.length === 0;
