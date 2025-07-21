@@ -1,4 +1,7 @@
 
+import { differenceInDays, format } from 'date-fns';
+import { es } from 'date-fns/locale';
+
 // Unified date handling utility to ensure consistency across the app
 export const parseDate = (dateStr: string): Date => {
   // Create date at noon to avoid timezone issues
@@ -24,6 +27,24 @@ export const getDaysBetween = (startDate: string, endDate: string): number => {
   const end = parseDate(endDate);
   const diffTime = end.getTime() - start.getTime();
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 for inclusive dates
+};
+
+// New function for calculating nights correctly
+export const calculateNights = (checkIn: string, checkOut: string): number => {
+  const checkInDate = parseDate(checkIn);
+  const checkOutDate = parseDate(checkOut);
+  return differenceInDays(checkOutDate, checkInDate);
+};
+
+// Function to format date ranges inclusively
+export const formatDateRange = (startDate: string, endDate: string): string => {
+  const start = parseDate(startDate);
+  const end = parseDate(endDate);
+  
+  const startFormatted = format(start, "dd 'de' MMMM", { locale: es });
+  const endFormatted = format(end, "dd 'de' MMMM", { locale: es });
+  
+  return `Del ${startFormatted} al ${endFormatted}`;
 };
 
 export const isSameDate = (date1: Date, date2: string): boolean => {

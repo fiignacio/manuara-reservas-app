@@ -1,8 +1,10 @@
+
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { Quote } from '@/types/quote';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { formatDateRange, calculateNights } from './dateUtils';
 
 export const generateQuotePDF = async (quote: Quote): Promise<void> => {
   // Crear el contenido HTML para la cotización
@@ -58,12 +60,12 @@ export const generateQuotePDF = async (quote: Quote): Promise<void> => {
 };
 
 const createQuoteHTML = (quote: Quote): string => {
-  const checkInDate = format(new Date(quote.checkIn), "dd 'de' MMMM 'de' yyyy", { locale: es });
-  const checkOutDate = format(new Date(quote.checkOut), "dd 'de' MMMM 'de' yyyy", { locale: es });
+  const dateRange = formatDateRange(quote.checkIn, quote.checkOut);
   const validUntilDate = format(new Date(quote.validUntil), "dd 'de' MMMM 'de' yyyy", { locale: es });
   const createdDate = format(new Date(quote.createdAt || new Date()), "dd 'de' MMMM 'de' yyyy", { locale: es });
   
-  const nights = Math.ceil((new Date(quote.checkOut).getTime() - new Date(quote.checkIn).getTime()) / (1000 * 60 * 60 * 24));
+  const nights = calculateNights(quote.checkIn, quote.checkOut);
+  const pricePerNight = quote.totalPrice / nights;
 
   return `
     <div style="max-width: 800px; margin: 0 auto; padding: 40px; font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
@@ -94,7 +96,7 @@ const createQuoteHTML = (quote: Quote): string => {
             <strong>Email:</strong> ${quote.customerEmail}
           </div>
           <div>
-            <strong>Teléfono:</strong> ${quote.customerPhone}
+            <strong>Teléfono:</strong> ${quote.customerPhone || 'No especificado'}
           </div>
         </div>
       </div>
@@ -104,13 +106,12 @@ const createQuoteHTML = (quote: Quote): string => {
         <h3 style="color: #2563eb; margin: 0 0 15px 0; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px;">Detalles de la Estadía</h3>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
           <div>
-            <strong>Check-in:</strong> ${checkInDate}<br>
-            <strong>Check-out:</strong> ${checkOutDate}<br>
-            <strong>Noches:</strong> ${nights}
+            <strong>Fechas:</strong> ${dateRange}<br>
+            <strong>Noches:</strong> ${nights}<br>
+            <strong>Temporada:</strong> ${quote.season}
           </div>
           <div>
             <strong>Huéspedes:</strong> ${quote.adults} adultos${quote.children > 0 ? `, ${quote.children} niños` : ''}<br>
-            <strong>Temporada:</strong> ${quote.season}<br>
             <strong>Tipo de Cabaña:</strong> ${quote.cabinType}
           </div>
         </div>
@@ -134,8 +135,12 @@ const createQuoteHTML = (quote: Quote): string => {
         <h3 style="color: #2563eb; margin: 0 0 15px 0; text-align: center;">Resumen de Costos</h3>
         <div style="font-size: 16px;">
           <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-            <span>${quote.cabinType} (${nights} noches)</span>
-            <span>$${quote.totalPrice.toLocaleString('es-CL')}</span>
+            <span>Precio por noche (${quote.cabinType})</span>
+            <span>$${pricePerNight.toLocaleString('es-CL')}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+            <span>Número de noches</span>
+            <span>${nights}</span>
           </div>
           <div style="border-top: 2px solid #2563eb; padding-top: 10px; margin-top: 15px;">
             <div style="display: flex; justify-content: space-between; font-size: 20px; font-weight: bold; color: #2563eb;">

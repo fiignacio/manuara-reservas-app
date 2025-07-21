@@ -1,5 +1,6 @@
+
 import { Quote, QuoteFormData } from '@/types/quote';
-import { differenceInDays } from 'date-fns';
+import { calculateNights } from './dateUtils';
 
 // Precios por temporada y tipo de cabaña
 const CABIN_PRICES = {
@@ -17,21 +18,31 @@ const CABIN_PRICES = {
   },
 };
 
-export const calculateQuotePrice = (formData: QuoteFormData): number => {
-  const checkInDate = new Date(formData.checkIn);
-  const checkOutDate = new Date(formData.checkOut);
-  const nights = differenceInDays(checkOutDate, checkInDate);
+export const calculateQuotePrice = (formData: QuoteFormData): { totalPrice: number; nights: number; pricePerNight: number } => {
+  const nights = calculateNights(formData.checkIn, formData.checkOut);
   
   if (nights <= 0) {
     throw new Error('La fecha de salida debe ser posterior a la fecha de entrada');
   }
 
   const pricePerNight = CABIN_PRICES[formData.season][formData.cabinType];
-  return pricePerNight * nights;
+  const totalPrice = pricePerNight * nights;
+
+  console.log('Quote calculation:', {
+    checkIn: formData.checkIn,
+    checkOut: formData.checkOut,
+    nights,
+    pricePerNight,
+    totalPrice,
+    season: formData.season,
+    cabinType: formData.cabinType
+  });
+
+  return { totalPrice, nights, pricePerNight };
 };
 
 export const createQuote = (formData: QuoteFormData): Quote => {
-  const totalPrice = calculateQuotePrice(formData);
+  const { totalPrice } = calculateQuotePrice(formData);
   
   // La cotización es válida por 30 días
   const validUntil = new Date();

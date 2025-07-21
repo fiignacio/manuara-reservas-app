@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Quote, QuoteFormData } from '@/types/quote';
 import { createQuote, calculateQuotePrice } from '@/lib/quoteService';
 import { generateQuotePDF } from '@/lib/pdfService';
+import { formatDateRange, calculateNights } from '@/lib/dateUtils';
 import { FileText, Calculator, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -32,7 +34,7 @@ const Quotes = () => {
     notes: '',
   });
 
-  const [calculatedPrice, setCalculatedPrice] = useState(0);
+  const [calculatedPrice, setCalculatedPrice] = useState<{ totalPrice: number; nights: number; pricePerNight: number } | null>(null);
 
   const handleInputChange = (field: keyof QuoteFormData, value: any) => {
     const newFormData = { ...formData, [field]: value };
@@ -41,10 +43,10 @@ const Quotes = () => {
     // Calcular precio automáticamente si tenemos fechas válidas
     if (newFormData.checkIn && newFormData.checkOut) {
       try {
-        const price = calculateQuotePrice(newFormData);
-        setCalculatedPrice(price);
+        const priceData = calculateQuotePrice(newFormData);
+        setCalculatedPrice(priceData);
       } catch (error) {
-        setCalculatedPrice(0);
+        setCalculatedPrice(null);
       }
     }
   };
@@ -113,7 +115,7 @@ const Quotes = () => {
       departureFlight: 'LA842',
       notes: '',
     });
-    setCalculatedPrice(0);
+    setCalculatedPrice(null);
   };
 
   return (
@@ -338,9 +340,10 @@ const Quotes = () => {
                       </div>
                       <div>
                         <h4 className="font-semibold text-foreground mb-2">Estadía</h4>
-                        <p>{format(new Date(generatedQuote.checkIn), "dd 'de' MMMM", { locale: es })} - {format(new Date(generatedQuote.checkOut), "dd 'de' MMMM", { locale: es })}</p>
+                        <p>{formatDateRange(generatedQuote.checkIn, generatedQuote.checkOut)}</p>
                         <p className="text-sm text-muted-foreground">{generatedQuote.cabinType}</p>
                         <p className="text-sm text-muted-foreground">{generatedQuote.adults} adultos{generatedQuote.children > 0 && `, ${generatedQuote.children} niños`}</p>
+                        <p className="text-sm text-muted-foreground">{calculateNights(generatedQuote.checkIn, generatedQuote.checkOut)} noches</p>
                       </div>
                     </div>
 
@@ -365,19 +368,34 @@ const Quotes = () => {
               <CardTitle>Resumen</CardTitle>
             </CardHeader>
             <CardContent>
-              {calculatedPrice > 0 || generatedQuote ? (
+              {calculatedPrice || generatedQuote ? (
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">Precio Total:</span>
                     <span className="text-2xl font-bold text-primary">
-                      ${(generatedQuote?.totalPrice || calculatedPrice).toLocaleString('es-CL')}
+                      ${(generatedQuote?.totalPrice || calculatedPrice?.totalPrice || 0).toLocaleString('es-CL')}
                     </span>
                   </div>
-                  <div className="text-sm text-muted-foreground">
-                    <p>Temporada: {generatedQuote?.season || formData.season}</p>
-                    <p>Tipo: {generatedQuote?.cabinType || formData.cabinType}</p>
+                  <div className="text-sm text-muted-foreground space-y-1">
+                    <div className="flex justify-between">
+                      <span>Temporada:</span>
+                      <span>{generatedQuote?.season || formData.season}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Tipo:</span>
+                      <span>{generatedQuote?.cabinType || formData.cabinType}</span>
+                    </div>
                     {(formData.checkIn && formData.checkOut) && (
-                      <p>Noches: {Math.ceil((new Date(generatedQuote?.checkOut || formData.checkOut).getTime() - new Date(generatedQuote?.checkIn || formData.checkIn).getTime()) / (1000 * 60 * 60 * 24))}</p>
+                      <>
+                        <div className="flex justify-between">
+                          <span>Noches:</span>
+                          <span>{generatedQuote ? calculateNights(generatedQuote.checkIn, generatedQuote.checkOut) : calculatedPrice?.nights}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Precio por noche:</span>
+                          <span>${(generatedQuote ? (generatedQuote.totalPrice / calculateNights(generatedQuote.checkIn, generatedQuote.checkOut)) : calculatedPrice?.pricePerNight || 0).toLocaleString('es-CL')}</span>
+                        </div>
+                      </>
                     )}
                   </div>
                 </div>
