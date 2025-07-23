@@ -15,7 +15,8 @@ import {
   updateReservation, 
   checkCabinAvailability,
   validateReservationDates,
-  getNextAvailableDate
+  getNextAvailableDate,
+  validateCabinCapacity
 } from '@/lib/reservationService';
 import { addDays } from '@/lib/dateUtils';
 
@@ -35,11 +36,12 @@ const initializeFormData = (reservation?: Reservation | null): ReservationFormDa
       checkOut: reservation.checkOut || '',
       adults: reservation.adults || 1,
       children: reservation.children || 0,
+      babies: reservation.babies || 0,
       season: reservation.season || 'Baja',
       cabinType: reservation.cabinType || 'Cabaña Pequeña (Max 3p)',
       arrivalFlight: reservation.arrivalFlight || 'LA841',
       departureFlight: reservation.departureFlight || 'LA842',
-      useCustomPrice: reservation.useCustomPrice ?? false, // Use nullish coalescing to handle undefined
+      useCustomPrice: reservation.useCustomPrice ?? false,
       customPrice: reservation.customPrice || 0
     };
   }
@@ -50,6 +52,7 @@ const initializeFormData = (reservation?: Reservation | null): ReservationFormDa
     checkOut: '',
     adults: 1,
     children: 0,
+    babies: 0,
     season: 'Baja',
     cabinType: 'Cabaña Pequeña (Max 3p)',
     arrivalFlight: 'LA841',
@@ -66,6 +69,7 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
   const [availabilityStatus, setAvailabilityStatus] = useState<'available' | 'unavailable' | 'checking' | null>(null);
   const [nextAvailableDate, setNextAvailableDate] = useState<string | null>(null);
   const [dateValidationError, setDateValidationError] = useState<string | null>(null);
+  const [capacityValidationError, setCapacityValidationError] = useState<string | null>(null);
   const [updateDates, setUpdateDates] = useState(false);
   
   const [formData, setFormData] = useState<ReservationFormData>(initializeFormData());
@@ -94,7 +98,18 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
     setAvailabilityStatus(null);
     setNextAvailableDate(null);
     setDateValidationError(null);
+    setCapacityValidationError(null);
   }, [reservation]);
+
+  // Validate capacity whenever guest numbers or cabin type change
+  useEffect(() => {
+    const capacityValidation = validateCabinCapacity(formData.cabinType, formData.adults, formData.children, formData.babies);
+    if (!capacityValidation.isValid) {
+      setCapacityValidationError(capacityValidation.error || null);
+    } else {
+      setCapacityValidationError(null);
+    }
+  }, [formData.adults, formData.children, formData.babies, formData.cabinType]);
 
   // Calculate prices
   useEffect(() => {
@@ -131,7 +146,6 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
     }
   }, [formData, shouldValidateDates]);
 
-  // Verificar disponibilidad cuando cambien las fechas o tipo de cabaña
   useEffect(() => {
     const checkAvailability = async () => {
       // Solo verificar disponibilidad si debemos validar fechas
@@ -196,25 +210,21 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
       }
     }
 
-    // Validar precio personalizado
-    if (formData.useCustomPrice && (!formData.customPrice || formData.customPrice <= 0)) {
+    // Validar capacidad siempre
+    if (capacityValidationError) {
       toast({
-        title: "💰 Precio inválido",
-        description: "Debes especificar un precio personalizado válido mayor a 0.",
+        title: "👥 Error de capacidad",
+        description: capacityValidationError,
         variant: "destructive"
       });
       return;
     }
 
-    // Validar capacidad de la cabaña (siempre)
-    const totalGuests = formData.adults + formData.children;
-    const maxCapacity = formData.cabinType.includes('Pequeña') ? 3 : 
-                       formData.cabinType.includes('Mediana') ? 4 : 6;
-    
-    if (totalGuests > maxCapacity) {
+    // Validar precio personalizado
+    if (formData.useCustomPrice && (!formData.customPrice || formData.customPrice <= 0)) {
       toast({
-        title: "👥 Capacidad excedida",
-        description: `La ${formData.cabinType} tiene capacidad máxima para ${maxCapacity} personas, pero has seleccionado ${totalGuests} huéspedes (${formData.adults} adultos + ${formData.children} niños).`,
+        title: "💰 Precio inválido",
+        description: "Debes especificar un precio personalizado válido mayor a 0.",
         variant: "destructive"
       });
       return;
@@ -226,7 +236,7 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
       // Clean form data before submission
       const cleanFormData = {
         ...formData,
-        useCustomPrice: !!formData.useCustomPrice, // Ensure boolean
+        useCustomPrice: !!formData.useCustomPrice,
         customPrice: formData.useCustomPrice ? (formData.customPrice || 0) : 0
       };
 
@@ -268,7 +278,6 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
     }
   };
 
-  // Handle custom price toggle with proper cleanup
   const handleCustomPriceToggle = (checked: boolean) => {
     setFormData({ 
       ...formData, 
@@ -444,7 +453,15 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
           {/* Indicador de disponibilidad */}
           {getAvailabilityIndicator()}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Error de capacidad */}
+          {capacityValidationError && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{capacityValidationError}</AlertDescription>
+            </Alert>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Número de personas */}
             <div>
               <Label htmlFor="adults">Número de Adultos</Label>
@@ -471,6 +488,22 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
                 onChange={(e) => setFormData({ ...formData, children: parseInt(e.target.value) })}
                 className="mt-1"
               />
+            </div>
+
+            <div>
+              <Label htmlFor="babies">Bebés (0-7 años)</Label>
+              <Input
+                id="babies"
+                type="number"
+                min="0"
+                max="4"
+                value={formData.babies}
+                onChange={(e) => setFormData({ ...formData, babies: parseInt(e.target.value) })}
+                className="mt-1"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Los bebés no cuentan para el límite de capacidad
+              </p>
             </div>
 
             {/* Temporada */}
@@ -524,7 +557,6 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
             </div>
           </div>
 
-          {/* Custom Price Section */}
           <div className="bg-accent/50 p-4 rounded-lg border">
             <div className="flex items-center space-x-3 mb-4">
               <Checkbox
@@ -591,6 +623,9 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
                 {Math.ceil((new Date(formData.checkOut).getTime() - new Date(formData.checkIn).getTime()) / (1000 * 60 * 60 * 24))} noches
                 {formData.useCustomPrice && <span className="ml-2">(Precio personalizado)</span>}
               </div>
+              <div className="text-xs text-muted-foreground mt-1">
+                {formData.adults} adultos, {formData.children} niños, {formData.babies} bebés
+              </div>
             </div>
           )}
 
@@ -606,7 +641,7 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
             </Button>
             <Button
               type="submit"
-              disabled={loading || (shouldValidateDates && (availabilityStatus === 'unavailable' || !!dateValidationError))}
+              disabled={loading || (shouldValidateDates && (availabilityStatus === 'unavailable' || !!dateValidationError)) || !!capacityValidationError}
               className="flex-1 btn-cabin"
             >
               {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}

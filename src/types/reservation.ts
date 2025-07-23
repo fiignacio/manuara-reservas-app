@@ -8,6 +8,7 @@ export interface Reservation {
   checkOut: string;
   adults: number;
   children: number;
+  babies: number;
   season: 'Alta' | 'Baja';
   cabinType: 'Cabaña Pequeña (Max 3p)' | 'Cabaña Mediana 1 (Max 4p)' | 'Cabaña Mediana 2 (Max 4p)' | 'Cabaña Grande (Max 6p)';
   arrivalFlight: 'LA841' | 'LA843';

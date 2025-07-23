@@ -19,20 +19,23 @@ import { notificationService } from './notificationService';
 const COLLECTION_NAME = 'reservas';
 
 // Clean reservation data to remove undefined fields and set defaults
-const cleanReservationData = (data: Partial<Reservation>): Partial<Reservation> => {
-  const cleaned: Partial<Reservation> = {};
+const cleanReservationData = (data: Partial<Reservation>) => {
+  const cleaned: Record<string, any> = {};
   
   // Copy all defined values
-  Object.keys(data).forEach(key => {
-    const value = data[key as keyof Reservation];
+  Object.entries(data).forEach(([key, value]) => {
     if (value !== undefined) {
-      cleaned[key as keyof Reservation] = value;
+      cleaned[key] = value;
     }
   });
   
   // Ensure critical fields have default values
   if (cleaned.useCustomPrice === undefined) {
     cleaned.useCustomPrice = false;
+  }
+  
+  if (cleaned.babies === undefined) {
+    cleaned.babies = 0;
   }
   
   // Only include customPrice if useCustomPrice is true
@@ -43,6 +46,22 @@ const cleanReservationData = (data: Partial<Reservation>): Partial<Reservation> 
   }
   
   return cleaned;
+};
+
+// Validate cabin capacity considering babies don't count towards the limit
+export const validateCabinCapacity = (cabinType: string, adults: number, children: number, babies: number): { isValid: boolean; error?: string } => {
+  const totalGuests = adults + children; // Babies don't count towards capacity limit
+  const maxCapacity = cabinType.includes('Pequeña') ? 3 : 
+                     cabinType.includes('Mediana') ? 4 : 6;
+  
+  if (totalGuests > maxCapacity) {
+    return {
+      isValid: false,
+      error: `La ${cabinType} tiene capacidad máxima para ${maxCapacity} personas (adultos + niños), pero has seleccionado ${totalGuests} huéspedes (${adults} adultos + ${children} niños). Los bebés no cuentan para el límite de capacidad.`
+    };
+  }
+  
+  return { isValid: true };
 };
 
 export const calculatePrice = (data: ReservationFormData): number => {
@@ -60,6 +79,7 @@ export const calculatePrice = (data: ReservationFormData): number => {
   
   const costPerNightAdults = data.season === 'Alta' ? 30000 : 25000;
   const costPerNightChildren = 15000;
+  // Babies don't pay
   
   const costPerNight = (data.adults * costPerNightAdults) + (data.children * costPerNightChildren);
   
@@ -138,7 +158,6 @@ export const addPayment = async (reservationId: string, paymentData: PaymentForm
   await updateDoc(doc(db, COLLECTION_NAME, reservationId), updateData);
 };
 
-// Validar disponibilidad de cabaña - CORREGIDA para permitir check-in el día de check-out
 export const checkCabinAvailability = async (
   cabinType: string,
   checkIn: string,
@@ -160,17 +179,6 @@ export const checkCabinAvailability = async (
         return false;
       }
 
-      // LÓGICA CORREGIDA: Verificar solapamiento de fechas 
-      // Una cabaña se libera el día de check-out, permitiendo check-in ese mismo día
-      // 
-      // Hay conflicto SOLO si:
-      // - La nueva reserva empieza ANTES de que termine la existente (checkIn < resCheckOut) Y
-      // - La nueva reserva termina DESPUÉS de que empiece la existente (checkOut > resCheckIn)
-      //
-      // Ejemplos:
-      // Reserva existente: 2025-01-20 a 2025-01-25
-      // Nueva reserva: 2025-01-25 a 2025-01-30 → NO HAY CONFLICTO (check-in el día de check-out)
-      // Nueva reserva: 2025-01-24 a 2025-01-26 → SÍ HAY CONFLICTO (se solapa)
       const resCheckIn = reservation.checkIn;
       const resCheckOut = reservation.checkOut;
 
@@ -180,7 +188,6 @@ export const checkCabinAvailability = async (
   return conflictingReservations.length === 0;
 };
 
-// Validar fechas de reserva
 export const validateReservationDates = (checkIn: string, checkOut: string): { isValid: boolean; error?: string } => {
   const today = new Date().toISOString().split('T')[0];
   const checkInDate = new Date(checkIn);
@@ -223,7 +230,6 @@ export const validateReservationDates = (checkIn: string, checkOut: string): { i
   return { isValid: true };
 };
 
-// Obtener próxima fecha disponible para una cabaña
 export const getNextAvailableDate = async (cabinType: string, preferredCheckIn: string): Promise<string | null> => {
   const q = query(
     collection(db, COLLECTION_NAME),
@@ -259,6 +265,12 @@ export const createReservation = async (data: ReservationFormData): Promise<stri
   const dateValidation = validateReservationDates(data.checkIn, data.checkOut);
   if (!dateValidation.isValid) {
     throw new Error(dateValidation.error);
+  }
+  
+  // Validar capacidad de la cabaña
+  const capacityValidation = validateCabinCapacity(data.cabinType, data.adults, data.children, data.babies);
+  if (!capacityValidation.isValid) {
+    throw new Error(capacityValidation.error);
   }
   
   // Validar disponibilidad antes de crear
@@ -303,6 +315,12 @@ export const createReservation = async (data: ReservationFormData): Promise<stri
 
 export const updateReservation = async (id: string, data: ReservationFormData, shouldUpdateDates: boolean = true): Promise<void> => {
   console.log('Updating reservation:', id, 'shouldUpdateDates:', shouldUpdateDates);
+  
+  // Validar capacidad de la cabaña siempre
+  const capacityValidation = validateCabinCapacity(data.cabinType, data.adults, data.children, data.babies);
+  if (!capacityValidation.isValid) {
+    throw new Error(capacityValidation.error);
+  }
   
   // Solo validar fechas si shouldUpdateDates es true
   if (shouldUpdateDates) {
