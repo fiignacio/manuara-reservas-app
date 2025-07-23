@@ -141,12 +141,25 @@ const PaymentModal = ({ isOpen, onClose, onSuccess, reservation }: PaymentModalP
                   required
                   className="flex-1"
                 />
+              </div>
+              
+              {/* Quick payment buttons */}
+              <div className="flex gap-2 mt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setFormData({ ...formData, amount: Math.round(remainingBalance * 0.5) })}
+                  className="flex-1"
+                >
+                  50% Abono
+                </Button>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   onClick={handlePayFullAmount}
-                  className="whitespace-nowrap"
+                  className="flex-1"
                 >
                   Pagar todo
                 </Button>

@@ -16,6 +16,7 @@ export interface Reservation {
   totalPrice: number;
   useCustomPrice: boolean;
   customPrice?: number;
+  comments?: string;
   payments: Payment[];
   remainingBalance: number;
   paymentStatus: 'pending' | 'partially_paid' | 'fully_paid' | 'overdue';

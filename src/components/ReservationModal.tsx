@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Reservation, ReservationFormData } from '@/types/reservation';
 import { 
@@ -42,7 +43,8 @@ const initializeFormData = (reservation?: Reservation | null): ReservationFormDa
       arrivalFlight: reservation.arrivalFlight || 'LA841',
       departureFlight: reservation.departureFlight || 'LA842',
       useCustomPrice: reservation.useCustomPrice ?? false,
-      customPrice: reservation.customPrice || 0
+      customPrice: reservation.customPrice || 0,
+      comments: reservation.comments || ''
     };
   }
   
@@ -58,7 +60,8 @@ const initializeFormData = (reservation?: Reservation | null): ReservationFormDa
     arrivalFlight: 'LA841',
     departureFlight: 'LA842',
     useCustomPrice: false,
-    customPrice: 0
+    customPrice: 0,
+    comments: ''
   };
 };
 
@@ -628,6 +631,19 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
               </div>
             </div>
           )}
+
+          {/* Comentarios */}
+          <div>
+            <Label htmlFor="comments">Comentarios (opcional)</Label>
+            <Textarea
+              id="comments"
+              value={formData.comments}
+              onChange={(e) => setFormData({ ...formData, comments: e.target.value })}
+              placeholder="Comentarios adicionales sobre la reserva..."
+              className="mt-1"
+              rows={3}
+            />
+          </div>
 
           {/* Botones */}
           <div className="flex gap-4 pt-4">
