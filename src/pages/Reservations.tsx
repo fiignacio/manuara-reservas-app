@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Search, Filter, DollarSign, CreditCard } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Filter, DollarSign, CreditCard, LogIn, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,6 +18,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import ReservationModal from '@/components/ReservationModal';
 import PaymentModal from '@/components/PaymentModal';
+import CheckInOutModal from '@/components/CheckInOutModal';
 import { Reservation } from '@/types/reservation';
 import { getAllReservations, deleteReservation, calculateRemainingBalance } from '@/lib/reservationService';
 import { useToast } from '@/hooks/use-toast';
@@ -27,8 +28,11 @@ const Reservations = () => {
   const [filteredReservations, setFilteredReservations] = useState<Reservation[]>([]);
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
   const [selectedPaymentReservation, setSelectedPaymentReservation] = useState<Reservation | null>(null);
+  const [selectedCheckInOutReservation, setSelectedCheckInOutReservation] = useState<Reservation | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [isCheckInOutModalOpen, setIsCheckInOutModalOpen] = useState(false);
+  const [checkInOutType, setCheckInOutType] = useState<'check_in' | 'check_out'>('check_in');
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCabin, setFilterCabin] = useState('all');
@@ -111,6 +115,18 @@ const Reservations = () => {
     setIsPaymentModalOpen(true);
   };
 
+  const handleCheckIn = (reservation: Reservation) => {
+    setSelectedCheckInOutReservation(reservation);
+    setCheckInOutType('check_in');
+    setIsCheckInOutModalOpen(true);
+  };
+
+  const handleCheckOut = (reservation: Reservation) => {
+    setSelectedCheckInOutReservation(reservation);
+    setCheckInOutType('check_out');
+    setIsCheckInOutModalOpen(true);
+  };
+
   const handleDelete = async (id: string) => {
     try {
       await deleteReservation(id);
@@ -138,6 +154,11 @@ const Reservations = () => {
     setSelectedPaymentReservation(null);
   };
 
+  const handleCheckInOutModalClose = () => {
+    setIsCheckInOutModalOpen(false);
+    setSelectedCheckInOutReservation(null);
+  };
+
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
     return date.toLocaleDateString('es-CL', {
@@ -159,6 +180,28 @@ const Reservations = () => {
         return { variant: 'secondary' as const, label: 'Parcial', color: 'bg-yellow-500' };
       case 'overdue':
         return { variant: 'destructive' as const, label: 'Vencido', color: 'bg-red-500' };
+      default:
+        return { variant: 'outline' as const, label: 'Pendiente', color: 'bg-gray-500' };
+    }
+  };
+
+  const getCheckInStatusBadge = (status: string) => {
+    switch (status) {
+      case 'checked_in':
+        return { variant: 'default' as const, label: 'Ingresado', color: 'bg-green-500' };
+      case 'no_show':
+        return { variant: 'destructive' as const, label: 'No Show', color: 'bg-red-500' };
+      default:
+        return { variant: 'outline' as const, label: 'Pendiente', color: 'bg-gray-500' };
+    }
+  };
+
+  const getCheckOutStatusBadge = (status: string) => {
+    switch (status) {
+      case 'checked_out':
+        return { variant: 'default' as const, label: 'Egresado', color: 'bg-green-500' };
+      case 'late_checkout':
+        return { variant: 'secondary' as const, label: 'Tardío', color: 'bg-yellow-500' };
       default:
         return { variant: 'outline' as const, label: 'Pendiente', color: 'bg-gray-500' };
     }
@@ -257,10 +300,11 @@ const Reservations = () => {
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="border-b border-border">
-                  <tr className="text-left text-sm text-muted-foreground">
+                   <tr className="text-left text-sm text-muted-foreground">
                     <th className="p-4 font-medium">Pasajero</th>
                     <th className="p-4 font-medium">Check-in</th>
                     <th className="p-4 font-medium">Check-out</th>
+                    <th className="p-4 font-medium">Estado</th>
                     <th className="p-4 font-medium">Cabaña</th>
                     <th className="p-4 font-medium">Huéspedes</th>
                     <th className="p-4 font-medium">Temporada</th>
@@ -273,6 +317,8 @@ const Reservations = () => {
                 <tbody>
                   {filteredReservations.map((reservation) => {
                     const paymentBadge = getPaymentStatusBadge(reservation.paymentStatus);
+                    const checkInBadge = getCheckInStatusBadge(reservation.checkInStatus || 'pending');
+                    const checkOutBadge = getCheckOutStatusBadge(reservation.checkOutStatus || 'pending');
                     const remainingBalance = calculateRemainingBalance(reservation);
                     
                     return (
@@ -292,10 +338,30 @@ const Reservations = () => {
                           )}
                         </td>
                         <td className="p-4 text-sm">
-                          {formatDate(reservation.checkIn)}
+                          <div>{formatDate(reservation.checkIn)}</div>
+                          {reservation.actualCheckIn && (
+                            <div className="text-xs text-muted-foreground">
+                              Real: {new Date(reservation.actualCheckIn).toLocaleDateString('es-CL')}
+                            </div>
+                          )}
                         </td>
                         <td className="p-4 text-sm">
-                          {formatDate(reservation.checkOut)}
+                          <div>{formatDate(reservation.checkOut)}</div>
+                          {reservation.actualCheckOut && (
+                            <div className="text-xs text-muted-foreground">
+                              Real: {new Date(reservation.actualCheckOut).toLocaleDateString('es-CL')}
+                            </div>
+                          )}
+                        </td>
+                        <td className="p-4">
+                          <div className="space-y-1">
+                            <Badge variant={checkInBadge.variant} className="text-xs">
+                              {checkInBadge.label}
+                            </Badge>
+                            <Badge variant={checkOutBadge.variant} className="text-xs">
+                              {checkOutBadge.label}
+                            </Badge>
+                          </div>
                         </td>
                         <td className="p-4 text-sm">
                           {reservation.cabinType.split(' (')[0]}
@@ -329,7 +395,7 @@ const Reservations = () => {
                           </div>
                         </td>
                         <td className="p-4">
-                          <div className="flex gap-2">
+                          <div className="flex gap-1 flex-wrap">
                             <Button
                               variant="outline"
                               size="sm"
@@ -345,6 +411,28 @@ const Reservations = () => {
                                 className="text-primary hover:text-primary"
                               >
                                 <CreditCard className="w-4 h-4" />
+                              </Button>
+                            )}
+                            {reservation.checkInStatus !== 'checked_in' && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleCheckIn(reservation)}
+                                className="text-green-600 hover:text-green-600"
+                                title="Check-in"
+                              >
+                                <LogIn className="w-4 h-4" />
+                              </Button>
+                            )}
+                            {reservation.checkInStatus === 'checked_in' && reservation.checkOutStatus !== 'checked_out' && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleCheckOut(reservation)}
+                                className="text-blue-600 hover:text-blue-600"
+                                title="Check-out"
+                              >
+                                <LogOut className="w-4 h-4" />
                               </Button>
                             )}
                             <AlertDialog>
@@ -405,6 +493,16 @@ const Reservations = () => {
           onClose={handlePaymentModalClose}
           onSuccess={loadReservations}
           reservation={selectedPaymentReservation}
+        />
+      )}
+
+      {selectedCheckInOutReservation && (
+        <CheckInOutModal
+          isOpen={isCheckInOutModalOpen}
+          onClose={handleCheckInOutModalClose}
+          onSuccess={loadReservations}
+          reservation={selectedCheckInOutReservation}
+          type={checkInOutType}
         />
       )}
     </div>

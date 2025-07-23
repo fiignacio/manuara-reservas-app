@@ -20,8 +20,22 @@ export interface Reservation {
   payments: Payment[];
   remainingBalance: number;
   paymentStatus: 'pending' | 'partially_paid' | 'fully_paid' | 'overdue';
+  // Check-in/Check-out tracking
+  actualCheckIn?: string;
+  actualCheckOut?: string;
+  checkInStatus: 'pending' | 'checked_in' | 'no_show';
+  checkOutStatus: 'pending' | 'checked_out' | 'late_checkout';
+  checkInNotes?: string;
+  checkOutNotes?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }
 
-export interface ReservationFormData extends Omit<Reservation, 'id' | 'totalPrice' | 'payments' | 'remainingBalance' | 'paymentStatus' | 'createdAt' | 'updatedAt'> {}
+export interface ReservationFormData extends Omit<Reservation, 'id' | 'totalPrice' | 'payments' | 'remainingBalance' | 'paymentStatus' | 'actualCheckIn' | 'actualCheckOut' | 'checkInStatus' | 'checkOutStatus' | 'checkInNotes' | 'checkOutNotes' | 'createdAt' | 'updatedAt'> {}
+
+export interface CheckInOutData {
+  reservationId: string;
+  actualDateTime: string;
+  notes?: string;
+  type: 'check_in' | 'check_out';
+}

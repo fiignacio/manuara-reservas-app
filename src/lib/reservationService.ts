@@ -5,13 +5,14 @@ import {
   deleteDoc, 
   doc, 
   getDocs, 
+  getDoc,
   query, 
   orderBy,
   where,
   Timestamp 
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { Reservation, ReservationFormData } from '@/types/reservation';
+import { Reservation, ReservationFormData, CheckInOutData } from '@/types/reservation';
 import { Payment, PaymentFormData } from '@/types/payment';
 import { addDays, getTomorrowDate } from './dateUtils';
 import { notificationService } from './notificationService';
@@ -289,6 +290,8 @@ export const createReservation = async (data: ReservationFormData): Promise<stri
     payments: [],
     remainingBalance: totalPrice,
     paymentStatus: 'pending',
+    checkInStatus: 'pending',
+    checkOutStatus: 'pending',
     createdAt: new Date(),
     updatedAt: new Date()
   };
@@ -581,4 +584,189 @@ export const deleteExpiredReservations = async (): Promise<number> => {
   }
   
   return deletedCount;
+};
+
+// ============= CHECK-IN/CHECK-OUT FUNCTIONS =============
+
+export const performCheckIn = async (data: CheckInOutData): Promise<void> => {
+  try {
+    const reservationRef = doc(db, COLLECTION_NAME, data.reservationId);
+    const reservationSnap = await getDoc(reservationRef);
+    
+    if (!reservationSnap.exists()) {
+      throw new Error('Reserva no encontrada');
+    }
+
+    const reservation = reservationSnap.data() as Reservation;
+    
+    // Validar que no haya check-in previo
+    if (reservation.checkInStatus === 'checked_in') {
+      throw new Error('Esta reserva ya tiene check-in registrado');
+    }
+
+    await updateDoc(reservationRef, {
+      actualCheckIn: data.actualDateTime,
+      checkInStatus: 'checked_in',
+      checkInNotes: data.notes || '',
+      updatedAt: new Date()
+    });
+
+  } catch (error) {
+    console.error('Error performing check-in:', error);
+    throw error;
+  }
+};
+
+export const performCheckOut = async (data: CheckInOutData): Promise<void> => {
+  try {
+    const reservationRef = doc(db, COLLECTION_NAME, data.reservationId);
+    const reservationSnap = await getDoc(reservationRef);
+    
+    if (!reservationSnap.exists()) {
+      throw new Error('Reserva no encontrada');
+    }
+
+    const reservation = reservationSnap.data() as Reservation;
+    
+    // Validar que haya check-in previo
+    if (reservation.checkInStatus !== 'checked_in') {
+      throw new Error('No se puede hacer check-out sin check-in previo');
+    }
+
+    // Validar que no haya check-out previo
+    if (reservation.checkOutStatus === 'checked_out') {
+      throw new Error('Esta reserva ya tiene check-out registrado');
+    }
+
+    await updateDoc(reservationRef, {
+      actualCheckOut: data.actualDateTime,
+      checkOutStatus: 'checked_out',
+      checkOutNotes: data.notes || '',
+      updatedAt: new Date()
+    });
+
+  } catch (error) {
+    console.error('Error performing check-out:', error);
+    throw error;
+  }
+};
+
+export const getCurrentlyStaying = async (): Promise<Reservation[]> => {
+  try {
+    const reservationsRef = collection(db, COLLECTION_NAME);
+    const q = query(
+      reservationsRef,
+      where('checkInStatus', '==', 'checked_in'),
+      where('checkOutStatus', '==', 'pending')
+    );
+    
+    const querySnapshot = await getDocs(q);
+    const reservations: Reservation[] = [];
+    
+    querySnapshot.forEach((doc) => {
+      const data = doc.data() as Reservation;
+      reservations.push({
+        ...data,
+        id: doc.id,
+        createdAt: data.createdAt instanceof Date ? data.createdAt : (data.createdAt as any)?.toDate?.(),
+        updatedAt: data.updatedAt instanceof Date ? data.updatedAt : (data.updatedAt as any)?.toDate?.()
+      });
+    });
+    
+    return reservations.sort((a, b) => a.passengerName.localeCompare(b.passengerName));
+  } catch (error) {
+    console.error('Error getting currently staying guests:', error);
+    return [];
+  }
+};
+
+export const getPendingCheckIns = async (date?: string): Promise<Reservation[]> => {
+  try {
+    const targetDate = date || new Date().toISOString().split('T')[0];
+    const reservationsRef = collection(db, COLLECTION_NAME);
+    const q = query(
+      reservationsRef,
+      where('checkIn', '==', targetDate),
+      where('checkInStatus', '==', 'pending')
+    );
+    
+    const querySnapshot = await getDocs(q);
+    const reservations: Reservation[] = [];
+    
+    querySnapshot.forEach((doc) => {
+      const data = doc.data() as Reservation;
+      reservations.push({
+        ...data,
+        id: doc.id,
+        createdAt: data.createdAt instanceof Date ? data.createdAt : (data.createdAt as any)?.toDate?.(),
+        updatedAt: data.updatedAt instanceof Date ? data.updatedAt : (data.updatedAt as any)?.toDate?.()
+      });
+    });
+    
+    return reservations.sort((a, b) => a.passengerName.localeCompare(b.passengerName));
+  } catch (error) {
+    console.error('Error getting pending check-ins:', error);
+    return [];
+  }
+};
+
+export const getPendingCheckOuts = async (date?: string): Promise<Reservation[]> => {
+  try {
+    const targetDate = date || new Date().toISOString().split('T')[0];
+    const reservationsRef = collection(db, COLLECTION_NAME);
+    const q = query(
+      reservationsRef,
+      where('checkOut', '==', targetDate),
+      where('checkOutStatus', '==', 'pending'),
+      where('checkInStatus', '==', 'checked_in')
+    );
+    
+    const querySnapshot = await getDocs(q);
+    const reservations: Reservation[] = [];
+    
+    querySnapshot.forEach((doc) => {
+      const data = doc.data() as Reservation;
+      reservations.push({
+        ...data,
+        id: doc.id,
+        createdAt: data.createdAt instanceof Date ? data.createdAt : (data.createdAt as any)?.toDate?.(),
+        updatedAt: data.updatedAt instanceof Date ? data.updatedAt : (data.updatedAt as any)?.toDate?.()
+      });
+    });
+    
+    return reservations.sort((a, b) => a.passengerName.localeCompare(b.passengerName));
+  } catch (error) {
+    console.error('Error getting pending check-outs:', error);
+    return [];
+  }
+};
+
+export const getNoShows = async (): Promise<Reservation[]> => {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const reservationsRef = collection(db, COLLECTION_NAME);
+    const q = query(
+      reservationsRef,
+      where('checkInStatus', '==', 'pending'),
+      where('checkIn', '<', today)
+    );
+    
+    const querySnapshot = await getDocs(q);
+    const reservations: Reservation[] = [];
+    
+    querySnapshot.forEach((doc) => {
+      const data = doc.data() as Reservation;
+      reservations.push({
+        ...data,
+        id: doc.id,
+        createdAt: data.createdAt instanceof Date ? data.createdAt : (data.createdAt as any)?.toDate?.(),
+        updatedAt: data.updatedAt instanceof Date ? data.updatedAt : (data.updatedAt as any)?.toDate?.()
+      });
+    });
+    
+    return reservations.sort((a, b) => new Date(a.checkIn).getTime() - new Date(b.checkIn).getTime());
+  } catch (error) {
+    console.error('Error getting no-shows:', error);
+    return [];
+  }
 };
