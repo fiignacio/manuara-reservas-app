@@ -109,17 +109,16 @@ class NotificationService {
     }
   }
 
-  // Obtener notificaciones pendientes (optimizada)
+  // Obtener notificaciones pendientes (simplificada para evitar índices complejos)
   async getPendingNotifications(): Promise<Notification[]> {
     try {
       const now = new Date();
       
-      // Query simplificada para evitar índices complejos
+      // Query simplificada - solo por status
       const q = query(
         collection(db, this.collection),
         where('status', '==', 'pending'),
-        orderBy('scheduledAt', 'asc'),
-        limit(50)
+        limit(100)
       );
       
       const snapshot = await getDocs(q);
@@ -136,7 +135,7 @@ class NotificationService {
         updatedAt: doc.data().updatedAt.toDate()
       })) as Notification[];
 
-      // Filtrar en el cliente solo las que están listas para enviar
+      // Filtrar en el cliente las que están listas para enviar
       const readyNotifications = notifications.filter(notification => {
         const isScheduled = notification.scheduledAt <= now;
         const isNotSnoozed = !notification.snoozedUntil || notification.snoozedUntil <= now;
@@ -145,10 +144,14 @@ class NotificationService {
         return isScheduled && isNotSnoozed && isActive;
       });
 
+      // Ordenar por fecha programada
+      readyNotifications.sort((a, b) => a.scheduledAt.getTime() - b.scheduledAt.getTime());
+
       logger.info(`Found ${readyNotifications.length} pending notifications`);
       return readyNotifications;
     } catch (error) {
       logger.error('Error getting pending notifications:', error);
+      // Fallback: retornar array vacío si falla la consulta
       return [];
     }
   }
@@ -156,9 +159,9 @@ class NotificationService {
   // Obtener todas las notificaciones con paginación
   async getAllNotifications(limitCount: number = 50): Promise<Notification[]> {
     try {
+      // Query simple sin ordenamiento complejo
       const q = query(
         collection(db, this.collection),
-        orderBy('createdAt', 'desc'),
         limit(limitCount)
       );
       
@@ -176,6 +179,9 @@ class NotificationService {
         updatedAt: doc.data().updatedAt.toDate()
       })) as Notification[];
       
+      // Ordenar en el cliente
+      notifications.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      
       return notifications;
     } catch (error) {
       logger.error('Error getting notifications:', error);
@@ -183,15 +189,14 @@ class NotificationService {
     }
   }
 
-  // Obtener notificaciones para la campana (optimizada)
+  // Obtener notificaciones para la campana (simplificada)
   async getBellNotifications(): Promise<Notification[]> {
     try {
-      // Query simplificada - solo notificaciones enviadas
+      // Query simplificada - solo por status
       const q = query(
         collection(db, this.collection),
         where('status', '==', 'sent'),
-        orderBy('sentAt', 'desc'),
-        limit(20)
+        limit(50)
       );
       
       const snapshot = await getDocs(q);
@@ -208,17 +213,17 @@ class NotificationService {
         updatedAt: doc.data().updatedAt.toDate()
       })) as Notification[];
 
-      // Solo notificaciones enviadas pero no leídas
-      const unreadNotifications = notifications.filter(n => 
-        n.status === 'sent' && 
-        !n.readAt && 
-        n.isActive
-      );
+      // Filtrar y ordenar en el cliente
+      const unreadNotifications = notifications
+        .filter(n => n.status === 'sent' && !n.readAt && n.isActive)
+        .sort((a, b) => (b.sentAt?.getTime() || 0) - (a.sentAt?.getTime() || 0))
+        .slice(0, 20); // Limitar a 20 más recientes
       
       logger.info(`Found ${unreadNotifications.length} unread bell notifications`);
       return unreadNotifications;
     } catch (error) {
       logger.error('Error getting bell notifications:', error);
+      // Fallback: retornar array vacío si falla la consulta
       return [];
     }
   }
