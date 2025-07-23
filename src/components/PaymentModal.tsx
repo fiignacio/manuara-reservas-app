@@ -97,12 +97,15 @@ const PaymentModal = ({ isOpen, onClose, onSuccess, reservation }: PaymentModalP
   };
 
   const handlePayFullAmount = () => {
+    if (remainingBalance <= 0) return;
     console.log('PaymentModal - Pay full amount clicked:', remainingBalance);
     setFormData({ ...formData, amount: remainingBalance });
   };
 
   const handlePay50Percent = () => {
-    const halfAmount = Math.round(remainingBalance * 0.5);
+    if (remainingBalance <= 0) return;
+    // Better precision calculation for currency to avoid floating point errors
+    const halfAmount = Math.round(remainingBalance * 50) / 100; // More precise than * 0.5
     console.log('PaymentModal - Pay 50% clicked:', halfAmount, 'of', remainingBalance);
     setFormData({ ...formData, amount: halfAmount });
   };
@@ -220,11 +223,15 @@ const PaymentModal = ({ isOpen, onClose, onSuccess, reservation }: PaymentModalP
               <Textarea
                 id="notes"
                 value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value.slice(0, 500) })}
                 placeholder="Detalles adicionales sobre el pago..."
                 className="mt-1"
                 rows={3}
+                maxLength={500}
               />
+              <div className="text-xs text-muted-foreground mt-1">
+                {formData.notes.length}/500 caracteres
+              </div>
             </div>
 
             {/* Buttons */}

@@ -644,11 +644,15 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
             <Textarea
               id="comments"
               value={formData.comments}
-              onChange={(e) => setFormData({ ...formData, comments: e.target.value })}
+              onChange={(e) => setFormData({ ...formData, comments: e.target.value.slice(0, 1000) })}
               placeholder="Comentarios adicionales sobre la reserva..."
               className="mt-1"
               rows={3}
+              maxLength={1000}
             />
+            <div className="text-xs text-muted-foreground mt-1">
+              {formData.comments.length}/1000 caracteres
+            </div>
           </div>
 
           {/* Botones */}
