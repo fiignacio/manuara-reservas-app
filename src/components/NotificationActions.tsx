@@ -10,11 +10,20 @@ import {
   DialogTitle,
   DialogTrigger,
 } from './ui/dialog';
+import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from './ui/drawer';
 import { Textarea } from './ui/textarea';
 import { Label } from './ui/label';
 import { Check, Archive, Clock, X, MessageSquare } from 'lucide-react';
 import { Notification } from '../types/notification';
 import { useToast } from '../hooks/use-toast';
+import { useIsMobile } from '../hooks/use-mobile';
 
 interface NotificationActionsProps {
   notification: Notification;
@@ -28,6 +37,7 @@ export function NotificationActions({ notification, onAction, compact = false }:
   const [notes, setNotes] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const isMobile = useIsMobile();
 
   const handleAction = async (action: string, requiresNotes = false) => {
     if (requiresNotes) {
@@ -112,102 +122,29 @@ export function NotificationActions({ notification, onAction, compact = false }:
     return !['archived', 'cancelled'].includes(status);
   };
 
-  if (compact) {
+  const ActionDialog = () => {
+    const DialogComponent = isMobile ? Drawer : Dialog;
+    const TriggerComponent = isMobile ? DrawerTrigger : DialogTrigger;
+    const ContentComponent = isMobile ? DrawerContent : DialogContent;
+    const HeaderComponent = isMobile ? DrawerHeader : DialogHeader;
+    const TitleComponent = isMobile ? DrawerTitle : DialogTitle;
+    const DescriptionComponent = isMobile ? DrawerDescription : DialogDescription;
+
     return (
-      <div className="flex items-center gap-2">
-        {getStatusBadge()}
-        {canTakeAction() && (
-          <div className="flex gap-1">
-            {!notification.completedAt && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handleAction('completed', true)}
-                disabled={isLoading}
-                className="h-6 px-2"
-              >
-                <Check className="h-3 w-3" />
-              </Button>
-            )}
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => handleAction('archived')}
-              disabled={isLoading}
-              className="h-6 px-2"
-            >
-              <Archive className="h-3 w-3" />
-            </Button>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex items-center justify-between">
-      {getStatusBadge()}
-      
-      {canTakeAction() && (
-        <div className="flex gap-2">
-          {!notification.completedAt && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => handleAction('completed', true)}
-              disabled={isLoading}
-            >
-              <Check className="h-4 w-4 mr-1" />
-              Completar
-            </Button>
-          )}
-          
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => handleAction('snoozed')}
-            disabled={isLoading}
-          >
-            <Clock className="h-4 w-4 mr-1" />
-            Posponer
-          </Button>
-          
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => handleAction('archived')}
-            disabled={isLoading}
-          >
-            <Archive className="h-4 w-4 mr-1" />
-            Archivar
-          </Button>
-          
-          <Button
-            size="sm"
-            variant="destructive"
-            onClick={() => handleAction('cancelled')}
-            disabled={isLoading}
-          >
-            <X className="h-4 w-4 mr-1" />
-            Cancelar
-          </Button>
-        </div>
-      )}
-
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
+      <DialogComponent open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <ContentComponent className={isMobile ? "max-h-[90vh]" : ""}>
+          <HeaderComponent>
+            <TitleComponent>
               {actionType === 'completed' ? 'Completar Notificación' : 'Acción sobre Notificación'}
-            </DialogTitle>
-            <DialogDescription>
+            </TitleComponent>
+            <DescriptionComponent>
               {actionType === 'completed' 
                 ? 'Describe qué acción se tomó para completar esta notificación.'
                 : 'Agrega notas sobre esta acción (opcional).'}
-            </DialogDescription>
-          </DialogHeader>
+            </DescriptionComponent>
+          </HeaderComponent>
           
-          <div className="space-y-4">
+          <div className={`space-y-4 ${isMobile ? 'p-4' : ''}`}>
             <div>
               <Label htmlFor="notes">
                 {actionType === 'completed' ? 'Acción tomada' : 'Notas'}
@@ -220,6 +157,7 @@ export function NotificationActions({ notification, onAction, compact = false }:
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 rows={3}
+                className={isMobile ? "text-base" : ""}
               />
             </div>
             
@@ -227,19 +165,114 @@ export function NotificationActions({ notification, onAction, compact = false }:
               <Button
                 variant="outline"
                 onClick={() => setIsDialogOpen(false)}
+                className={isMobile ? "h-10" : ""}
               >
                 Cancelar
               </Button>
               <Button
                 onClick={handleDialogAction}
                 disabled={isLoading || (actionType === 'completed' && !notes.trim())}
+                className={isMobile ? "h-10" : ""}
               >
                 {isLoading ? 'Procesando...' : 'Confirmar'}
               </Button>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        </ContentComponent>
+      </DialogComponent>
+    );
+  };
+
+  if (compact) {
+    return (
+      <div className="flex items-center gap-2">
+        {getStatusBadge()}
+        {canTakeAction() && (
+          <div className={`flex gap-1 ${isMobile ? 'flex-col' : ''}`}>
+            {!notification.completedAt && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleAction('completed', true)}
+                disabled={isLoading}
+                className={isMobile ? "h-8 w-full text-xs" : "h-6 px-2"}
+              >
+                <Check className="h-3 w-3" />
+                {isMobile && <span className="ml-1">Completar</span>}
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => handleAction('archived')}
+              disabled={isLoading}
+              className={isMobile ? "h-8 w-full text-xs" : "h-6 px-2"}
+            >
+              <Archive className="h-3 w-3" />
+              {isMobile && <span className="ml-1">Archivar</span>}
+            </Button>
+          </div>
+        )}
+        <ActionDialog />
+      </div>
+    );
+  }
+
+  return (
+    <div className={`flex items-center ${isMobile ? 'flex-col gap-2' : 'justify-between'}`}>
+      {getStatusBadge()}
+      
+      {canTakeAction() && (
+        <div className={`flex gap-2 ${isMobile ? 'w-full flex-wrap' : ''}`}>
+          {!notification.completedAt && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => handleAction('completed', true)}
+              disabled={isLoading}
+              className={isMobile ? "flex-1 h-9" : ""}
+            >
+              <Check className="h-4 w-4 mr-1" />
+              Completar
+            </Button>
+          )}
+          
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleAction('snoozed')}
+            disabled={isLoading}
+            className={isMobile ? "flex-1 h-9" : ""}
+          >
+            <Clock className="h-4 w-4 mr-1" />
+            Posponer
+          </Button>
+          
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleAction('archived')}
+            disabled={isLoading}
+            className={isMobile ? "flex-1 h-9" : ""}
+          >
+            <Archive className="h-4 w-4 mr-1" />
+            Archivar
+          </Button>
+          
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={() => handleAction('cancelled')}
+            disabled={isLoading}
+            className={isMobile ? "flex-1 h-9" : ""}
+          >
+            <X className="h-4 w-4 mr-1" />
+            Cancelar
+          </Button>
+        </div>
+      )}
+
+      <ActionDialog />
     </div>
   );
 }

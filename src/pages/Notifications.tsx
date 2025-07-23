@@ -13,9 +13,11 @@ import { notificationService } from '../lib/notificationService';
 import { deleteExpiredReservations } from '../lib/reservationService';
 import { Notification, NotificationType } from '../types/notification';
 import { NotificationActions } from '../components/NotificationActions';
+import { NotificationCardMobile } from '../components/mobile/NotificationCardMobile';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useToast } from '../hooks/use-toast';
+import { useIsMobile } from '../hooks/use-mobile';
 
 export function Notifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -40,6 +42,7 @@ export function Notifications() {
     scheduledAt: new Date().toISOString().slice(0, 16)
   });
   const { toast } = useToast();
+  const isMobile = useIsMobile();
 
   // Función optimizada para cargar datos
   const loadData = useCallback(async () => {
@@ -321,7 +324,7 @@ export function Notifications() {
       </div>
 
       {/* Estadísticas mejoradas */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-6">
+      <div className={`grid gap-4 mb-6 ${isMobile ? 'grid-cols-2' : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-7'}`}>
         {[
           { label: 'Total', value: stats.total, icon: Bell, color: 'text-blue-500' },
           { label: 'Pendientes', value: stats.pending, icon: Calendar, color: 'text-yellow-500' },
@@ -362,7 +365,7 @@ export function Notifications() {
               
               <div className="flex gap-2 mt-4">
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-48">
+                  <SelectTrigger className={isMobile ? "w-full" : "w-48"}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -383,6 +386,16 @@ export function Notifications() {
                 <div className="text-center py-8">
                   <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
                   <p className="text-muted-foreground">Cargando notificaciones...</p>
+                </div>
+              ) : isMobile ? (
+                <div className="space-y-3">
+                  {filteredNotifications.map((notification) => (
+                    <NotificationCardMobile
+                      key={notification.id}
+                      notification={notification}
+                      onAction={handleNotificationAction}
+                    />
+                  ))}
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -440,18 +453,18 @@ export function Notifications() {
                       </div>
                     </div>
                   ))}
-                  
-                  {filteredNotifications.length === 0 && (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <Bell className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                      <p>
-                        {statusFilter === 'all' 
-                          ? 'No hay notificaciones registradas'
-                          : `No hay notificaciones con estado: ${statusFilter}`
-                        }
-                      </p>
-                    </div>
-                  )}
+                 </div>
+              )}
+              
+              {filteredNotifications.length === 0 && !isLoading && (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Bell className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <p>
+                    {statusFilter === 'all' 
+                      ? 'No hay notificaciones registradas'
+                      : `No hay notificaciones con estado: ${statusFilter}`
+                    }
+                  </p>
                 </div>
               )}
             </CardContent>

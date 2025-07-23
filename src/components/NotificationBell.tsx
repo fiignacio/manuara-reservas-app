@@ -9,6 +9,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from './ui/popover';
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from './ui/drawer';
 import { ScrollArea } from './ui/scroll-area';
 import { Separator } from './ui/separator';
 import { notificationService } from '../lib/notificationService';
@@ -16,6 +23,7 @@ import { Notification } from '../types/notification';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useToast } from '../hooks/use-toast';
+import { useIsMobile } from '../hooks/use-mobile';
 
 export function NotificationBell() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -23,6 +31,7 @@ export function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const isMobile = useIsMobile();
 
   // Función optimizada para cargar notificaciones
   const loadNotifications = useCallback(async () => {
@@ -45,7 +54,9 @@ export function NotificationBell() {
     loadNotifications();
     // Actualizar cada 60 segundos
     const interval = setInterval(loadNotifications, 60000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+    };
   }, [loadNotifications]);
 
   const handleMarkAsRead = async (notificationId: string) => {
@@ -110,16 +121,179 @@ export function NotificationBell() {
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'urgent': return 'border-l-red-500 bg-red-50';
+      case 'urgent': return 'border-l-destructive bg-destructive/5';
       case 'high': return 'border-l-orange-500 bg-orange-50';
       case 'medium': return 'border-l-yellow-500 bg-yellow-50';
-      default: return 'border-l-blue-500 bg-blue-50';
+      default: return 'border-l-muted bg-muted/20';
     }
   };
 
   const formatNotificationTime = (date: Date) => {
     return format(date, "d MMM, HH:mm", { locale: es });
   };
+
+  const NotificationContent = () => (
+    <Card className="border-0 shadow-lg">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className={`${isMobile ? 'text-lg' : 'text-lg'}`}>Notificaciones</CardTitle>
+          <Badge variant="secondary" className="text-xs">
+            {unreadCount} sin leer
+          </Badge>
+        </div>
+      </CardHeader>
+      
+      <Separator />
+      
+      <CardContent className="p-0">
+        <ScrollArea className={`${isMobile ? 'h-[60vh]' : 'h-[400px]'}`}>
+          {isLoading ? (
+            <div className="p-6 text-center text-muted-foreground">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-3"></div>
+              <p>Cargando notificaciones...</p>
+            </div>
+          ) : notifications.length === 0 ? (
+            <div className="p-6 text-center text-muted-foreground">
+              <Bell className="h-12 w-12 mx-auto mb-3 opacity-50" />
+              <p>No hay notificaciones sin leer</p>
+            </div>
+          ) : (
+            <div className="space-y-0">
+              {notifications.map((notification, index) => (
+                <div key={notification.id}>
+                  <div className={`p-4 border-l-4 transition-colors hover:bg-accent ${getPriorityColor(notification.priority)}`}>
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 mt-1">
+                        {getPriorityIcon(notification.priority)}
+                      </div>
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-1">
+                          <h4 className="text-sm font-medium truncate text-foreground">
+                            {notification.title}
+                          </h4>
+                          <div className="flex-shrink-0 ml-2">
+                            <div className="w-2 h-2 bg-primary rounded-full" />
+                          </div>
+                        </div>
+                        
+                        <p className="text-xs mb-2 line-clamp-2 text-foreground">
+                          {notification.message}
+                        </p>
+                        
+                        <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
+                          <span>
+                            {notification.sentAt 
+                              ? formatNotificationTime(notification.sentAt)
+                              : `Programada: ${formatNotificationTime(notification.scheduledAt)}`
+                            }
+                          </span>
+                          
+                          <Badge variant="outline" className="text-xs">
+                            {notification.priority.toUpperCase()}
+                          </Badge>
+                        </div>
+
+                        {/* Acciones rápidas */}
+                        <div className={`flex gap-1 mt-2 ${isMobile ? 'flex-col' : ''}`}>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className={`${isMobile ? 'h-8 text-xs' : 'h-6 px-2 text-xs'}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleMarkAsRead(notification.id);
+                            }}
+                          >
+                            <Check className="h-3 w-3 mr-1" />
+                            Marcar leída
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className={`${isMobile ? 'h-8 text-xs' : 'h-6 px-2 text-xs'}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleQuickAction(notification.id, 'completed');
+                            }}
+                          >
+                            <Check className="h-3 w-3 mr-1" />
+                            Completar
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {index < notifications.length - 1 && (
+                    <Separator className="ml-4" />
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </ScrollArea>
+        
+        {notifications.length > 0 && (
+          <>
+            <Separator />
+            <div className="p-4">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="w-full"
+                onClick={() => {
+                  setIsOpen(false);
+                  // Aquí se podría navegar a la página de notificaciones
+                  window.location.href = '/notifications';
+                }}
+              >
+                Ver todas las notificaciones
+              </Button>
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+
+  if (isMobile) {
+    return (
+      <Drawer open={isOpen} onOpenChange={setIsOpen}>
+        <DrawerTrigger asChild>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="relative"
+            onClick={() => setIsOpen(!isOpen)}
+          >
+            {unreadCount > 0 ? (
+              <BellRing className="h-5 w-5" />
+            ) : (
+              <Bell className="h-5 w-5" />
+            )}
+            {unreadCount > 0 && (
+              <Badge 
+                variant="destructive" 
+                className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs"
+              >
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </Badge>
+            )}
+          </Button>
+        </DrawerTrigger>
+        
+        <DrawerContent className="max-h-[90vh]">
+          <DrawerHeader>
+            <DrawerTitle>Notificaciones</DrawerTitle>
+          </DrawerHeader>
+          <div className="px-4 pb-4">
+            <NotificationContent />
+          </div>
+        </DrawerContent>
+      </Drawer>
+    );
+  }
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -147,128 +321,7 @@ export function NotificationBell() {
       </PopoverTrigger>
       
       <PopoverContent className="w-96 p-0" align="end">
-        <Card className="border-0 shadow-lg">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">Notificaciones</CardTitle>
-              <Badge variant="secondary">
-                {unreadCount} sin leer
-              </Badge>
-            </div>
-          </CardHeader>
-          
-          <Separator />
-          
-          <CardContent className="p-0">
-            <ScrollArea className="h-[400px]">
-              {isLoading ? (
-                <div className="p-6 text-center text-muted-foreground">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-3"></div>
-                  <p>Cargando notificaciones...</p>
-                </div>
-              ) : notifications.length === 0 ? (
-                <div className="p-6 text-center text-muted-foreground">
-                  <Bell className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                  <p>No hay notificaciones sin leer</p>
-                </div>
-              ) : (
-                <div className="space-y-0">
-                  {notifications.map((notification, index) => (
-                    <div key={notification.id}>
-                      <div className={`p-4 border-l-4 transition-colors hover:bg-accent ${getPriorityColor(notification.priority)}`}>
-                        <div className="flex items-start gap-3">
-                          <div className="flex-shrink-0 mt-1">
-                            {getPriorityIcon(notification.priority)}
-                          </div>
-                          
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between mb-1">
-                              <h4 className="text-sm font-medium truncate text-foreground">
-                                {notification.title}
-                              </h4>
-                              <div className="flex-shrink-0 ml-2">
-                                <div className="w-2 h-2 bg-primary rounded-full" />
-                              </div>
-                            </div>
-                            
-                            <p className="text-xs mb-2 line-clamp-2 text-foreground">
-                              {notification.message}
-                            </p>
-                            
-                            <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
-                              <span>
-                                {notification.sentAt 
-                                  ? formatNotificationTime(notification.sentAt)
-                                  : `Programada: ${formatNotificationTime(notification.scheduledAt)}`
-                                }
-                              </span>
-                              
-                              <Badge variant="outline" className="text-xs">
-                                {notification.priority.toUpperCase()}
-                              </Badge>
-                            </div>
-
-                            {/* Acciones rápidas */}
-                            <div className="flex gap-1 mt-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-6 px-2 text-xs"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleMarkAsRead(notification.id);
-                                }}
-                              >
-                                <Check className="h-3 w-3 mr-1" />
-                                Marcar leída
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-6 px-2 text-xs"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleQuickAction(notification.id, 'completed');
-                                }}
-                              >
-                                <Check className="h-3 w-3 mr-1" />
-                                Completar
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      {index < notifications.length - 1 && (
-                        <Separator className="ml-4" />
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </ScrollArea>
-            
-            {notifications.length > 0 && (
-              <>
-                <Separator />
-                <div className="p-4">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full"
-                    onClick={() => {
-                      setIsOpen(false);
-                      // Aquí se podría navegar a la página de notificaciones
-                      window.location.href = '/notifications';
-                    }}
-                  >
-                    Ver todas las notificaciones
-                  </Button>
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
+        <NotificationContent />
       </PopoverContent>
     </Popover>
   );
