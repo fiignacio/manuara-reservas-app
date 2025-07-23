@@ -28,13 +28,17 @@ const PaymentModal = ({ isOpen, onClose, onSuccess, reservation }: PaymentModalP
     paymentDate: new Date().toISOString().split('T')[0],
     method: 'cash',
     notes: '',
-    createdBy: 'Sistema' // In a real app, this would be the current user
+    createdBy: 'Sistema'
   });
 
   const remainingBalance = calculateRemainingBalance(reservation);
 
+  console.log('PaymentModal - Remaining balance:', remainingBalance);
+  console.log('PaymentModal - Reservation:', reservation);
+
   useEffect(() => {
     if (isOpen) {
+      console.log('PaymentModal opened - resetting form');
       setFormData({
         amount: 0,
         paymentDate: new Date().toISOString().split('T')[0],
@@ -47,6 +51,8 @@ const PaymentModal = ({ isOpen, onClose, onSuccess, reservation }: PaymentModalP
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    console.log('PaymentModal - Submit attempt:', formData);
     
     if (formData.amount <= 0) {
       toast({
@@ -77,6 +83,7 @@ const PaymentModal = ({ isOpen, onClose, onSuccess, reservation }: PaymentModalP
       onSuccess();
       onClose();
     } catch (error: any) {
+      console.error('PaymentModal - Error:', error);
       const errorMessage = error.message || "Hubo un problema al registrar el pago.";
       
       toast({
@@ -90,7 +97,14 @@ const PaymentModal = ({ isOpen, onClose, onSuccess, reservation }: PaymentModalP
   };
 
   const handlePayFullAmount = () => {
+    console.log('PaymentModal - Pay full amount clicked:', remainingBalance);
     setFormData({ ...formData, amount: remainingBalance });
+  };
+
+  const handlePay50Percent = () => {
+    const halfAmount = Math.round(remainingBalance * 0.5);
+    console.log('PaymentModal - Pay 50% clicked:', halfAmount, 'of', remainingBalance);
+    setFormData({ ...formData, amount: halfAmount });
   };
 
   return (
@@ -149,8 +163,9 @@ const PaymentModal = ({ isOpen, onClose, onSuccess, reservation }: PaymentModalP
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => setFormData({ ...formData, amount: Math.round(remainingBalance * 0.5) })}
+                  onClick={handlePay50Percent}
                   className="flex-1"
+                  disabled={remainingBalance <= 0}
                 >
                   50% Abono
                 </Button>
@@ -160,6 +175,7 @@ const PaymentModal = ({ isOpen, onClose, onSuccess, reservation }: PaymentModalP
                   size="sm"
                   onClick={handlePayFullAmount}
                   className="flex-1"
+                  disabled={remainingBalance <= 0}
                 >
                   Pagar todo
                 </Button>

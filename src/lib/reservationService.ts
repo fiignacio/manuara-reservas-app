@@ -260,6 +260,7 @@ export const getNextAvailableDate = async (cabinType: string, preferredCheckIn: 
 
 export const createReservation = async (data: ReservationFormData): Promise<string> => {
   console.log('Creating reservation for:', data.passengerName);
+  console.log('Form data received:', data);
   
   // Validar fechas antes de verificar disponibilidad
   const dateValidation = validateReservationDates(data.checkIn, data.checkOut);
@@ -292,8 +293,12 @@ export const createReservation = async (data: ReservationFormData): Promise<stri
     updatedAt: new Date()
   };
   
+  console.log('Reservation object before cleaning:', reservation);
+  
   // Clean the data before sending to Firebase
   const cleanedReservation = cleanReservationData(reservation);
+  
+  console.log('Cleaned reservation object:', cleanedReservation);
   
   const docRef = await addDoc(collection(db, COLLECTION_NAME), cleanedReservation);
   
@@ -315,6 +320,7 @@ export const createReservation = async (data: ReservationFormData): Promise<stri
 
 export const updateReservation = async (id: string, data: ReservationFormData, shouldUpdateDates: boolean = true): Promise<void> => {
   console.log('Updating reservation:', id, 'shouldUpdateDates:', shouldUpdateDates);
+  console.log('Update data received:', data);
   
   // Validar capacidad de la cabaña siempre
   const capacityValidation = validateCabinCapacity(data.cabinType, data.adults, data.children, data.babies);
@@ -362,8 +368,12 @@ export const updateReservation = async (id: string, data: ReservationFormData, s
     updatedAt: new Date()
   };
   
+  console.log('Reservation object before cleaning:', reservation);
+  
   // Clean the data before sending to Firebase
   const cleanedReservation = cleanReservationData(reservation);
+  
+  console.log('Cleaned reservation object:', cleanedReservation);
   
   await updateDoc(doc(db, COLLECTION_NAME, id), cleanedReservation);
   

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Search, Filter, DollarSign, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -284,6 +283,11 @@ const Reservations = () => {
                             <div className="text-xs text-muted-foreground flex items-center gap-1">
                               <DollarSign className="w-3 h-3" />
                               Precio personalizado
+                            </div>
+                          )}
+                          {reservation.comments && (
+                            <div className="text-xs text-muted-foreground mt-1" title={reservation.comments}>
+                              💬 {reservation.comments.length > 30 ? `${reservation.comments.substring(0, 30)}...` : reservation.comments}
                             </div>
                           )}
                         </td>
