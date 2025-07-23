@@ -116,34 +116,34 @@ const Dashboard = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         <Card className="card-cabin">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Reservas</CardTitle>
+            <CardTitle className="text-xs sm:text-sm font-medium">Total Reservas</CardTitle>
             <CalendarDays className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{reservations.length}</div>
+            <div className="text-xl sm:text-2xl font-bold">{reservations.length}</div>
           </CardContent>
         </Card>
 
         <Card className="card-cabin">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Llegadas Hoy</CardTitle>
+            <CardTitle className="text-xs sm:text-sm font-medium">Llegadas Hoy</CardTitle>
             <LogIn className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{todayArrivals.length}</div>
+            <div className="text-xl sm:text-2xl font-bold text-green-600">{todayArrivals.length}</div>
           </CardContent>
         </Card>
 
         <Card className="card-cabin">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Salidas Mañana</CardTitle>
+            <CardTitle className="text-xs sm:text-sm font-medium">Salidas Mañana</CardTitle>
             <Clock className="h-4 w-4 text-orange-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{tomorrowDepartures.length}</div>
+            <div className="text-xl sm:text-2xl font-bold text-orange-600">{tomorrowDepartures.length}</div>
             <p className="text-xs text-muted-foreground mt-1">
               {getTomorrowDate()}
             </p>
@@ -152,11 +152,11 @@ const Dashboard = () => {
 
         <Card className="card-cabin">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Huéspedes Actuales</CardTitle>
+            <CardTitle className="text-xs sm:text-sm font-medium">Huéspedes Actuales</CardTitle>
             <Users className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">
+            <div className="text-xl sm:text-2xl font-bold text-blue-600">
               {reservations.filter(r => {
                 const today = new Date().toISOString().split('T')[0];
                 return r.checkIn <= today && r.checkOut > today;
@@ -167,7 +167,7 @@ const Dashboard = () => {
       </div>
 
       {/* Arrivals Sections */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         {/* Today's Arrivals */}
         <Card className="card-cabin">
           <CardHeader>
@@ -267,7 +267,7 @@ const Dashboard = () => {
                 No hay llegadas programadas para los próximos 5 días
               </div>
             ) : (
-              <div className="space-y-4 max-h-96 overflow-y-auto">
+              <div className="space-y-4 max-h-80 sm:max-h-96 overflow-y-auto">
                 {upcomingArrivals.map((reservation) => (
                   <div key={reservation.id} className="border rounded-lg p-4 space-y-2">
                     <div className="flex justify-between items-start">

@@ -19,11 +19,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import ReservationModal from '@/components/ReservationModal';
 import PaymentModal from '@/components/PaymentModal';
 import CheckInOutModal from '@/components/CheckInOutModal';
+import ReservationCard from '@/components/mobile/ReservationCard';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { Reservation } from '@/types/reservation';
 import { getAllReservations, deleteReservation, calculateRemainingBalance } from '@/lib/reservationService';
 import { useToast } from '@/hooks/use-toast';
 
 const Reservations = () => {
+  const isMobile = useIsMobile();
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [filteredReservations, setFilteredReservations] = useState<Reservation[]>([]);
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
@@ -228,8 +231,9 @@ const Reservations = () => {
 
       {/* Filters */}
       <Card className="card-cabin">
-        <CardContent className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <CardContent className="p-4 sm:p-6">
+          <div className="space-y-4">
+            {/* Search */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
@@ -240,67 +244,86 @@ const Reservations = () => {
               />
             </div>
 
-            <Select value={filterCabin} onValueChange={setFilterCabin}>
-              <SelectTrigger>
-                <SelectValue placeholder="Filtrar por cabaña" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas las cabañas</SelectItem>
-                <SelectItem value="Cabaña Pequeña (Max 3p)">Cabaña Pequeña</SelectItem>
-                <SelectItem value="Cabaña Mediana 1 (Max 4p)">Cabaña Mediana 1</SelectItem>
-                <SelectItem value="Cabaña Mediana 2 (Max 4p)">Cabaña Mediana 2</SelectItem>
-                <SelectItem value="Cabaña Grande (Max 6p)">Cabaña Grande</SelectItem>
-              </SelectContent>
-            </Select>
+            {/* Filters Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Select value={filterCabin} onValueChange={setFilterCabin}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filtrar por cabaña" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas las cabañas</SelectItem>
+                  <SelectItem value="Cabaña Pequeña (Max 3p)">Cabaña Pequeña</SelectItem>
+                  <SelectItem value="Cabaña Mediana 1 (Max 4p)">Cabaña Mediana 1</SelectItem>
+                  <SelectItem value="Cabaña Mediana 2 (Max 4p)">Cabaña Mediana 2</SelectItem>
+                  <SelectItem value="Cabaña Grande (Max 6p)">Cabaña Grande</SelectItem>
+                </SelectContent>
+              </Select>
 
-            <Select value={filterPaymentStatus} onValueChange={setFilterPaymentStatus}>
-              <SelectTrigger>
-                <SelectValue placeholder="Estado de pago" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos los estados</SelectItem>
-                <SelectItem value="pending">Pendiente</SelectItem>
-                <SelectItem value="partially_paid">Pago parcial</SelectItem>
-                <SelectItem value="fully_paid">Pagado completo</SelectItem>
-                <SelectItem value="overdue">Vencido</SelectItem>
-              </SelectContent>
-            </Select>
+              <Select value={filterPaymentStatus} onValueChange={setFilterPaymentStatus}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Estado de pago" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los estados</SelectItem>
+                  <SelectItem value="pending">Pendiente</SelectItem>
+                  <SelectItem value="partially_paid">Pago parcial</SelectItem>
+                  <SelectItem value="fully_paid">Pagado completo</SelectItem>
+                  <SelectItem value="overdue">Vencido</SelectItem>
+                </SelectContent>
+              </Select>
 
-            <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger>
-                <SelectValue placeholder="Ordenar por" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="checkIn">Fecha de entrada</SelectItem>
-                <SelectItem value="checkOut">Fecha de salida</SelectItem>
-                <SelectItem value="passengerName">Nombre</SelectItem>
-                <SelectItem value="totalPrice">Precio total</SelectItem>
-                <SelectItem value="remainingBalance">Balance pendiente</SelectItem>
-              </SelectContent>
-            </Select>
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Ordenar por" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="checkIn">Fecha de entrada</SelectItem>
+                  <SelectItem value="checkOut">Fecha de salida</SelectItem>
+                  <SelectItem value="passengerName">Nombre</SelectItem>
+                  <SelectItem value="totalPrice">Precio total</SelectItem>
+                  <SelectItem value="remainingBalance">Balance pendiente</SelectItem>
+                </SelectContent>
+              </Select>
 
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Filter className="w-4 h-4" />
-              {filteredReservations.length} resultados
+              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground bg-muted/50 rounded-md px-3 py-2">
+                <Filter className="w-4 h-4" />
+                {filteredReservations.length} resultados
+              </div>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Reservations Table */}
-      <Card className="card-cabin">
-        <CardContent className="p-0">
-          {loading ? (
-            <div className="text-center py-8 text-muted-foreground">Cargando reservas...</div>
-          ) : filteredReservations.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              {reservations.length === 0 ? 'No hay reservas registradas' : 'No se encontraron reservas con los filtros aplicados'}
-            </div>
-          ) : (
+      {/* Reservations Content */}
+      {loading ? (
+        <div className="text-center py-8 text-muted-foreground">Cargando reservas...</div>
+      ) : filteredReservations.length === 0 ? (
+        <div className="text-center py-8 text-muted-foreground">
+          {reservations.length === 0 ? 'No hay reservas registradas' : 'No se encontraron reservas con los filtros aplicados'}
+        </div>
+      ) : isMobile ? (
+        /* Mobile Cards View */
+        <div className="space-y-4">
+          {filteredReservations.map((reservation) => (
+            <ReservationCard
+              key={reservation.id}
+              reservation={reservation}
+              onEdit={handleEdit}
+              onAddPayment={handleAddPayment}
+              onCheckIn={handleCheckIn}
+              onCheckOut={handleCheckOut}
+              onDelete={handleDelete}
+            />
+          ))}
+        </div>
+      ) : (
+        /* Desktop Table View */
+        <Card className="card-cabin">
+          <CardContent className="p-0">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="border-b border-border">
-                   <tr className="text-left text-sm text-muted-foreground">
+                  <tr className="text-left text-sm text-muted-foreground">
                     <th className="p-4 font-medium">Pasajero</th>
                     <th className="p-4 font-medium">Check-in</th>
                     <th className="p-4 font-medium">Check-out</th>
@@ -476,9 +499,9 @@ const Reservations = () => {
                 </tbody>
               </table>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       <ReservationModal
         isOpen={isModalOpen}
