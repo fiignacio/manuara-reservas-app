@@ -1,4 +1,4 @@
-import { Edit, Trash2, CreditCard, LogIn, LogOut, DollarSign } from 'lucide-react';
+import { Edit, Trash2, CreditCard, LogIn, LogOut, DollarSign, Send, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -23,6 +23,7 @@ interface ReservationCardProps {
   onCheckIn: (reservation: Reservation) => void;
   onCheckOut: (reservation: Reservation) => void;
   onDelete: (id: string) => void;
+  onConfirmation: (reservation: Reservation) => void;
 }
 
 const ReservationCard = ({ 
@@ -31,7 +32,8 @@ const ReservationCard = ({
   onAddPayment, 
   onCheckIn, 
   onCheckOut, 
-  onDelete 
+  onDelete,
+  onConfirmation 
 }: ReservationCardProps) => {
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -148,6 +150,9 @@ const ReservationCard = ({
           <Badge variant="outline" className="text-xs">
             {reservation.adults + reservation.children}p
           </Badge>
+          <Badge variant={reservation.confirmationSent ? "default" : "destructive"} className="text-xs">
+            {reservation.confirmationSent ? "✅ Confirmado" : "📧 Pendiente"}
+          </Badge>
         </div>
 
         {/* Comments */}
@@ -163,7 +168,7 @@ const ReservationCard = ({
             variant="outline"
             size="sm"
             onClick={() => onEdit(reservation)}
-            className="flex-1 min-w-0"
+            className="flex-1 min-w-0 min-h-[44px]"
           >
             <Edit className="w-4 h-4 mr-2" />
             Editar
@@ -174,10 +179,22 @@ const ReservationCard = ({
               variant="outline"
               size="sm"
               onClick={() => onAddPayment(reservation)}
-              className="flex-1 min-w-0 text-primary hover:text-primary"
+              className="flex-1 min-w-0 min-h-[44px] text-primary hover:text-primary"
             >
               <CreditCard className="w-4 h-4 mr-2" />
               Pagar
+            </Button>
+          )}
+          
+          {!reservation.confirmationSent && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onConfirmation(reservation)}
+              className="flex-1 min-w-0 min-h-[44px] text-orange-600 hover:text-orange-600"
+            >
+              <Send className="w-4 h-4 mr-2" />
+              Confirmar
             </Button>
           )}
           
@@ -186,7 +203,7 @@ const ReservationCard = ({
               variant="outline"
               size="sm"
               onClick={() => onCheckIn(reservation)}
-              className="flex-1 min-w-0 text-green-600 hover:text-green-600"
+              className="flex-1 min-w-0 min-h-[44px] text-green-600 hover:text-green-600"
             >
               <LogIn className="w-4 h-4 mr-2" />
               Check-in
@@ -198,7 +215,7 @@ const ReservationCard = ({
               variant="outline"
               size="sm"
               onClick={() => onCheckOut(reservation)}
-              className="flex-1 min-w-0 text-blue-600 hover:text-blue-600"
+              className="flex-1 min-w-0 min-h-[44px] text-blue-600 hover:text-blue-600"
             >
               <LogOut className="w-4 h-4 mr-2" />
               Check-out
@@ -210,7 +227,7 @@ const ReservationCard = ({
               <Button
                 variant="outline"
                 size="sm"
-                className="text-destructive hover:text-destructive"
+                className="text-destructive hover:text-destructive min-h-[44px]"
               >
                 <Trash2 className="w-4 h-4" />
               </Button>

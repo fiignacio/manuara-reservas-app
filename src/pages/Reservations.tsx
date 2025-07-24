@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Search, Filter, DollarSign, CreditCard, LogIn, LogOut } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Filter, DollarSign, CreditCard, LogIn, LogOut, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import ReservationModal from '@/components/ReservationModal';
 import PaymentModal from '@/components/PaymentModal';
 import CheckInOutModal from '@/components/CheckInOutModal';
+import ConfirmationModal from '@/components/ConfirmationModal';
 import ReservationCard from '@/components/mobile/ReservationCard';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Reservation } from '@/types/reservation';
@@ -32,9 +33,11 @@ const Reservations = () => {
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
   const [selectedPaymentReservation, setSelectedPaymentReservation] = useState<Reservation | null>(null);
   const [selectedCheckInOutReservation, setSelectedCheckInOutReservation] = useState<Reservation | null>(null);
+  const [selectedConfirmationReservation, setSelectedConfirmationReservation] = useState<Reservation | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isCheckInOutModalOpen, setIsCheckInOutModalOpen] = useState(false);
+  const [isConfirmationModalOpen, setIsConfirmationModalOpen] = useState(false);
   const [checkInOutType, setCheckInOutType] = useState<'check_in' | 'check_out'>('check_in');
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -130,6 +133,11 @@ const Reservations = () => {
     setIsCheckInOutModalOpen(true);
   };
 
+  const handleConfirmation = (reservation: Reservation) => {
+    setSelectedConfirmationReservation(reservation);
+    setIsConfirmationModalOpen(true);
+  };
+
   const handleDelete = async (id: string) => {
     try {
       await deleteReservation(id);
@@ -160,6 +168,11 @@ const Reservations = () => {
   const handleCheckInOutModalClose = () => {
     setIsCheckInOutModalOpen(false);
     setSelectedCheckInOutReservation(null);
+  };
+
+  const handleConfirmationModalClose = () => {
+    setIsConfirmationModalOpen(false);
+    setSelectedConfirmationReservation(null);
   };
 
   const formatDate = (dateStr: string) => {
@@ -313,6 +326,7 @@ const Reservations = () => {
               onCheckIn={handleCheckIn}
               onCheckOut={handleCheckOut}
               onDelete={handleDelete}
+              onConfirmation={handleConfirmation}
             />
           ))}
         </div>
@@ -526,6 +540,15 @@ const Reservations = () => {
           onSuccess={loadReservations}
           reservation={selectedCheckInOutReservation}
           type={checkInOutType}
+        />
+      )}
+
+      {selectedConfirmationReservation && (
+        <ConfirmationModal
+          isOpen={isConfirmationModalOpen}
+          onClose={handleConfirmationModalClose}
+          onSuccess={loadReservations}
+          reservation={selectedConfirmationReservation}
         />
       )}
     </div>

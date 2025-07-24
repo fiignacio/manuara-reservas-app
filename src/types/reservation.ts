@@ -27,11 +27,15 @@ export interface Reservation {
   checkOutStatus: 'pending' | 'checked_out' | 'late_checkout';
   checkInNotes?: string;
   checkOutNotes?: string;
+  // Confirmation tracking
+  confirmationSent: boolean;
+  confirmationSentDate?: string;
+  confirmationMethod?: 'email' | 'whatsapp' | 'manual';
   createdAt?: Date;
   updatedAt?: Date;
 }
 
-export interface ReservationFormData extends Omit<Reservation, 'id' | 'totalPrice' | 'payments' | 'remainingBalance' | 'paymentStatus' | 'actualCheckIn' | 'actualCheckOut' | 'checkInStatus' | 'checkOutStatus' | 'checkInNotes' | 'checkOutNotes' | 'createdAt' | 'updatedAt'> {}
+export interface ReservationFormData extends Omit<Reservation, 'id' | 'totalPrice' | 'payments' | 'remainingBalance' | 'paymentStatus' | 'actualCheckIn' | 'actualCheckOut' | 'checkInStatus' | 'checkOutStatus' | 'checkInNotes' | 'checkOutNotes' | 'confirmationSent' | 'confirmationSentDate' | 'confirmationMethod' | 'createdAt' | 'updatedAt'> {}
 
 export interface CheckInOutData {
   reservationId: string;

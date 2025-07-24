@@ -9,7 +9,8 @@ import {
   query, 
   orderBy,
   where,
-  Timestamp 
+  Timestamp,
+  serverTimestamp
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { Reservation, ReservationFormData, CheckInOutData } from '@/types/reservation';
@@ -290,10 +291,11 @@ export const createReservation = async (data: ReservationFormData): Promise<stri
     payments: [],
     remainingBalance: totalPrice,
     paymentStatus: 'pending',
-    checkInStatus: 'pending',
-    checkOutStatus: 'pending',
-    createdAt: new Date(),
-    updatedAt: new Date()
+      checkInStatus: 'pending',
+      checkOutStatus: 'pending',
+      confirmationSent: false,
+      createdAt: new Date(),
+      updatedAt: new Date()
   };
   
   console.log('Reservation object before cleaning:', reservation);
@@ -768,5 +770,28 @@ export const getNoShows = async (): Promise<Reservation[]> => {
   } catch (error) {
     console.error('Error getting no-shows:', error);
     return [];
+  }
+};
+
+// Confirmation management
+export const markConfirmationSent = async (
+  reservationId: string,
+  method: 'email' | 'whatsapp' | 'manual',
+  notes?: string
+): Promise<void> => {
+  try {
+    const docRef = doc(db, COLLECTION_NAME, reservationId);
+    const updateData = {
+      confirmationSent: true,
+      confirmationSentDate: new Date().toISOString(),
+      confirmationMethod: method,
+      updatedAt: serverTimestamp()
+    };
+
+    await updateDoc(docRef, updateData);
+    console.log('Confirmation marked as sent successfully');
+  } catch (error) {
+    console.error('Error marking confirmation as sent:', error);
+    throw new Error('Error al marcar confirmación como enviada');
   }
 };
