@@ -269,9 +269,7 @@ class NotificationService {
   // Marcar notificación como completada (mejorada)
   async markAsCompleted(notificationId: string, notes?: string, completedBy: string = 'system'): Promise<void> {
     try {
-      if (!notes || notes.trim().length === 0) {
-        throw new Error('Se requieren notas para completar la notificación');
-      }
+      const finalNotes = notes && notes.trim().length > 0 ? notes.trim() : 'Completada automáticamente';
 
       const notificationRef = doc(db, this.collection, notificationId);
       const now = new Date();
@@ -280,8 +278,8 @@ class NotificationService {
         completedAt: Timestamp.fromDate(now),
         completedBy,
         status: 'completed',
-        notes: notes.trim(),
-        actionTaken: notes.trim(),
+        notes: finalNotes,
+        actionTaken: finalNotes,
         updatedAt: Timestamp.fromDate(now)
       });
       

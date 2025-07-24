@@ -74,17 +74,17 @@ export function NotificationCardMobile({ notification, onAction }: NotificationC
   };
 
   return (
-    <Card className={`border-l-4 ${getPriorityColor(notification.priority)} transition-all duration-200 hover:shadow-md`}>
+    <Card className={`border-l-4 ${getPriorityColor(notification.priority)} transition-all duration-200 hover:shadow-md active:scale-[0.98]`}>
       <CardContent className="p-4 space-y-3">
         {/* Header */}
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-2 flex-1 min-w-0">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
             {getPriorityIcon(notification.priority)}
-            <h3 className="font-medium text-sm line-clamp-2 flex-1">
+            <h3 className="font-semibold text-sm line-clamp-2 flex-1">
               {notification.title}
             </h3>
           </div>
-          <Badge variant="outline" className="text-xs flex-shrink-0">
+          <Badge variant="outline" className="text-xs flex-shrink-0 font-medium">
             {notification.priority.toUpperCase()}
           </Badge>
         </div>
@@ -121,15 +121,15 @@ export function NotificationCardMobile({ notification, onAction }: NotificationC
 
         {/* Actions */}
         {canTakeAction() && (
-          <div className="flex gap-2 pt-2 border-t">
+          <div className="flex gap-2 pt-3 border-t border-border/50">
             {!notification.completedAt && (
               <Button
                 size="sm"
                 variant="outline"
                 onClick={() => handleQuickAction('completed')}
-                className="flex-1 h-8 text-xs"
+                className="flex-1 h-10 text-sm font-medium min-h-[44px] touch-manipulation"
               >
-                <Check className="h-3 w-3 mr-1" />
+                <Check className="h-4 w-4 mr-2" />
                 Completar
               </Button>
             )}
@@ -137,9 +137,9 @@ export function NotificationCardMobile({ notification, onAction }: NotificationC
               size="sm"
               variant="outline"
               onClick={() => handleQuickAction('archived')}
-              className="flex-1 h-8 text-xs"
+              className="flex-1 h-10 text-sm font-medium min-h-[44px] touch-manipulation"
             >
-              <Archive className="h-3 w-3 mr-1" />
+              <Archive className="h-4 w-4 mr-2" />
               Archivar
             </Button>
           </div>

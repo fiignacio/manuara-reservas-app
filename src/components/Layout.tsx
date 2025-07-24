@@ -10,11 +10,11 @@ interface LayoutProps {
 
 const Layout = ({ children }: LayoutProps) => {
   const navigation = [
-    { name: 'Dashboard', href: '/', icon: Home },
-    { name: 'Calendario & Reservas', href: '/calendar', icon: Calendar },
-    { name: 'Cotizaciones', href: '/quotes', icon: FileText },
-    { name: 'Analytics', href: '/analytics', icon: BarChart3 },
-    { name: 'Notificaciones', href: '/notifications', icon: Bell },
+    { name: 'Dashboard', href: '/', icon: Home, shortName: 'Inicio' },
+    { name: 'Calendario & Reservas', href: '/calendar', icon: Calendar, shortName: 'Cal. & Reservas' },
+    { name: 'Cotizaciones', href: '/quotes', icon: FileText, shortName: 'Cotizaciones' },
+    { name: 'Analytics', href: '/analytics', icon: BarChart3, shortName: 'Analytics' },
+    { name: 'Notificaciones', href: '/notifications', icon: Bell, shortName: 'Notificaciones' },
   ];
 
   return (
@@ -69,15 +69,15 @@ const Layout = ({ children }: LayoutProps) => {
               to={item.href}
               className={({ isActive }) =>
                 cn(
-                  'flex flex-col items-center space-y-1 p-2 rounded-lg text-xs transition-colors',
+                  'flex flex-col items-center space-y-1 p-3 rounded-lg text-xs transition-colors min-h-[44px] min-w-[44px]',
                   isActive
                     ? 'text-primary bg-accent'
                     : 'text-muted-foreground hover:text-foreground'
                 )
               }
             >
-              <item.icon className="w-5 h-5" />
-              <span className="text-center">{item.name}</span>
+              <item.icon className="w-6 h-6" />
+              <span className="text-center text-[10px] leading-tight max-w-[60px]">{item.shortName}</span>
             </NavLink>
           ))}
         </div>

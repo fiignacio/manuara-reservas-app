@@ -206,9 +206,6 @@ export function Notifications() {
     try {
       switch (action) {
         case 'completed':
-          if (!notes?.trim()) {
-            throw new Error('Se requieren notas para completar la notificación');
-          }
           await notificationService.markAsCompleted(notificationId, notes);
           break;
         case 'archived':
@@ -290,41 +287,44 @@ export function Notifications() {
 
   return (
     <div className="container mx-auto p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold flex items-center gap-2">
-          <Bell className="h-8 w-8" />
-          Sistema de Notificaciones
+      <div className="flex items-center justify-between mb-4 md:mb-6">
+        <h1 className={`font-bold flex items-center gap-2 ${isMobile ? 'text-xl' : 'text-3xl'}`}>
+          <Bell className={isMobile ? 'h-6 w-6' : 'h-8 w-8'} />
+          {isMobile ? 'Notificaciones' : 'Sistema de Notificaciones'}
         </h1>
-        <div className="flex gap-2">
+        <div className={`flex gap-2 ${isMobile ? 'flex-col w-full' : ''}`}>
           <Button 
             onClick={loadData} 
             disabled={isLoading}
             variant="outline"
+            size={isMobile ? "sm" : "default"}
+            className={isMobile ? 'w-full min-h-[44px]' : ''}
           >
             {isLoading ? (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
             ) : (
               <RefreshCw className="h-4 w-4 mr-2" />
             )}
-            Actualizar
+            {isMobile ? 'Actualizar' : 'Actualizar'}
           </Button>
           <Button 
             onClick={handleProcessNotifications} 
             disabled={isProcessing || isLoading}
-            className="btn-cabin"
+            className={`btn-cabin ${isMobile ? 'w-full min-h-[44px]' : ''}`}
+            size={isMobile ? "sm" : "default"}
           >
             {isProcessing ? (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
             ) : (
               <Send className="h-4 w-4 mr-2" />
             )}
-            {isProcessing ? 'Procesando...' : 'Procesar Pendientes'}
+            {isProcessing ? 'Procesando...' : isMobile ? 'Procesar' : 'Procesar Pendientes'}
           </Button>
         </div>
       </div>
 
-      {/* Estadísticas mejoradas */}
-      <div className={`grid gap-4 mb-6 ${isMobile ? 'grid-cols-2' : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-7'}`}>
+      {/* Estadísticas optimizadas */}
+      <div className={`grid gap-3 mb-4 md:mb-6 ${isMobile ? 'grid-cols-2' : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-7'}`}>
         {[
           { label: 'Total', value: stats.total, icon: Bell, color: 'text-blue-500' },
           { label: 'Pendientes', value: stats.pending, icon: Calendar, color: 'text-yellow-500' },
@@ -334,14 +334,14 @@ export function Notifications() {
           { label: 'Completadas', value: stats.completed, icon: Check, color: 'text-green-500' },
           { label: 'Archivadas', value: stats.archived, icon: Archive, color: 'text-gray-500' }
         ].map((stat, index) => (
-          <Card key={index}>
-            <CardContent className="p-4">
+          <Card key={index} className="transition-all duration-200 hover:shadow-md">
+            <CardContent className={isMobile ? "p-3" : "p-4"}>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-muted-foreground">{stat.label}</p>
-                  <p className="text-xl font-bold">{stat.value}</p>
+                  <p className={`text-muted-foreground ${isMobile ? 'text-xs' : 'text-xs'}`}>{stat.label}</p>
+                  <p className={`font-bold ${isMobile ? 'text-lg' : 'text-xl'}`}>{stat.value}</p>
                 </div>
-                <stat.icon className={`h-6 w-6 ${stat.color}`} />
+                <stat.icon className={`${isMobile ? 'h-5 w-5' : 'h-6 w-6'} ${stat.color}`} />
               </div>
             </CardContent>
           </Card>
@@ -349,10 +349,16 @@ export function Notifications() {
       </div>
 
       <Tabs defaultValue="list" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="list">Lista de Notificaciones</TabsTrigger>
-          <TabsTrigger value="create">Crear Notificación</TabsTrigger>
-          <TabsTrigger value="settings">Configuración</TabsTrigger>
+        <TabsList className={isMobile ? 'grid w-full grid-cols-3' : ''}>
+          <TabsTrigger value="list" className={isMobile ? 'text-xs py-3' : ''}>
+            {isMobile ? 'Lista' : 'Lista de Notificaciones'}
+          </TabsTrigger>
+          <TabsTrigger value="create" className={isMobile ? 'text-xs py-3' : ''}>
+            {isMobile ? 'Crear' : 'Crear Notificación'}
+          </TabsTrigger>
+          <TabsTrigger value="settings" className={isMobile ? 'text-xs py-3' : ''}>
+            {isMobile ? 'Config.' : 'Configuración'}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="list">
@@ -365,18 +371,18 @@ export function Notifications() {
               
               <div className="flex gap-2 mt-4">
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className={isMobile ? "w-full" : "w-48"}>
-                    <SelectValue />
+                  <SelectTrigger className={isMobile ? "w-full min-h-[44px]" : "w-48"}>
+                    <SelectValue placeholder="Filtrar por estado..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Todas ({stats.total})</SelectItem>
-                    <SelectItem value="unread">Sin leer ({stats.unread})</SelectItem>
-                    <SelectItem value="pending">Pendientes ({stats.pending})</SelectItem>
-                    <SelectItem value="sent">Enviadas ({stats.sent})</SelectItem>
-                    <SelectItem value="read">Leídas ({stats.read})</SelectItem>
-                    <SelectItem value="completed">Completadas ({stats.completed})</SelectItem>
-                    <SelectItem value="archived">Archivadas ({stats.archived})</SelectItem>
-                    <SelectItem value="active">Solo activas</SelectItem>
+                    <SelectItem value="all">📋 Todas ({stats.total})</SelectItem>
+                    <SelectItem value="unread">👁️ Sin leer ({stats.unread})</SelectItem>
+                    <SelectItem value="pending">⏳ Pendientes ({stats.pending})</SelectItem>
+                    <SelectItem value="sent">📤 Enviadas ({stats.sent})</SelectItem>
+                    <SelectItem value="read">👁️‍🗨️ Leídas ({stats.read})</SelectItem>
+                    <SelectItem value="completed">✅ Completadas ({stats.completed})</SelectItem>
+                    <SelectItem value="archived">📁 Archivadas ({stats.archived})</SelectItem>
+                    <SelectItem value="active">⚡ Solo activas</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
