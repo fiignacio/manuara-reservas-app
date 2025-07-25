@@ -28,8 +28,8 @@ import { useToast } from '@/hooks/use-toast';
 
 const Reservations = () => {
   const isMobile = useIsMobile();
-  const [reservations, setReservations] = useState<Reservation[]>([]);
-  const [filteredReservations, setFilteredReservations] = useState<Reservation[]>([]);
+  const [reservations, setReservations] = useState<(Reservation & { remainingBalance: number })[]>([]);
+  const [filteredReservations, setFilteredReservations] = useState<(Reservation & { remainingBalance: number })[]>([]);
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
   const [selectedPaymentReservation, setSelectedPaymentReservation] = useState<Reservation | null>(null);
   const [selectedCheckInOutReservation, setSelectedCheckInOutReservation] = useState<Reservation | null>(null);
@@ -50,8 +50,12 @@ const Reservations = () => {
     try {
       setLoading(true);
       const data = await getAllReservations();
-      setReservations(data);
-      setFilteredReservations(data);
+      const reservationsWithBalance = data.map(r => ({
+        ...r,
+        remainingBalance: calculateRemainingBalance(r)
+      }));
+      setReservations(reservationsWithBalance);
+      setFilteredReservations(reservationsWithBalance);
     } catch (error) {
       console.error('Error loading reservations:', error);
       toast({
@@ -100,9 +104,7 @@ const Reservations = () => {
         case 'totalPrice':
           return b.totalPrice - a.totalPrice;
         case 'remainingBalance':
-          const balanceA = calculateRemainingBalance(a);
-          const balanceB = calculateRemainingBalance(b);
-          return balanceB - balanceA;
+          return b.remainingBalance - a.remainingBalance;
         default:
           return 0;
       }
@@ -356,7 +358,6 @@ const Reservations = () => {
                     const paymentBadge = getPaymentStatusBadge(reservation.paymentStatus);
                     const checkInBadge = getCheckInStatusBadge(reservation.checkInStatus || 'pending');
                     const checkOutBadge = getCheckOutStatusBadge(reservation.checkOutStatus || 'pending');
-                    const remainingBalance = calculateRemainingBalance(reservation);
                     
                     return (
                       <tr key={reservation.id} className="border-b border-border/50 hover:bg-accent/50 transition-colors">
@@ -421,8 +422,8 @@ const Reservations = () => {
                         </td>
                         <td className="p-4">
                           <div className="text-sm">
-                            <div className={remainingBalance > 0 ? "font-medium text-destructive" : "text-muted-foreground"}>
-                              ${remainingBalance.toLocaleString('es-CL')}
+                            <div className={reservation.remainingBalance > 0 ? "font-medium text-destructive" : "text-muted-foreground"}>
+                              ${reservation.remainingBalance.toLocaleString('es-CL')}
                             </div>
                             {reservation.payments.length > 0 && (
                               <div className="text-xs text-muted-foreground">
@@ -440,7 +441,7 @@ const Reservations = () => {
                             >
                               <Edit className="w-4 h-4" />
                             </Button>
-                            {remainingBalance > 0 && (
+                            {reservation.remainingBalance > 0 && (
                               <Button
                                 variant="outline"
                                 size="sm"
