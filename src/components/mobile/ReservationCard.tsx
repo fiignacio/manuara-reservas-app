@@ -163,98 +163,144 @@ const ReservationCard = ({
         )}
 
         {/* Action buttons */}
-        <div className="flex flex-wrap gap-2 pt-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onEdit(reservation)}
-            className="flex-1 min-w-0 min-h-[44px]"
-          >
-            <Edit className="w-4 h-4 mr-2" />
-            Editar
-          </Button>
-          
-          {remainingBalance > 0 && (
+        <div className="space-y-3 pt-2">
+          {/* Primary actions row */}
+          <div className="grid grid-cols-2 gap-2">
             <Button
               variant="outline"
-              size="sm"
-              onClick={() => onAddPayment(reservation)}
-              className="flex-1 min-w-0 min-h-[44px] text-primary hover:text-primary"
+              size="default"
+              onClick={() => onEdit(reservation)}
+              className="min-h-[48px] font-medium"
             >
-              <CreditCard className="w-4 h-4 mr-2" />
-              Pagar
+              <Edit className="w-4 h-4 mr-2" />
+              Editar
             </Button>
-          )}
-          
-          {!reservation.confirmationSent && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onConfirmation(reservation)}
-              className="flex-1 min-w-0 min-h-[44px] text-orange-600 hover:text-orange-600"
-            >
-              <Send className="w-4 h-4 mr-2" />
-              Confirmar
-            </Button>
-          )}
-          
-          {reservation.checkInStatus !== 'checked_in' && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onCheckIn(reservation)}
-              className="flex-1 min-w-0 min-h-[44px] text-green-600 hover:text-green-600"
-            >
-              <LogIn className="w-4 h-4 mr-2" />
-              Check-in
-            </Button>
-          )}
-          
-          {reservation.checkInStatus === 'checked_in' && reservation.checkOutStatus !== 'checked_out' && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onCheckOut(reservation)}
-              className="flex-1 min-w-0 min-h-[44px] text-blue-600 hover:text-blue-600"
-            >
-              <LogOut className="w-4 h-4 mr-2" />
-              Check-out
-            </Button>
-          )}
-          
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
+            
+            {remainingBalance > 0 && (
+              <Button
+                variant="default"
+                size="default"
+                onClick={() => onAddPayment(reservation)}
+                className="min-h-[48px] font-medium bg-primary hover:bg-primary/90"
+              >
+                <DollarSign className="w-4 h-4 mr-2" />
+                Abono
+              </Button>
+            )}
+            
+            {remainingBalance <= 0 && (
               <Button
                 variant="outline"
-                size="sm"
-                className="text-destructive hover:text-destructive min-h-[44px]"
+                size="default"
+                disabled
+                className="min-h-[48px] font-medium opacity-50"
               >
-                <Trash2 className="w-4 h-4" />
+                <CheckCircle className="w-4 h-4 mr-2" />
+                Pagado
               </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>¿Eliminar reserva?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Esta acción no se puede deshacer. Se eliminará permanentemente la reserva de {reservation.passengerName}.
-                  {reservation.payments.length > 0 && (
-                    <div className="mt-2 text-destructive font-medium">
-                      ⚠️ Esta reserva tiene {reservation.payments.length} pago{reservation.payments.length !== 1 ? 's' : ''} registrado{reservation.payments.length !== 1 ? 's' : ''}.
-                    </div>
-                  )}
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={() => onDelete(reservation.id!)}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            )}
+          </div>
+
+          {/* Secondary actions row */}
+          <div className="grid grid-cols-2 gap-2">
+            {!reservation.confirmationSent && (
+              <Button
+                variant="secondary"
+                size="default"
+                onClick={() => onConfirmation(reservation)}
+                className="min-h-[48px] font-medium bg-orange-100 text-orange-700 hover:bg-orange-200"
+              >
+                <Send className="w-4 h-4 mr-2" />
+                Confirmar
+              </Button>
+            )}
+            
+            {reservation.confirmationSent && (
+              <Button
+                variant="outline"
+                size="default"
+                disabled
+                className="min-h-[48px] font-medium opacity-75"
+              >
+                <CheckCircle className="w-4 h-4 mr-2" />
+                Confirmado
+              </Button>
+            )}
+            
+            {reservation.checkInStatus !== 'checked_in' && (
+              <Button
+                variant="secondary"
+                size="default"
+                onClick={() => onCheckIn(reservation)}
+                className="min-h-[48px] font-medium bg-green-100 text-green-700 hover:bg-green-200"
+              >
+                <LogIn className="w-4 h-4 mr-2" />
+                Check-in
+              </Button>
+            )}
+            
+            {reservation.checkInStatus === 'checked_in' && reservation.checkOutStatus !== 'checked_out' && (
+              <Button
+                variant="secondary"
+                size="default"
+                onClick={() => onCheckOut(reservation)}
+                className="min-h-[48px] font-medium bg-blue-100 text-blue-700 hover:bg-blue-200"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Check-out
+              </Button>
+            )}
+
+            {reservation.checkInStatus === 'checked_in' && reservation.checkOutStatus === 'checked_out' && (
+              <Button
+                variant="outline"
+                size="default"
+                disabled
+                className="min-h-[48px] font-medium opacity-75"
+              >
+                <CheckCircle className="w-4 h-4 mr-2" />
+                Completado
+              </Button>
+            )}
+          </div>
+
+          {/* Delete button in separate row */}
+          <div className="flex justify-center pt-2">
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10 min-h-[40px] px-6"
                 >
+                  <Trash2 className="w-4 h-4 mr-2" />
                   Eliminar
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>¿Eliminar reserva?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Esta acción no se puede deshacer. Se eliminará permanentemente la reserva de {reservation.passengerName}.
+                    {reservation.payments.length > 0 && (
+                      <div className="mt-2 text-destructive font-medium">
+                        ⚠️ Esta reserva tiene {reservation.payments.length} pago{reservation.payments.length !== 1 ? 's' : ''} registrado{reservation.payments.length !== 1 ? 's' : ''}.
+                      </div>
+                    )}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => onDelete(reservation.id!)}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Eliminar
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         </div>
       </CardContent>
     </Card>
