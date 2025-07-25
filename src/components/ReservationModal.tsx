@@ -19,7 +19,7 @@ import {
   getNextAvailableDate,
   validateCabinCapacity
 } from '@/lib/reservationService';
-import { addDays } from '@/lib/dateUtils';
+import { addDays, getTodayDate, getTomorrowDate } from '@/lib/dateUtils';
 
 interface ReservationModalProps {
   isOpen: boolean;
@@ -33,8 +33,8 @@ const initializeFormData = (reservation?: Reservation | null): ReservationFormDa
   if (reservation) {
     return {
       passengerName: reservation.passengerName || '',
-      checkIn: reservation.checkIn || '',
-      checkOut: reservation.checkOut || '',
+      checkIn: reservation.checkIn,
+      checkOut: reservation.checkOut,
       adults: reservation.adults || 1,
       children: reservation.children || 0,
       babies: reservation.babies || 0,
@@ -287,6 +287,12 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
     }
   };
 
+  const handleSetArrival = (arrivalType: 'today' | 'tomorrow') => {
+    const checkInDate = arrivalType === 'today' ? getTodayDate() : getTomorrowDate();
+    const checkOutDate = addDays(checkInDate, 1);
+    setFormData({ ...formData, checkIn: checkInDate, checkOut: checkOutDate });
+  };
+
   const handleCustomPriceToggle = (checked: boolean) => {
     setFormData({ 
       ...formData, 
@@ -398,6 +404,19 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
                 required
                 className="mt-1"
               />
+            </div>
+
+            {/* Botones de acceso rápido para fechas */}
+            <div className="md:col-span-2">
+              <Label className="mb-2 block">Accesos Rápidos de Fechas</Label>
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" onClick={() => handleSetArrival('today')}>
+                  Llegada hoy
+                </Button>
+                <Button type="button" variant="outline" onClick={() => handleSetArrival('tomorrow')}>
+                  Llegada mañana
+                </Button>
+              </div>
             </div>
 
             {/* Fechas con validaciones mejoradas */}

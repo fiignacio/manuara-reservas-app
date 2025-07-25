@@ -263,6 +263,10 @@ export const getNextAvailableDate = async (cabinType: string, preferredCheckIn: 
 export const createReservation = async (data: ReservationFormData): Promise<string> => {
   console.log('Creating reservation for:', data.passengerName);
   console.log('Form data received:', data);
+
+  if (!data.checkIn || !data.checkOut) {
+    throw new Error('Las fechas de check-in y check-out son obligatorias.');
+  }
   
   // Validar fechas antes de verificar disponibilidad
   const dateValidation = validateReservationDates(data.checkIn, data.checkOut);
@@ -335,6 +339,9 @@ export const updateReservation = async (id: string, data: ReservationFormData, s
   
   // Solo validar fechas si shouldUpdateDates es true
   if (shouldUpdateDates) {
+    if (!data.checkIn || !data.checkOut) {
+      throw new Error('Las fechas de check-in y check-out son obligatorias.');
+    }
     const dateValidation = validateReservationDates(data.checkIn, data.checkOut);
     if (!dateValidation.isValid) {
       throw new Error(dateValidation.error);

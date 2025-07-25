@@ -63,6 +63,10 @@ export const addDays = (dateStr: string, days: number): string => {
   return date.toISOString().split('T')[0];
 };
 
+export const getTodayDate = (): string => {
+  return new Date().toISOString().split('T')[0];
+};
+
 export const getTomorrowDate = (): string => {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
