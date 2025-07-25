@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CheckCircle, Send, Loader2 } from 'lucide-react';
+import { CheckCircle, Send, Loader2, FileDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Reservation } from '@/types/reservation';
 import { markConfirmationSent } from '@/lib/reservationService';
+import { generateConfirmationPDF } from '@/lib/pdfService';
 
 interface ConfirmationModalProps {
   isOpen: boolean;
@@ -45,6 +46,23 @@ const ConfirmationModal = ({ isOpen, onClose, onSuccess, reservation }: Confirma
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGeneratePDF = async () => {
+    try {
+      await generateConfirmationPDF(reservation);
+      toast({
+        title: "✅ PDF Generado",
+        description: "El PDF de confirmación se ha descargado."
+      });
+    } catch (error) {
+      toast({
+        title: "⚠️ Error al generar PDF",
+        description: "Hubo un problema al generar el PDF de confirmación.",
+        variant: "destructive"
+      });
+      console.error("Error generating PDF: ", error);
     }
   };
 
@@ -93,22 +111,33 @@ const ConfirmationModal = ({ isOpen, onClose, onSuccess, reservation }: Confirma
         </div>
 
         {/* Buttons */}
-        <div className="flex gap-3 pt-2">
+        <div className="space-y-3 pt-2">
+          <div className="flex gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              className="flex-1"
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              disabled={loading}
+              className="flex-1"
+            >
+              {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {loading ? 'Marcando...' : 'Marcar como enviado'}
+            </Button>
+          </div>
           <Button
             type="button"
-            variant="outline"
-            onClick={onClose}
-            className="flex-1"
+            variant="secondary"
+            onClick={handleGeneratePDF}
+            className="w-full"
           >
-            Cancelar
-          </Button>
-          <Button
-            type="submit"
-            disabled={loading}
-            className="flex-1"
-          >
-            {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-            {loading ? 'Marcando...' : 'Marcar como enviado'}
+            <FileDown className="w-4 h-4 mr-2" />
+            Descargar Confirmación PDF
           </Button>
         </div>
       </form>

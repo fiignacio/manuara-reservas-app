@@ -472,6 +472,15 @@ const Reservations = () => {
                                 <LogOut className="w-4 h-4" />
                               </Button>
                             )}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleConfirmation(reservation)}
+                              className="text-primary hover:text-primary"
+                              title="Enviar confirmación"
+                            >
+                              <Send className="w-4 h-4" />
+                            </Button>
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
                                 <Button
