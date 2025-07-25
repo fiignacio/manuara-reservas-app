@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { Textarea } from '@/components/ui/textarea';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Reservation } from '@/types/reservation';
@@ -27,9 +28,8 @@ interface ContentProps {
   formData: PaymentFormData;
   setFormData: (formData: PaymentFormData) => void;
   handleSubmit: (e: React.FormEvent) => void;
-  handlePay50PercentOfTotal: () => void;
-  handlePay50Percent: () => void;
-  handlePayFullAmount: () => void;
+  paymentType: string;
+  setPaymentType: (type: string) => void;
   isMobile: boolean;
   onClose: () => void;
   loading: boolean;
@@ -41,13 +41,16 @@ const Content = ({
   formData,
   setFormData,
   handleSubmit,
-  handlePay50PercentOfTotal,
-  handlePay50Percent,
-  handlePayFullAmount,
+  paymentType,
+  setPaymentType,
   isMobile,
   onClose,
   loading,
-}: ContentProps) => (
+}: ContentProps) => {
+  const halfOfTotal = Math.min(Math.round(reservation.totalPrice * 50) / 100, remainingBalance);
+  const calculatedAmount = paymentType === '50' ? halfOfTotal : remainingBalance;
+  
+  return (
   <div className="space-y-4 p-4">
     {/* Reservation Info */}
     <div className="bg-accent/50 p-4 rounded-lg">
@@ -71,6 +74,40 @@ const Content = ({
     </div>
 
     <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Payment Type Selection */}
+      <div>
+        <Label>Tipo de Pago</Label>
+        <RadioGroup
+          value={paymentType}
+          onValueChange={setPaymentType}
+          className="mt-2"
+        >
+          <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-accent/50 transition-colors">
+            <RadioGroupItem value="50" id="pay50" />
+            <Label htmlFor="pay50" className="flex-1 cursor-pointer">
+              <div className="font-medium">50% del Total</div>
+              <div className="text-sm text-muted-foreground">
+                ${halfOfTotal.toLocaleString('es-CL')} 
+                {halfOfTotal < remainingBalance && (
+                  <span className="ml-1">
+                    (quedarán ${(remainingBalance - halfOfTotal).toLocaleString('es-CL')} pendientes)
+                  </span>
+                )}
+              </div>
+            </Label>
+          </div>
+          <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-accent/50 transition-colors">
+            <RadioGroupItem value="total" id="payTotal" />
+            <Label htmlFor="payTotal" className="flex-1 cursor-pointer">
+              <div className="font-medium">Pago Total</div>
+              <div className="text-sm text-muted-foreground">
+                ${remainingBalance.toLocaleString('es-CL')} (salda la reserva completa)
+              </div>
+            </Label>
+          </div>
+        </RadioGroup>
+      </div>
+
       {/* Amount */}
       <div>
         <Label htmlFor="amount">Monto del Pago</Label>
@@ -87,39 +124,8 @@ const Content = ({
             className="flex-1"
           />
         </div>
-
-        {/* Quick payment buttons */}
-        <div className="grid grid-cols-2 gap-2 mt-2">
-          <Button
-            type="button"
-            variant="outline"
-            size={isMobile ? "default" : "sm"}
-            onClick={handlePay50PercentOfTotal}
-            className="min-h-[44px]"
-            disabled={remainingBalance <= 0 || (reservation.totalPrice / 2) > remainingBalance}
-          >
-            50% del Total
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size={isMobile ? "default" : "sm"}
-            onClick={handlePay50Percent}
-            className="min-h-[44px]"
-            disabled={remainingBalance <= 0}
-          >
-            50% Saldo
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size={isMobile ? "default" : "sm"}
-            onClick={handlePayFullAmount}
-            className="col-span-2 min-h-[44px]"
-            disabled={remainingBalance <= 0}
-          >
-            Pagar Saldo Completo
-          </Button>
+        <div className="text-xs text-muted-foreground mt-1">
+          Puedes editar el monto manualmente si es necesario
         </div>
       </div>
 
@@ -193,12 +199,14 @@ const Content = ({
       </div>
     </form>
   </div>
-);
+  );
+};
 
 const PaymentModal = ({ isOpen, onClose, onSuccess, reservation }: PaymentModalProps) => {
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const [loading, setLoading] = useState(false);
+  const [paymentType, setPaymentType] = useState('50');
   
   const [formData, setFormData] = useState<PaymentFormData>({
     amount: 0,
@@ -212,15 +220,24 @@ const PaymentModal = ({ isOpen, onClose, onSuccess, reservation }: PaymentModalP
 
   useEffect(() => {
     if (isOpen) {
+      const halfOfTotal = Math.min(Math.round(reservation.totalPrice * 50) / 100, remainingBalance);
       setFormData({
-        amount: 0,
+        amount: halfOfTotal,
         paymentDate: new Date().toISOString().split('T')[0],
         method: 'cash',
         notes: '',
         createdBy: 'Sistema'
       });
+      setPaymentType('50');
     }
-  }, [isOpen]);
+  }, [isOpen, reservation.totalPrice, remainingBalance]);
+
+  // Update amount when payment type changes
+  useEffect(() => {
+    const halfOfTotal = Math.min(Math.round(reservation.totalPrice * 50) / 100, remainingBalance);
+    const newAmount = paymentType === '50' ? halfOfTotal : remainingBalance;
+    setFormData(prev => ({ ...prev, amount: newAmount }));
+  }, [paymentType, reservation.totalPrice, remainingBalance]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -267,26 +284,6 @@ const PaymentModal = ({ isOpen, onClose, onSuccess, reservation }: PaymentModalP
     }
   };
 
-  const handlePayFullAmount = () => {
-    if (remainingBalance <= 0) return;
-    setFormData({ ...formData, amount: remainingBalance });
-  };
-
-  const handlePay50Percent = () => {
-    if (remainingBalance <= 0) return;
-    // Better precision calculation for currency to avoid floating point errors
-    const halfAmount = Math.round(remainingBalance * 50) / 100; // More precise than * 0.5
-    setFormData({ ...formData, amount: halfAmount });
-  };
-
-  const handlePay50PercentOfTotal = () => {
-    const halfTotal = Math.round(reservation.totalPrice * 50) / 100;
-    if (halfTotal > remainingBalance) {
-      setFormData({ ...formData, amount: remainingBalance });
-    } else {
-      setFormData({ ...formData, amount: halfTotal });
-    }
-  };
 
   const contentProps = {
     reservation,
@@ -294,9 +291,8 @@ const PaymentModal = ({ isOpen, onClose, onSuccess, reservation }: PaymentModalP
     formData,
     setFormData,
     handleSubmit,
-    handlePay50PercentOfTotal,
-    handlePay50Percent,
-    handlePayFullAmount,
+    paymentType,
+    setPaymentType,
     isMobile,
     onClose,
     loading,
