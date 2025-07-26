@@ -418,50 +418,6 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading }: Timelin
             </Button>
           </div>
         </div>
-
-        {/* Scroll Navigation Controls */}
-        <div className="flex items-center justify-between mt-4 p-2 bg-muted/30 rounded-lg">
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={scrollToStart}
-              title="Ir al inicio"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Inicio
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={scrollLeft}
-              title="Scroll izquierda (← o Page Up)"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={scrollRight}
-              title="Scroll derecha (→ o Page Down)"
-            >
-              <ArrowRight className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={scrollToEnd}
-              title="Ir al final"
-            >
-              Final
-              <ArrowRight className="w-4 h-4" />
-            </Button>
-          </div>
-          
-          <div className="text-xs text-muted-foreground">
-            Usa ← → para navegar | Page Up/Down para saltos | Ctrl+T para ir a hoy
-          </div>
-        </div>
       </CardHeader>
       
       <CardContent className="p-0">

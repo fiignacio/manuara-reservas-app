@@ -96,6 +96,7 @@ const Content = ({
               </div>
             </Label>
           </div>
+          
           <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-accent/50 transition-colors">
             <RadioGroupItem value="total" id="payTotal" />
             <Label htmlFor="payTotal" className="flex-1 cursor-pointer">
@@ -301,14 +302,16 @@ const PaymentModal = ({ isOpen, onClose, onSuccess, reservation }: PaymentModalP
   if (isMobile) {
     return (
       <Drawer open={isOpen} onOpenChange={onClose}>
-        <DrawerContent>
+        <DrawerContent className="max-h-[90vh]">
           <DrawerHeader>
             <DrawerTitle className="text-lg font-semibold flex items-center gap-2">
               <DollarSign className="w-5 h-5 text-primary" />
               Registrar Pago
             </DrawerTitle>
           </DrawerHeader>
-          <Content {...contentProps} />
+          <div className="overflow-y-auto pb-4">
+            <Content {...contentProps} />
+          </div>
         </DrawerContent>
       </Drawer>
     );

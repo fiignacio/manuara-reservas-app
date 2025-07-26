@@ -126,7 +126,7 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
       const finalPrice = calculatePrice(formData);
       setCalculatedPrice(finalPrice);
       
-      // Validate dates if needed
+      // Validate dates in real-time if needed
       if (shouldValidateDates) {
         const validation = validateReservationDates(formData.checkIn, formData.checkOut);
         if (!validation.isValid) {

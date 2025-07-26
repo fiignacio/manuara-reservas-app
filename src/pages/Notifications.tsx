@@ -287,18 +287,18 @@ export function Notifications() {
 
   return (
     <div className="container mx-auto p-6">
-      <div className="flex items-center justify-between mb-4 md:mb-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 md:mb-6 gap-4">
         <h1 className={`font-bold flex items-center gap-2 ${isMobile ? 'text-xl' : 'text-3xl'}`}>
           <Bell className={isMobile ? 'h-6 w-6' : 'h-8 w-8'} />
           {isMobile ? 'Notificaciones' : 'Sistema de Notificaciones'}
         </h1>
-        <div className={`flex gap-2 ${isMobile ? 'flex-col w-full' : ''}`}>
+        <div className={`flex gap-2 ${isMobile ? 'w-full' : ''}`}>
           <Button 
             onClick={loadData} 
             disabled={isLoading}
             variant="outline"
             size={isMobile ? "sm" : "default"}
-            className={isMobile ? 'w-full min-h-[44px]' : ''}
+            className={isMobile ? 'flex-1 min-h-[44px]' : ''}
           >
             {isLoading ? (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -310,7 +310,7 @@ export function Notifications() {
           <Button 
             onClick={handleProcessNotifications} 
             disabled={isProcessing || isLoading}
-            className={`btn-cabin ${isMobile ? 'w-full min-h-[44px]' : ''}`}
+            className={`btn-cabin ${isMobile ? 'flex-1 min-h-[44px]' : ''}`}
             size={isMobile ? "sm" : "default"}
           >
             {isProcessing ? (

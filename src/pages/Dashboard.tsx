@@ -160,14 +160,11 @@ const Dashboard = () => {
 
         <Card className="card-cabin">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs sm:text-sm font-medium">Salidas Mañana</CardTitle>
-            <Clock className="h-4 w-4 text-orange-600" />
+            <CardTitle className="text-xs sm:text-sm font-medium">Salidas Hoy</CardTitle>
+            <LogOut className="h-4 w-4 text-red-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-xl sm:text-2xl font-bold text-orange-600">{tomorrowDepartures.length}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {getTomorrowDate()}
-            </p>
+            <div className="text-xl sm:text-2xl font-bold text-red-600">{todayDepartures.length}</div>
           </CardContent>
         </Card>
 
@@ -187,8 +184,48 @@ const Dashboard = () => {
         </Card>
       </div>
 
-      {/* Departures Sections */}
+      {/* Arrivals and Departures Sections */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+        {/* Today's Arrivals */}
+        <Card className="card-cabin">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <LogIn className="w-5 h-5 text-green-600" />
+              Llegadas de Hoy
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="text-center py-8 text-muted-foreground">Cargando...</div>
+            ) : todayArrivals.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                No hay llegadas programadas para hoy
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {todayArrivals.map((reservation) => (
+                  <div key={reservation.id} className="alert-today-success">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="font-medium">{reservation.passengerName}</h4>
+                        <p className="text-sm text-muted-foreground">
+                          {reservation.cabinType}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Vuelo: {reservation.arrivalFlight}
+                        </p>
+                      </div>
+                      <Badge variant="secondary">
+                        {reservation.adults + reservation.children}p
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Today's Departures */}
         <Card className="card-cabin">
           <CardHeader>
@@ -293,50 +330,50 @@ const Dashboard = () => {
             )}
           </CardContent>
         </Card>
-
-        {/* Next 5 Days Departures */}
-        <Card className="card-cabin">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-yellow-600" />
-              Próximas Salidas (5 días)
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="text-center py-8 text-muted-foreground">Cargando...</div>
-            ) : upcomingDepartures.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                No hay salidas programadas para los próximos 5 días
-              </div>
-            ) : (
-              <div className="space-y-4 max-h-80 sm:max-h-96 overflow-y-auto">
-                {upcomingDepartures.map((reservation) => (
-                  <div key={reservation.id} className="border rounded-lg p-4 space-y-2">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h4 className="font-medium">{reservation.passengerName}</h4>
-                        <p className="text-sm text-muted-foreground">
-                          {reservation.cabinType}
-                        </p>
-                        <p className="text-sm text-yellow-600 font-medium">
-                          {formatDateForDisplay(reservation.checkOut)}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Vuelo: {reservation.departureFlight}
-                        </p>
-                      </div>
-                      <Badge variant="secondary">
-                        {reservation.adults + reservation.children}p
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
       </div>
+
+      {/* Next 5 Days Departures - Full Width */}
+      <Card className="card-cabin">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="w-5 h-5 text-yellow-600" />
+            Próximas Salidas (5 días)
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="text-center py-8 text-muted-foreground">Cargando...</div>
+          ) : upcomingDepartures.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              No hay salidas programadas para los próximos 5 días
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-80 overflow-y-auto">
+              {upcomingDepartures.map((reservation) => (
+                <div key={reservation.id} className="border rounded-lg p-4 space-y-2">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="font-medium">{reservation.passengerName}</h4>
+                      <p className="text-sm text-muted-foreground">
+                        {reservation.cabinType}
+                      </p>
+                      <p className="text-sm text-yellow-600 font-medium">
+                        {formatDateForDisplay(reservation.checkOut)}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Vuelo: {reservation.departureFlight}
+                      </p>
+                    </div>
+                    <Badge variant="secondary">
+                      {reservation.adults + reservation.children}p
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <ReservationModal
         isOpen={isModalOpen}

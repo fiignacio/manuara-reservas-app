@@ -128,10 +128,12 @@ const createQuoteHTML = (quote: Quote): string => {
 
   return `
     <div style="max-width: 800px; margin: 0 auto; padding: 40px; font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-      <!-- Header -->
+      <!-- Header with Logo -->
       <div style="text-align: center; margin-bottom: 40px; border-bottom: 3px solid #2563eb; padding-bottom: 20px;">
-        <h1 style="color: #2563eb; font-size: 32px; margin: 0 0 10px 0; font-weight: bold;">MANUARA RESORT</h1>
-        <p style="font-size: 16px; color: #666; margin: 0;">Isla Robinson Crusoe - Archipiélago Juan Fernández</p>
+        <div style="background: linear-gradient(135deg, #2563eb, #3b82f6); color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+          <h1 style="color: white; font-size: 32px; margin: 0 0 10px 0; font-weight: bold;">CABAÑAS MANUARA</h1>
+          <p style="font-size: 16px; color: white; margin: 0;">Rapa Nui - Isla de Pascua</p>
+        </div>
         <p style="font-size: 14px; color: #666; margin: 5px 0 0 0;">Cotización de Estadía</p>
       </div>
 
@@ -225,7 +227,7 @@ const createQuoteHTML = (quote: Quote): string => {
           <li>Esta cotización es válida hasta la fecha indicada.</li>
           <li>Los precios están expresados en pesos chilenos (CLP).</li>
           <li>La reserva se confirma con el pago del 50% del total.</li>
-          <li>El saldo restante debe ser cancelado 15 días antes del check-in.</li>
+          <li>El resto del saldo puede ser pagado a la llegada a las cabañas.</li>
           <li>Políticas de cancelación según términos y condiciones del resort.</li>
         </ul>
       </div>
@@ -233,8 +235,7 @@ const createQuoteHTML = (quote: Quote): string => {
       <!-- Footer -->
       <div style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e2e8f0; color: #666; font-size: 14px;">
         <p style="margin: 0;">Para confirmar su reserva o realizar consultas:</p>
-        <p style="margin: 5px 0 0 0;"><strong>Email:</strong> reservas@manuara.cl | <strong>Teléfono:</strong> +56 9 XXXX XXXX</p>
-        <p style="margin: 15px 0 0 0; font-style: italic;">¡Esperamos recibirle pronto en Manuara Resort!</p>
+        <p style="margin: 15px 0 0 0; font-style: italic;">¡Esperamos recibirle pronto en Cabañas Manuara!</p>
       </div>
     </div>
   `;
