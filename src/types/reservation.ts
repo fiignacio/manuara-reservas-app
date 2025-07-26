@@ -31,14 +31,18 @@ export interface Reservation {
   confirmationSent: boolean;
   confirmationSentDate?: string;
   confirmationMethod?: 'email' | 'whatsapp' | 'manual';
+  // Enhanced guest information for PDF generation
+  guestRuts?: string[];
+  guestNames?: string[];
+  customerEmail?: string;
+  customerPhone?: string;
+  transferInfo?: string;
+  sernateurCode?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }
 
-export interface ReservationFormData extends Omit<Reservation, 'id' | 'totalPrice' | 'payments' | 'remainingBalance' | 'paymentStatus' | 'actualCheckIn' | 'actualCheckOut' | 'checkInStatus' | 'checkOutStatus' | 'checkInNotes' | 'checkOutNotes' | 'confirmationSent' | 'confirmationSentDate' | 'confirmationMethod' | 'createdAt' | 'updatedAt'> {
-  checkIn?: string;
-  checkOut?: string;
-}
+export interface ReservationFormData extends Omit<Reservation, 'id' | 'totalPrice' | 'payments' | 'remainingBalance' | 'paymentStatus' | 'actualCheckIn' | 'actualCheckOut' | 'checkInStatus' | 'checkOutStatus' | 'checkInNotes' | 'checkOutNotes' | 'confirmationSent' | 'confirmationSentDate' | 'confirmationMethod' | 'createdAt' | 'updatedAt'> {}
 
 export interface CheckInOutData {
   reservationId: string;
