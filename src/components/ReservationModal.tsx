@@ -33,6 +33,7 @@ const initializeFormData = (reservation?: Reservation | null): ReservationFormDa
   if (reservation) {
     return {
       passengerName: reservation.passengerName || '',
+      phone: reservation.phone || '',
       checkIn: reservation.checkIn,
       checkOut: reservation.checkOut,
       adults: reservation.adults || 1,
@@ -50,6 +51,7 @@ const initializeFormData = (reservation?: Reservation | null): ReservationFormDa
   
   return {
     passengerName: '',
+    phone: '',
     checkIn: '',
     checkOut: '',
     adults: 1,

@@ -1,4 +1,4 @@
-import { Edit, Trash2, CreditCard, LogIn, LogOut, DollarSign, Send, CheckCircle } from 'lucide-react';
+import { Edit, Trash2, CreditCard, LogIn, LogOut, DollarSign, Send, CheckCircle, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -24,6 +24,7 @@ interface ReservationCardProps {
   onCheckOut: (reservation: Reservation) => void;
   onDelete: (id: string) => void;
   onConfirmation: (reservation: Reservation) => void;
+  onManageDocuments: (reservation: Reservation) => void;
 }
 
 const ReservationCard = ({ 
@@ -33,7 +34,8 @@ const ReservationCard = ({
   onCheckIn, 
   onCheckOut, 
   onDelete,
-  onConfirmation 
+  onConfirmation,
+  onManageDocuments 
 }: ReservationCardProps) => {
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -202,7 +204,17 @@ const ReservationCard = ({
           </div>
 
           {/* Secondary actions row */}
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-2">
+            <Button
+              variant="outline"
+              size="default"
+              onClick={() => onManageDocuments(reservation)}
+              className="min-h-[48px] font-medium"
+            >
+              <FileText className="w-4 h-4 mr-1" />
+              Docs
+            </Button>
+            
             {!reservation.confirmationSent && (
               <Button
                 variant="secondary"
@@ -210,7 +222,7 @@ const ReservationCard = ({
                 onClick={() => onConfirmation(reservation)}
                 className="min-h-[48px] font-medium bg-orange-100 text-orange-700 hover:bg-orange-200"
               >
-                <Send className="w-4 h-4 mr-2" />
+                <Send className="w-4 h-4 mr-1" />
                 Confirmar
               </Button>
             )}
@@ -222,7 +234,7 @@ const ReservationCard = ({
                 disabled
                 className="min-h-[48px] font-medium opacity-75"
               >
-                <CheckCircle className="w-4 h-4 mr-2" />
+                <CheckCircle className="w-4 h-4 mr-1" />
                 Confirmado
               </Button>
             )}

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Search, Filter, DollarSign, CreditCard, LogIn, LogOut, Send } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Filter, DollarSign, CreditCard, LogIn, LogOut, Send, FileText } from 'lucide-react';
+import DocumentManager from '@/components/DocumentManager';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -39,6 +40,7 @@ const Reservations = () => {
   const [isCheckInOutModalOpen, setIsCheckInOutModalOpen] = useState(false);
   const [isConfirmationModalOpen, setIsConfirmationModalOpen] = useState(false);
   const [checkInOutType, setCheckInOutType] = useState<'check_in' | 'check_out'>('check_in');
+  const [showDocumentManager, setShowDocumentManager] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCabin, setFilterCabin] = useState('all');
@@ -138,6 +140,11 @@ const Reservations = () => {
   const handleConfirmation = (reservation: Reservation) => {
     setSelectedConfirmationReservation(reservation);
     setIsConfirmationModalOpen(true);
+  };
+
+  const handleManageDocuments = (reservation: Reservation) => {
+    setSelectedReservation(reservation);
+    setShowDocumentManager(true);
   };
 
   const handleDelete = async (id: string) => {
@@ -327,9 +334,10 @@ const Reservations = () => {
               onAddPayment={handleAddPayment}
               onCheckIn={handleCheckIn}
               onCheckOut={handleCheckOut}
-              onDelete={handleDelete}
-              onConfirmation={handleConfirmation}
-            />
+                  onDelete={handleDelete}
+                  onConfirmation={handleConfirmation}
+                  onManageDocuments={handleManageDocuments}
+                />
           ))}
         </div>
       ) : (
@@ -476,6 +484,15 @@ const Reservations = () => {
                             <Button
                               variant="outline"
                               size="sm"
+                              onClick={() => handleManageDocuments(reservation)}
+                              className="text-purple-600 hover:text-purple-600"
+                              title="Gestionar documentos"
+                            >
+                              <FileText className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
                               onClick={() => handleConfirmation(reservation)}
                               className="text-primary hover:text-primary"
                               title="Enviar confirmación"
@@ -559,6 +576,17 @@ const Reservations = () => {
           onClose={handleConfirmationModalClose}
           onSuccess={loadReservations}
           reservation={selectedConfirmationReservation}
+        />
+      )}
+
+      {showDocumentManager && selectedReservation && (
+        <DocumentManager 
+          reservation={selectedReservation}
+          isOpen={showDocumentManager}
+          onClose={() => {
+            setShowDocumentManager(false);
+            setSelectedReservation(null);
+          }}
         />
       )}
     </div>

@@ -1,9 +1,12 @@
 
 import { Payment } from './payment';
+import { Document } from './document';
 
 export interface Reservation {
   id?: string;
   passengerName: string;
+  phone: string;
+  email?: string;
   checkIn: string;
   checkOut: string;
   adults: number;
@@ -40,6 +43,8 @@ export interface Reservation {
   sernateurCode?: string;
   createdAt?: Date;
   updatedAt?: Date;
+  // Document management
+  documents?: Document[];
 }
 
 export interface ReservationFormData extends Omit<Reservation, 'id' | 'totalPrice' | 'payments' | 'remainingBalance' | 'paymentStatus' | 'actualCheckIn' | 'actualCheckOut' | 'checkInStatus' | 'checkOutStatus' | 'checkInNotes' | 'checkOutNotes' | 'confirmationSent' | 'confirmationSentDate' | 'confirmationMethod' | 'createdAt' | 'updatedAt'> {}

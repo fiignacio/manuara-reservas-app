@@ -118,7 +118,7 @@ export const generateReservationConfirmationPDF = async (reservation: Reservatio
   }
 };
 
-const createQuoteHTML = (quote: Quote): string => {
+export const createQuoteHTML = (quote: Quote): string => {
   const dateRange = formatDateRange(quote.checkIn, quote.checkOut);
   const validUntilDate = format(new Date(quote.validUntil), "dd 'de' MMMM 'de' yyyy", { locale: es });
   const createdDate = format(new Date(quote.createdAt || new Date()), "dd 'de' MMMM 'de' yyyy", { locale: es });
@@ -362,7 +362,7 @@ const createConfirmationHTML = (reservation: Reservation): string => {
   `;
 };
 
-const createReservationConfirmationHTML = (reservation: Reservation): string => {
+export const createReservationConfirmationHTML = (reservation: Reservation): string => {
   const checkInDate = format(new Date(reservation.checkIn), "dd 'de' MMMM 'de' yyyy", { locale: es });
   const checkOutDate = format(new Date(reservation.checkOut), "dd 'de' MMMM 'de' yyyy", { locale: es });
   const createdDate = format(new Date(reservation.createdAt || new Date()), "dd/MM/yyyy", { locale: es });
