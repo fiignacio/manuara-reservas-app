@@ -6,10 +6,11 @@ import { Reservation } from '@/types/reservation';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { formatDateRange, calculateNights } from './dateUtils';
+import { AssetsService } from '@/lib/assetsService';
 
 export const generateQuotePDF = async (quote: Quote): Promise<void> => {
   // Crear el contenido HTML para la cotización
-  const quoteHTML = createQuoteHTML(quote);
+  const quoteHTML = await createQuoteHTML(quote);
   
   // Crear un elemento temporal para renderizar el HTML
   const tempDiv = document.createElement('div');
@@ -118,13 +119,14 @@ export const generateReservationConfirmationPDF = async (reservation: Reservatio
   }
 };
 
-export const createQuoteHTML = (quote: Quote): string => {
+export const createQuoteHTML = async (quote: Quote): Promise<string> => {
   const dateRange = formatDateRange(quote.checkIn, quote.checkOut);
   const validUntilDate = format(new Date(quote.validUntil), "dd 'de' MMMM 'de' yyyy", { locale: es });
   const createdDate = format(new Date(quote.createdAt || new Date()), "dd 'de' MMMM 'de' yyyy", { locale: es });
   
   const nights = calculateNights(quote.checkIn, quote.checkOut);
   const pricePerNight = quote.totalPrice / nights;
+  const companyHeader = await AssetsService.getCompanyHeader();
 
   return `
     <div style="max-width: 800px; margin: 0 auto; padding: 40px; font-family: Arial, sans-serif; line-height: 1.6; color: #333;">

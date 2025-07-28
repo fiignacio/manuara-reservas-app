@@ -10,15 +10,11 @@ import Calendar from "./pages/Calendar";
 import Reservations from "./pages/Reservations";
 import Quotes from "./pages/Quotes";
 import Analytics from "./pages/Analytics";
-import { Notifications } from "./pages/Notifications";
-import NotFound from "./pages/NotFound";
-import { useNotificationProcessor } from "./hooks/useNotificationProcessor";
 
+import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 const AppContent = () => {
-  // Activar el procesador de notificaciones automático
-  useNotificationProcessor();
 
   return (
     <Layout>
@@ -28,7 +24,7 @@ const AppContent = () => {
         <Route path="/reservations" element={<Reservations />} />
         <Route path="/quotes" element={<Quotes />} />
         <Route path="/analytics" element={<Analytics />} />
-        <Route path="/notifications" element={<Notifications />} />
+        
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
       </Routes>

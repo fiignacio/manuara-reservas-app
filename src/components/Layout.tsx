@@ -1,8 +1,8 @@
 
-import { Home, Calendar, Table, Settings, Bell, BarChart3, FileText } from 'lucide-react';
-import { NotificationBell } from './NotificationBell';
+import { Home, Calendar, BarChart3, FileText } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import logoImage from '@/assets/logo.png';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -14,7 +14,6 @@ const Layout = ({ children }: LayoutProps) => {
     { name: 'Calendario & Reservas', href: '/calendar', icon: Calendar, shortName: 'Cal. & Reservas' },
     { name: 'Cotizaciones', href: '/quotes', icon: FileText, shortName: 'Cotizaciones' },
     { name: 'Analytics', href: '/analytics', icon: BarChart3, shortName: 'Analytics' },
-    { name: 'Notificaciones', href: '/notifications', icon: Bell, shortName: 'Notificaciones' },
   ];
 
   return (
@@ -25,15 +24,13 @@ const Layout = ({ children }: LayoutProps) => {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
-                  <Home className="w-5 h-5 text-primary-foreground" />
-                </div>
+                <img 
+                  src={logoImage} 
+                  alt="Manuara Eco Lodge" 
+                  className="w-8 h-8 object-contain rounded-lg"
+                />
                 <h1 className="text-xl font-bold text-foreground">Manuara Reservas</h1>
               </div>
-            </div>
-            
-            <div className="flex items-center space-x-4">
-              <NotificationBell />
             </div>
             
             {/* Navigation */}
