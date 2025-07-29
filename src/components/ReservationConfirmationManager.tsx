@@ -150,6 +150,7 @@ export const ReservationConfirmationManager: React.FC<ReservationConfirmationMan
         checkInStatus: 'pending' as const,
         checkOutStatus: 'pending' as const,
         confirmationSent: false,
+        depositStatus: 'none' as const,
         guestNames: formData.passengers.map(p => p.name),
         guestRuts: formData.passengers.map(p => p.rut),
         comments: formData.notes,

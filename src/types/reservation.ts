@@ -45,9 +45,13 @@ export interface Reservation {
   updatedAt?: Date;
   // Document management
   documents?: Document[];
+  // Deposit tracking
+  depositStatus: 'none' | '50_percent' | 'full';
+  depositAmount?: number;
+  depositDate?: string;
 }
 
-export interface ReservationFormData extends Omit<Reservation, 'id' | 'totalPrice' | 'payments' | 'remainingBalance' | 'paymentStatus' | 'actualCheckIn' | 'actualCheckOut' | 'checkInStatus' | 'checkOutStatus' | 'checkInNotes' | 'checkOutNotes' | 'confirmationSent' | 'confirmationSentDate' | 'confirmationMethod' | 'createdAt' | 'updatedAt'> {}
+export interface ReservationFormData extends Omit<Reservation, 'id' | 'totalPrice' | 'payments' | 'remainingBalance' | 'paymentStatus' | 'actualCheckIn' | 'actualCheckOut' | 'checkInStatus' | 'checkOutStatus' | 'checkInNotes' | 'checkOutNotes' | 'confirmationSent' | 'confirmationSentDate' | 'confirmationMethod' | 'depositStatus' | 'depositAmount' | 'depositDate' | 'createdAt' | 'updatedAt'> {}
 
 export interface CheckInOutData {
   reservationId: string;

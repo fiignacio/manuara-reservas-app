@@ -272,7 +272,6 @@ const PaymentModal = ({ isOpen, onClose, onSuccess, reservation }: PaymentModalP
       onSuccess();
       onClose();
     } catch (error: any) {
-      console.error('PaymentModal - Error:', error);
       const errorMessage = error.message || "Hubo un problema al registrar el pago.";
       
       toast({

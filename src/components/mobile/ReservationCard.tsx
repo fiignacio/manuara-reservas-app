@@ -155,6 +155,16 @@ const ReservationCard = ({
           <Badge variant={reservation.confirmationSent ? "default" : "destructive"} className="text-xs">
             {reservation.confirmationSent ? "✅ Confirmado" : "📧 Pendiente"}
           </Badge>
+          <Badge 
+            variant={
+              reservation.depositStatus === 'full' ? "default" :
+              reservation.depositStatus === '50_percent' ? "secondary" : "outline"
+            } 
+            className="text-xs"
+          >
+            {reservation.depositStatus === 'full' ? "💰 Pagado" :
+             reservation.depositStatus === '50_percent' ? "💸 50% Abono" : "⏳ Sin Abono"}
+          </Badge>
         </div>
 
         {/* Comments */}

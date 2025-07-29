@@ -117,7 +117,6 @@ const DocumentManager = ({ reservation, isOpen, onClose }: DocumentManagerProps)
       setSelectedStatus('generated');
 
     } catch (error) {
-      console.error('Error generating document:', error);
       toast({
         title: "Error",
         description: "No se pudo generar el documento",
@@ -140,7 +139,6 @@ const DocumentManager = ({ reservation, isOpen, onClose }: DocumentManagerProps)
         description: `${getDocumentTypeName(document.type)} descargado exitosamente`,
       });
     } catch (error) {
-      console.error('Error regenerating document:', error);
       toast({
         title: "Error",
         description: "No se pudo regenerar el documento",
@@ -170,7 +168,6 @@ const DocumentManager = ({ reservation, isOpen, onClose }: DocumentManagerProps)
         description: `${getDocumentTypeName(document.type)} marcado como enviado`,
       });
     } catch (error) {
-      console.error('Error updating document:', error);
       toast({
         title: "Error",
         description: "No se pudo actualizar el estado del documento",

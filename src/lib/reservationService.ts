@@ -113,7 +113,7 @@ export const updatePaymentStatus = (reservation: Reservation): 'pending' | 'part
 };
 
 export const addPayment = async (reservationId: string, paymentData: PaymentFormData): Promise<void> => {
-  console.log('Adding payment for reservation:', reservationId);
+  
   
   // Get current reservation
   const reservations = await getAllReservations();
@@ -150,10 +150,24 @@ export const addPayment = async (reservationId: string, paymentData: PaymentForm
   const newRemainingBalance = calculateRemainingBalance(updatedReservation);
   const newPaymentStatus = updatePaymentStatus(updatedReservation);
   
+  // Calculate deposit status
+  const totalPaid = updatedPayments.reduce((sum, payment) => sum + payment.amount, 0);
+  const halfOfTotal = Math.round(reservation.totalPrice * 50) / 100;
+  let depositStatus: 'none' | '50_percent' | 'full' = 'none';
+  
+  if (totalPaid >= reservation.totalPrice) {
+    depositStatus = 'full';
+  } else if (totalPaid >= halfOfTotal) {
+    depositStatus = '50_percent';
+  }
+  
   const updateData = cleanReservationData({
     payments: updatedPayments,
     remainingBalance: newRemainingBalance,
     paymentStatus: newPaymentStatus,
+    depositStatus,
+    depositAmount: totalPaid,
+    depositDate: newPayment.paymentDate,
     updatedAt: new Date()
   });
   
@@ -261,8 +275,6 @@ export const getNextAvailableDate = async (cabinType: string, preferredCheckIn: 
 };
 
 export const createReservation = async (data: ReservationFormData): Promise<string> => {
-  console.log('Creating reservation for:', data.passengerName);
-  console.log('Form data received:', data);
 
   if (!data.checkIn || !data.checkOut) {
     throw new Error('Las fechas de check-in y check-out son obligatorias.');
@@ -295,19 +307,16 @@ export const createReservation = async (data: ReservationFormData): Promise<stri
     payments: [],
     remainingBalance: totalPrice,
     paymentStatus: 'pending',
-      checkInStatus: 'pending',
-      checkOutStatus: 'pending',
-      confirmationSent: false,
-      createdAt: new Date(),
-      updatedAt: new Date()
+    checkInStatus: 'pending',
+    checkOutStatus: 'pending',
+    confirmationSent: false,
+    depositStatus: 'none',
+    createdAt: new Date(),
+    updatedAt: new Date()
   };
-  
-  console.log('Reservation object before cleaning:', reservation);
   
   // Clean the data before sending to Firebase
   const cleanedReservation = cleanReservationData(reservation);
-  
-  console.log('Cleaned reservation object:', cleanedReservation);
   
   const docRef = await addDoc(collection(db, COLLECTION_NAME), cleanedReservation);
   
@@ -318,18 +327,15 @@ export const createReservation = async (data: ReservationFormData): Promise<stri
       id: docRef.id
     };
     
-    console.log('Generating notifications for new reservation:', docRef.id);
     await notificationService.generateReservationNotifications(fullReservation);
   } catch (error) {
-    console.error('Error generating notifications for reservation:', error);
+    // Notification errors should not fail reservation creation
   }
   
   return docRef.id;
 };
 
 export const updateReservation = async (id: string, data: ReservationFormData, shouldUpdateDates: boolean = true): Promise<void> => {
-  console.log('Updating reservation:', id, 'shouldUpdateDates:', shouldUpdateDates);
-  console.log('Update data received:', data);
   
   // Validar capacidad de la cabaña siempre
   const capacityValidation = validateCabinCapacity(data.cabinType, data.adults, data.children, data.babies);
@@ -380,12 +386,8 @@ export const updateReservation = async (id: string, data: ReservationFormData, s
     updatedAt: new Date()
   };
   
-  console.log('Reservation object before cleaning:', reservation);
-  
   // Clean the data before sending to Firebase
   const cleanedReservation = cleanReservationData(reservation);
-  
-  console.log('Cleaned reservation object:', cleanedReservation);
   
   await updateDoc(doc(db, COLLECTION_NAME, id), cleanedReservation);
   
@@ -400,10 +402,9 @@ export const updateReservation = async (id: string, data: ReservationFormData, s
         updatedAt: new Date()
       } as Reservation;
       
-      console.log('Regenerating notifications for updated reservation:', id);
       await notificationService.generateReservationNotifications(fullReservation);
     } catch (error) {
-      console.error('Error regenerating notifications for reservation:', error);
+      // Notification errors should not fail reservation update
     }
   }
 };
@@ -516,7 +517,6 @@ export const getUpcomingDepartures = async (days: number = 5): Promise<Reservati
 
 export const getTomorrowDepartures = async (): Promise<Reservation[]> => {
   const tomorrow = getTomorrowDate();
-  console.log('Getting tomorrow departures for date:', tomorrow);
   
   const q = query(
     collection(db, COLLECTION_NAME),
@@ -529,15 +529,6 @@ export const getTomorrowDepartures = async (): Promise<Reservation[]> => {
     ...doc.data()
   } as Reservation));
   
-  console.log(`Found ${departures.length} departures for tomorrow (${tomorrow}):`, 
-    departures.map(d => ({
-      id: d.id,
-      passenger: d.passengerName,
-      cabin: d.cabinType,
-      checkOut: d.checkOut,
-      flight: d.departureFlight
-    }))
-  );
   
   return departures;
 };
@@ -556,10 +547,7 @@ export const getArrivalsForDate = async (date: string): Promise<Reservation[]> =
 };
 
 export const deleteExpiredReservations = async (): Promise<number> => {
-  console.log('Checking for expired reservations...');
-  
   const today = new Date().toISOString().split('T')[0];
-  console.log('Today date:', today);
   
   // Buscar reservas que salieron antes de hoy (no igual a hoy)
   // Si checkout es '2025-01-21', se debe eliminar a partir del '2025-01-22'
@@ -571,25 +559,14 @@ export const deleteExpiredReservations = async (): Promise<number> => {
   const querySnapshot = await getDocs(q);
   let deletedCount = 0;
   
-  console.log(`Found ${querySnapshot.docs.length} reservations to evaluate for deletion`);
-  
   // Eliminar reservas vencidas
   for (const docSnapshot of querySnapshot.docs) {
     try {
-      const reservationData = docSnapshot.data();
-      console.log(`Deleting expired reservation: ${docSnapshot.id}, checkout: ${reservationData.checkOut}, passenger: ${reservationData.passengerName}`);
-      
       await deleteDoc(doc(db, COLLECTION_NAME, docSnapshot.id));
       deletedCount++;
     } catch (error) {
-      console.error(`Error deleting expired reservation ${docSnapshot.id}:`, error);
+      // Continue with other deletions even if one fails
     }
-  }
-  
-  if (deletedCount > 0) {
-    console.log(`Successfully deleted ${deletedCount} expired reservations`);
-  } else {
-    console.log('No expired reservations found');
   }
   
   return deletedCount;
@@ -621,7 +598,6 @@ export const performCheckIn = async (data: CheckInOutData): Promise<void> => {
     });
 
   } catch (error) {
-    console.error('Error performing check-in:', error);
     throw error;
   }
 };
@@ -655,7 +631,6 @@ export const performCheckOut = async (data: CheckInOutData): Promise<void> => {
     });
 
   } catch (error) {
-    console.error('Error performing check-out:', error);
     throw error;
   }
 };
@@ -684,7 +659,6 @@ export const getCurrentlyStaying = async (): Promise<Reservation[]> => {
     
     return reservations.sort((a, b) => a.passengerName.localeCompare(b.passengerName));
   } catch (error) {
-    console.error('Error getting currently staying guests:', error);
     return [];
   }
 };
@@ -714,7 +688,6 @@ export const getPendingCheckIns = async (date?: string): Promise<Reservation[]> 
     
     return reservations.sort((a, b) => a.passengerName.localeCompare(b.passengerName));
   } catch (error) {
-    console.error('Error getting pending check-ins:', error);
     return [];
   }
 };
@@ -745,7 +718,6 @@ export const getPendingCheckOuts = async (date?: string): Promise<Reservation[]>
     
     return reservations.sort((a, b) => a.passengerName.localeCompare(b.passengerName));
   } catch (error) {
-    console.error('Error getting pending check-outs:', error);
     return [];
   }
 };
@@ -775,7 +747,6 @@ export const getNoShows = async (): Promise<Reservation[]> => {
     
     return reservations.sort((a, b) => new Date(a.checkIn).getTime() - new Date(b.checkIn).getTime());
   } catch (error) {
-    console.error('Error getting no-shows:', error);
     return [];
   }
 };
@@ -796,9 +767,7 @@ export const markConfirmationSent = async (
     };
 
     await updateDoc(docRef, updateData);
-    console.log('Confirmation marked as sent successfully');
   } catch (error) {
-    console.error('Error marking confirmation as sent:', error);
     throw new Error('Error al marcar confirmación como enviada');
   }
 };

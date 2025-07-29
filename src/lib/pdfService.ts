@@ -129,86 +129,74 @@ export const createQuoteHTML = async (quote: Quote): Promise<string> => {
   const companyHeader = await AssetsService.getCompanyHeader();
 
   return `
-    <div style="max-width: 800px; margin: 0 auto; padding: 40px; font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-      <!-- Header with Logo -->
-      <div style="text-align: center; margin-bottom: 40px; border-bottom: 3px solid #2563eb; padding-bottom: 20px;">
-        <div style="background: linear-gradient(135deg, #2563eb, #3b82f6); color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
-          <h1 style="color: white; font-size: 32px; margin: 0 0 10px 0; font-weight: bold;">CABAÑAS MANUARA</h1>
-          <p style="font-size: 16px; color: white; margin: 0;">Rapa Nui - Isla de Pascua</p>
+    <div style="max-width: 750px; margin: 0 auto; padding: 20px; font-family: Arial, sans-serif; line-height: 1.4; color: #333; font-size: 14px;">
+      <!-- Compact Header -->
+      <div style="text-align: center; margin-bottom: 20px; border-bottom: 2px solid #2563eb; padding-bottom: 15px;">
+        <div style="background: linear-gradient(135deg, #2563eb, #3b82f6); color: white; padding: 15px; border-radius: 8px; margin-bottom: 10px;">
+          <h1 style="color: white; font-size: 24px; margin: 0; font-weight: bold;">CABAÑAS MANUARA</h1>
+          <p style="font-size: 14px; color: white; margin: 0;">Rapa Nui - Isla de Pascua</p>
         </div>
-        <p style="font-size: 14px; color: #666; margin: 5px 0 0 0;">Cotización de Estadía</p>
+        <p style="font-size: 12px; color: #666; margin: 0;">Cotización de Estadía</p>
       </div>
 
-      <!-- Quote Info -->
-      <div style="display: flex; justify-content: space-between; margin-bottom: 30px;">
+      <!-- Two-column layout for efficiency -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+        <!-- Left Column -->
         <div>
-          <h3 style="color: #2563eb; margin: 0 0 10px 0;">Cotización N°: ${quote.id}</h3>
-          <p style="margin: 0; color: #666;">Fecha: ${createdDate}</p>
-        </div>
-        <div style="text-align: right;">
-          <p style="margin: 0; color: #ef4444; font-weight: bold;">Válida hasta: ${validUntilDate}</p>
-        </div>
-      </div>
+          <!-- Quote Info -->
+          <div style="margin-bottom: 15px;">
+            <h3 style="color: #2563eb; margin: 0 0 5px 0; font-size: 16px;">Cotización N°: ${quote.id}</h3>
+            <p style="margin: 0; color: #666; font-size: 12px;">Fecha: ${createdDate}</p>
+            <p style="margin: 5px 0 0 0; color: #ef4444; font-weight: bold; font-size: 12px;">Válida hasta: ${validUntilDate}</p>
+          </div>
 
-      <!-- Customer Info -->
-      <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
-        <h3 style="color: #2563eb; margin: 0 0 15px 0; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px;">Datos del Cliente</h3>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-          <div>
-            <strong>Nombre:</strong> ${quote.customerName}<br>
-            <strong>Email:</strong> ${quote.customerEmail}
+          <!-- Customer Info -->
+          <div style="background: #f8fafc; padding: 12px; border-radius: 6px; margin-bottom: 15px;">
+            <h4 style="color: #2563eb; margin: 0 0 8px 0; font-size: 14px;">Cliente</h4>
+            <div style="font-size: 12px;">
+              <strong>Nombre:</strong> ${quote.customerName}<br>
+              <strong>Email:</strong> ${quote.customerEmail}<br>
+              <strong>Teléfono:</strong> ${quote.customerPhone || 'No especificado'}
+            </div>
           </div>
-          <div>
-            <strong>Teléfono:</strong> ${quote.customerPhone || 'No especificado'}
+
+          <!-- Flight Info -->
+          <div style="background: #f8fafc; padding: 12px; border-radius: 6px;">
+            <h4 style="color: #2563eb; margin: 0 0 8px 0; font-size: 14px;">Vuelos</h4>
+            <div style="font-size: 12px;">
+              <strong>Llegada:</strong> ${quote.arrivalFlight}<br>
+              <strong>Salida:</strong> ${quote.departureFlight}
+            </div>
           </div>
         </div>
-      </div>
 
-      <!-- Reservation Details -->
-      <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
-        <h3 style="color: #2563eb; margin: 0 0 15px 0; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px;">Detalles de la Estadía</h3>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-          <div>
-            <strong>Fechas:</strong> ${dateRange}<br>
-            <strong>Noches:</strong> ${nights}<br>
-            <strong>Temporada:</strong> ${quote.season}
+        <!-- Right Column -->
+        <div>
+          <!-- Reservation Details -->
+          <div style="background: #f8fafc; padding: 12px; border-radius: 6px; margin-bottom: 15px;">
+            <h4 style="color: #2563eb; margin: 0 0 8px 0; font-size: 14px;">Detalles de Estadía</h4>
+            <div style="font-size: 12px;">
+              <strong>Fechas:</strong> ${dateRange}<br>
+              <strong>Noches:</strong> ${nights}<br>
+              <strong>Temporada:</strong> ${quote.season}<br>
+              <strong>Huéspedes:</strong> ${quote.adults} adultos${quote.children8to15 > 0 ? `, ${quote.children8to15} niños` : ''}${quote.childrenUnder7 > 0 ? `, ${quote.childrenUnder7} menores` : ''}<br>
+              <strong>Cabaña:</strong> ${quote.cabinType}
+            </div>
           </div>
-          <div>
-            <strong>Huéspedes:</strong> ${quote.adults} adultos${quote.children8to15 > 0 ? `, ${quote.children8to15} niños (8-15 años)` : ''}${quote.childrenUnder7 > 0 ? `, ${quote.childrenUnder7} menores de 7 años` : ''}<br>
-            <strong>Tipo de Cabaña:</strong> ${quote.cabinType}
-          </div>
-        </div>
-      </div>
 
-      <!-- Flight Info -->
-      <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
-        <h3 style="color: #2563eb; margin: 0 0 15px 0; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px;">Información de Vuelos</h3>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-          <div>
-            <strong>Vuelo de Llegada:</strong> ${quote.arrivalFlight}
-          </div>
-          <div>
-            <strong>Vuelo de Salida:</strong> ${quote.departureFlight}
-          </div>
-        </div>
-      </div>
-
-      <!-- Pricing -->
-      <div style="border: 2px solid #2563eb; border-radius: 8px; padding: 20px; margin-bottom: 30px;">
-        <h3 style="color: #2563eb; margin: 0 0 15px 0; text-align: center;">Resumen de Costos</h3>
-        <div style="font-size: 16px;">
-          <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-            <span>Precio por noche (${quote.cabinType})</span>
-            <span>$${pricePerNight.toLocaleString('es-CL')}</span>
-          </div>
-          <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-            <span>Número de noches</span>
-            <span>${nights}</span>
-          </div>
-          <div style="border-top: 2px solid #2563eb; padding-top: 10px; margin-top: 15px;">
-            <div style="display: flex; justify-content: space-between; font-size: 20px; font-weight: bold; color: #2563eb;">
-              <span>TOTAL</span>
-              <span>$${quote.totalPrice.toLocaleString('es-CL')} CLP</span>
+          <!-- Compact Pricing -->
+          <div style="border: 2px solid #2563eb; border-radius: 6px; padding: 12px;">
+            <h4 style="color: #2563eb; margin: 0 0 8px 0; text-align: center; font-size: 14px;">Costos</h4>
+            <div style="font-size: 12px; text-align: center;">
+              <div style="margin-bottom: 5px;">
+                <strong>Por noche:</strong> $${pricePerNight.toLocaleString('es-CL')}
+              </div>
+              <div style="margin-bottom: 5px;">
+                <strong>${nights} noches:</strong> $${quote.totalPrice.toLocaleString('es-CL')}
+              </div>
+              <div style="border-top: 1px solid #2563eb; padding-top: 5px; margin-top: 8px;">
+                <strong style="font-size: 16px; color: #2563eb;">TOTAL: $${quote.totalPrice.toLocaleString('es-CL')}</strong>
+              </div>
             </div>
           </div>
         </div>
@@ -216,28 +204,25 @@ export const createQuoteHTML = async (quote: Quote): Promise<string> => {
 
       ${quote.notes ? `
       <!-- Notes -->
-      <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 20px; margin-bottom: 30px;">
-        <h3 style="color: #92400e; margin: 0 0 10px 0;">Notas Adicionales</h3>
-        <p style="margin: 0; color: #92400e;">${quote.notes}</p>
+      <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 6px; padding: 12px; margin-bottom: 15px;">
+        <h4 style="color: #92400e; margin: 0 0 5px 0; font-size: 14px;">Notas</h4>
+        <p style="margin: 0; color: #92400e; font-size: 12px;">${quote.notes}</p>
       </div>
       ` : ''}
 
-      <!-- Terms -->
-      <div style="background: #f1f5f9; padding: 20px; border-radius: 8px; font-size: 14px; color: #475569;">
-        <h3 style="color: #334155; margin: 0 0 15px 0;">Términos y Condiciones</h3>
-        <ul style="margin: 0; padding-left: 20px;">
-          <li>Esta cotización es válida hasta la fecha indicada.</li>
-          <li>Los precios están expresados en pesos chilenos (CLP).</li>
-          <li>La reserva se confirma con el pago del 50% del total.</li>
-          <li>El resto del saldo puede ser pagado a la llegada a las cabañas.</li>
-          <li>Políticas de cancelación según términos y condiciones del resort.</li>
+      <!-- Compact Terms -->
+      <div style="background: #f1f5f9; padding: 12px; border-radius: 6px; font-size: 11px; color: #475569;">
+        <h4 style="color: #334155; margin: 0 0 8px 0; font-size: 12px;">Términos</h4>
+        <ul style="margin: 0; padding-left: 15px; line-height: 1.3;">
+          <li>Cotización válida hasta fecha indicada</li>
+          <li>Reserva se confirma con 50% del total</li>
+          <li>Saldo restante a la llegada</li>
         </ul>
       </div>
 
-      <!-- Footer -->
-      <div style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e2e8f0; color: #666; font-size: 14px;">
-        <p style="margin: 0;">Para confirmar su reserva o realizar consultas:</p>
-        <p style="margin: 15px 0 0 0; font-style: italic;">¡Esperamos recibirle pronto en Cabañas Manuara!</p>
+      <!-- Compact Footer -->
+      <div style="text-align: center; margin-top: 15px; padding-top: 10px; border-top: 1px solid #e2e8f0; color: #666; font-size: 11px;">
+        <p style="margin: 0; font-style: italic;">¡Esperamos recibirle pronto en Cabañas Manuara!</p>
       </div>
     </div>
   `;

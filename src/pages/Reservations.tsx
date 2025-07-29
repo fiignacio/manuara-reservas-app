@@ -59,7 +59,6 @@ const Reservations = () => {
       setReservations(reservationsWithBalance);
       setFilteredReservations(reservationsWithBalance);
     } catch (error) {
-      console.error('Error loading reservations:', error);
       toast({
         title: "Error",
         description: "No se pudieron cargar las reservas.",
@@ -91,7 +90,13 @@ const Reservations = () => {
 
     // Filtrar por estado de pago
     if (filterPaymentStatus !== 'all') {
-      filtered = filtered.filter(r => r.paymentStatus === filterPaymentStatus);
+      if (filterPaymentStatus === '50_percent') {
+        filtered = filtered.filter(r => r.depositStatus === '50_percent');
+      } else if (filterPaymentStatus === 'no_deposit') {
+        filtered = filtered.filter(r => r.depositStatus === 'none');
+      } else {
+        filtered = filtered.filter(r => r.paymentStatus === filterPaymentStatus);
+      }
     }
 
     // Ordenar
@@ -291,6 +296,8 @@ const Reservations = () => {
                   <SelectItem value="partially_paid">Pago parcial</SelectItem>
                   <SelectItem value="fully_paid">Pagado completo</SelectItem>
                   <SelectItem value="overdue">Vencido</SelectItem>
+                  <SelectItem value="50_percent">50% Abonado</SelectItem>
+                  <SelectItem value="no_deposit">Sin Abono</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -423,11 +430,23 @@ const Reservations = () => {
                         <td className="p-4 font-medium text-primary">
                           ${reservation.totalPrice.toLocaleString('es-CL')}
                         </td>
-                        <td className="p-4">
-                          <Badge variant={paymentBadge.variant}>
-                            {paymentBadge.label}
-                          </Badge>
-                        </td>
+                         <td className="p-4">
+                           <div className="space-y-1">
+                             <Badge variant={paymentBadge.variant}>
+                               {paymentBadge.label}
+                             </Badge>
+                             <Badge 
+                               variant={
+                                 reservation.depositStatus === 'full' ? "default" :
+                                 reservation.depositStatus === '50_percent' ? "secondary" : "outline"
+                               } 
+                               className="text-xs"
+                             >
+                               {reservation.depositStatus === 'full' ? "💰 Pagado" :
+                                reservation.depositStatus === '50_percent' ? "💸 50%" : "⏳ Sin Abono"}
+                             </Badge>
+                           </div>
+                         </td>
                         <td className="p-4">
                           <div className="text-sm">
                             <div className={reservation.remainingBalance > 0 ? "font-medium text-destructive" : "text-muted-foreground"}>
