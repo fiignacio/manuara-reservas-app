@@ -12,7 +12,6 @@ const Layout = ({ children }: LayoutProps) => {
   const navigation = [
     { name: 'Dashboard', href: '/', icon: Home, shortName: 'Inicio' },
     { name: 'Calendario & Reservas', href: '/calendar', icon: Calendar, shortName: 'Cal. & Reservas' },
-    { name: 'Cotizaciones', href: '/quotes', icon: FileText, shortName: 'Cotizaciones' },
     { name: 'Analytics', href: '/analytics', icon: BarChart3, shortName: 'Analytics' },
   ];
 
