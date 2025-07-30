@@ -28,8 +28,6 @@ interface ContentProps {
   formData: PaymentFormData;
   setFormData: (formData: PaymentFormData) => void;
   handleSubmit: (e: React.FormEvent) => void;
-  paymentType: string;
-  setPaymentType: (type: string) => void;
   isMobile: boolean;
   onClose: () => void;
   loading: boolean;
@@ -41,14 +39,10 @@ const Content = ({
   formData,
   setFormData,
   handleSubmit,
-  paymentType,
-  setPaymentType,
   isMobile,
   onClose,
   loading,
 }: ContentProps) => {
-  const halfOfTotal = Math.min(Math.round(reservation.totalPrice * 50) / 100, remainingBalance);
-  const calculatedAmount = paymentType === '50' ? halfOfTotal : remainingBalance;
   
   return (
   <div className="space-y-4 p-4">
@@ -74,40 +68,6 @@ const Content = ({
     </div>
 
     <form onSubmit={handleSubmit} className="space-y-4">
-      {/* Payment Type Selection */}
-      <div>
-        <Label>Tipo de Pago</Label>
-        <RadioGroup
-          value={paymentType}
-          onValueChange={setPaymentType}
-          className="mt-2"
-        >
-          <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-accent/50 transition-colors">
-            <RadioGroupItem value="50" id="pay50" />
-            <Label htmlFor="pay50" className="flex-1 cursor-pointer">
-              <div className="font-medium">50% del Total</div>
-              <div className="text-sm text-muted-foreground">
-                ${halfOfTotal.toLocaleString('es-CL')} 
-                {halfOfTotal < remainingBalance && (
-                  <span className="ml-1">
-                    (quedarán ${(remainingBalance - halfOfTotal).toLocaleString('es-CL')} pendientes)
-                  </span>
-                )}
-              </div>
-            </Label>
-          </div>
-          
-          <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-accent/50 transition-colors">
-            <RadioGroupItem value="total" id="payTotal" />
-            <Label htmlFor="payTotal" className="flex-1 cursor-pointer">
-              <div className="font-medium">Pago Total</div>
-              <div className="text-sm text-muted-foreground">
-                ${remainingBalance.toLocaleString('es-CL')} (salda la reserva completa)
-              </div>
-            </Label>
-          </div>
-        </RadioGroup>
-      </div>
 
       {/* Amount */}
       <div>
@@ -207,7 +167,6 @@ const PaymentModal = ({ isOpen, onClose, onSuccess, reservation }: PaymentModalP
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const [loading, setLoading] = useState(false);
-  const [paymentType, setPaymentType] = useState('50');
   
   const [formData, setFormData] = useState<PaymentFormData>({
     amount: 0,
@@ -221,24 +180,15 @@ const PaymentModal = ({ isOpen, onClose, onSuccess, reservation }: PaymentModalP
 
   useEffect(() => {
     if (isOpen) {
-      const halfOfTotal = Math.min(Math.round(reservation.totalPrice * 50) / 100, remainingBalance);
       setFormData({
-        amount: halfOfTotal,
+        amount: 0,
         paymentDate: new Date().toISOString().split('T')[0],
         method: 'cash',
         notes: '',
         createdBy: 'Sistema'
       });
-      setPaymentType('50');
     }
-  }, [isOpen, reservation.totalPrice, remainingBalance]);
-
-  // Update amount when payment type changes
-  useEffect(() => {
-    const halfOfTotal = Math.min(Math.round(reservation.totalPrice * 50) / 100, remainingBalance);
-    const newAmount = paymentType === '50' ? halfOfTotal : remainingBalance;
-    setFormData(prev => ({ ...prev, amount: newAmount }));
-  }, [paymentType, reservation.totalPrice, remainingBalance]);
+  }, [isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -291,8 +241,6 @@ const PaymentModal = ({ isOpen, onClose, onSuccess, reservation }: PaymentModalP
     formData,
     setFormData,
     handleSubmit,
-    paymentType,
-    setPaymentType,
     isMobile,
     onClose,
     loading,

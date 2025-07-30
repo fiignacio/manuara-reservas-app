@@ -150,24 +150,11 @@ export const addPayment = async (reservationId: string, paymentData: PaymentForm
   const newRemainingBalance = calculateRemainingBalance(updatedReservation);
   const newPaymentStatus = updatePaymentStatus(updatedReservation);
   
-  // Calculate deposit status
-  const totalPaid = updatedPayments.reduce((sum, payment) => sum + payment.amount, 0);
-  const halfOfTotal = Math.round(reservation.totalPrice * 50) / 100;
-  let depositStatus: 'none' | '50_percent' | 'full' = 'none';
-  
-  if (totalPaid >= reservation.totalPrice) {
-    depositStatus = 'full';
-  } else if (totalPaid >= halfOfTotal) {
-    depositStatus = '50_percent';
-  }
   
   const updateData = cleanReservationData({
     payments: updatedPayments,
     remainingBalance: newRemainingBalance,
     paymentStatus: newPaymentStatus,
-    depositStatus,
-    depositAmount: totalPaid,
-    depositDate: newPayment.paymentDate,
     updatedAt: new Date()
   });
   
@@ -310,7 +297,6 @@ export const createReservation = async (data: ReservationFormData): Promise<stri
     checkInStatus: 'pending',
     checkOutStatus: 'pending',
     confirmationSent: false,
-    depositStatus: 'none',
     createdAt: new Date(),
     updatedAt: new Date()
   };

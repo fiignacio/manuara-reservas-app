@@ -1,4 +1,4 @@
-import { Edit, Trash2, CreditCard, LogIn, LogOut, DollarSign, Send, CheckCircle, FileText } from 'lucide-react';
+import { Edit, Trash2, CreditCard, LogIn, LogOut, DollarSign, Send, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -24,7 +24,6 @@ interface ReservationCardProps {
   onCheckOut: (reservation: Reservation) => void;
   onDelete: (id: string) => void;
   onConfirmation: (reservation: Reservation) => void;
-  onManageDocuments: (reservation: Reservation) => void;
 }
 
 const ReservationCard = ({ 
@@ -34,8 +33,7 @@ const ReservationCard = ({
   onCheckIn, 
   onCheckOut, 
   onDelete,
-  onConfirmation,
-  onManageDocuments 
+  onConfirmation 
 }: ReservationCardProps) => {
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -155,16 +153,6 @@ const ReservationCard = ({
           <Badge variant={reservation.confirmationSent ? "default" : "destructive"} className="text-xs">
             {reservation.confirmationSent ? "✅ Confirmado" : "📧 Pendiente"}
           </Badge>
-          <Badge 
-            variant={
-              reservation.depositStatus === 'full' ? "default" :
-              reservation.depositStatus === '50_percent' ? "secondary" : "outline"
-            } 
-            className="text-xs"
-          >
-            {reservation.depositStatus === 'full' ? "💰 Pagado" :
-             reservation.depositStatus === '50_percent' ? "💸 50% Abono" : "⏳ Sin Abono"}
-          </Badge>
         </div>
 
         {/* Comments */}
@@ -214,16 +202,7 @@ const ReservationCard = ({
           </div>
 
           {/* Secondary actions row */}
-          <div className="grid grid-cols-3 gap-2">
-            <Button
-              variant="outline"
-              size="default"
-              onClick={() => onManageDocuments(reservation)}
-              className="min-h-[48px] font-medium"
-            >
-              <FileText className="w-4 h-4 mr-1" />
-              Docs
-            </Button>
+          <div className="grid grid-cols-2 gap-2">
             
             {!reservation.confirmationSent && (
               <Button

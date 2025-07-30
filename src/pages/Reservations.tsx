@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Search, Filter, DollarSign, CreditCard, LogIn, LogOut, Send, FileText } from 'lucide-react';
-import DocumentManager from '@/components/DocumentManager';
+import { Plus, Edit, Trash2, Search, Filter, DollarSign, CreditCard, LogIn, LogOut, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -40,7 +39,6 @@ const Reservations = () => {
   const [isCheckInOutModalOpen, setIsCheckInOutModalOpen] = useState(false);
   const [isConfirmationModalOpen, setIsConfirmationModalOpen] = useState(false);
   const [checkInOutType, setCheckInOutType] = useState<'check_in' | 'check_out'>('check_in');
-  const [showDocumentManager, setShowDocumentManager] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCabin, setFilterCabin] = useState('all');
@@ -90,13 +88,7 @@ const Reservations = () => {
 
     // Filtrar por estado de pago
     if (filterPaymentStatus !== 'all') {
-      if (filterPaymentStatus === '50_percent') {
-        filtered = filtered.filter(r => r.depositStatus === '50_percent');
-      } else if (filterPaymentStatus === 'no_deposit') {
-        filtered = filtered.filter(r => r.depositStatus === 'none');
-      } else {
-        filtered = filtered.filter(r => r.paymentStatus === filterPaymentStatus);
-      }
+      filtered = filtered.filter(r => r.paymentStatus === filterPaymentStatus);
     }
 
     // Ordenar
@@ -147,10 +139,6 @@ const Reservations = () => {
     setIsConfirmationModalOpen(true);
   };
 
-  const handleManageDocuments = (reservation: Reservation) => {
-    setSelectedReservation(reservation);
-    setShowDocumentManager(true);
-  };
 
   const handleDelete = async (id: string) => {
     try {
@@ -296,8 +284,6 @@ const Reservations = () => {
                   <SelectItem value="partially_paid">Pago parcial</SelectItem>
                   <SelectItem value="fully_paid">Pagado completo</SelectItem>
                   <SelectItem value="overdue">Vencido</SelectItem>
-                  <SelectItem value="50_percent">50% Abonado</SelectItem>
-                  <SelectItem value="no_deposit">Sin Abono</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -343,7 +329,7 @@ const Reservations = () => {
               onCheckOut={handleCheckOut}
                   onDelete={handleDelete}
                   onConfirmation={handleConfirmation}
-                  onManageDocuments={handleManageDocuments}
+                  
                 />
           ))}
         </div>
@@ -435,16 +421,6 @@ const Reservations = () => {
                              <Badge variant={paymentBadge.variant}>
                                {paymentBadge.label}
                              </Badge>
-                             <Badge 
-                               variant={
-                                 reservation.depositStatus === 'full' ? "default" :
-                                 reservation.depositStatus === '50_percent' ? "secondary" : "outline"
-                               } 
-                               className="text-xs"
-                             >
-                               {reservation.depositStatus === 'full' ? "💰 Pagado" :
-                                reservation.depositStatus === '50_percent' ? "💸 50%" : "⏳ Sin Abono"}
-                             </Badge>
                            </div>
                          </td>
                         <td className="p-4">
@@ -500,15 +476,6 @@ const Reservations = () => {
                                 <LogOut className="w-4 h-4" />
                               </Button>
                             )}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleManageDocuments(reservation)}
-                              className="text-purple-600 hover:text-purple-600"
-                              title="Gestionar documentos"
-                            >
-                              <FileText className="w-4 h-4" />
-                            </Button>
                             <Button
                               variant="outline"
                               size="sm"
@@ -598,16 +565,6 @@ const Reservations = () => {
         />
       )}
 
-      {showDocumentManager && selectedReservation && (
-        <DocumentManager 
-          reservation={selectedReservation}
-          isOpen={showDocumentManager}
-          onClose={() => {
-            setShowDocumentManager(false);
-            setSelectedReservation(null);
-          }}
-        />
-      )}
     </div>
   );
 };
