@@ -1,5 +1,5 @@
 
-import { Home, Calendar, BarChart3 } from 'lucide-react';
+import { Home, Calendar, BarChart3, FileText } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import logoImage from '@/assets/logo.png';
@@ -13,6 +13,7 @@ const Layout = ({ children }: LayoutProps) => {
     { name: 'Dashboard', href: '/', icon: Home, shortName: 'Inicio' },
     { name: 'Calendario & Reservas', href: '/calendar', icon: Calendar, shortName: 'Cal. & Reservas' },
     { name: 'Analytics', href: '/analytics', icon: BarChart3, shortName: 'Analytics' },
+    { name: 'Reportes', href: '/reports', icon: FileText, shortName: 'Reportes' },
   ];
 
   return (
