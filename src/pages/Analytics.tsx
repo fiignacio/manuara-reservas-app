@@ -35,7 +35,7 @@ const Analytics = () => {
       const data = await getAllReservations();
       setReservations(data);
     } catch (error) {
-      console.error('Error loading reservations:', error);
+      // Error handled silently
     } finally {
       setLoading(false);
     }

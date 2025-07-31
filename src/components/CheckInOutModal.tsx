@@ -59,7 +59,6 @@ const CheckInOutModal = ({ isOpen, onClose, reservation, type, onSuccess }: Chec
       onSuccess();
       onClose();
     } catch (error) {
-      console.error('Error in check-in/out:', error);
       toast({
         title: "Error",
         description: `Error al registrar ${type === 'check_in' ? 'check-in' : 'check-out'}`,

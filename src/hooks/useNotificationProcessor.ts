@@ -10,19 +10,10 @@ export const useNotificationProcessor = () => {
     // Procesar notificaciones cada 5 minutos
     const processNotifications = async () => {
       try {
-        console.log('Auto-processing notifications...');
-        const processedCount = await notificationService.processNotifications();
-        if (processedCount > 0) {
-          console.log(`Auto-processed ${processedCount} notifications`);
-        }
-
-        // También eliminar reservas vencidas
-        const deletedReservations = await deleteExpiredReservations();
-        if (deletedReservations > 0) {
-          console.log(`Auto-deleted ${deletedReservations} expired reservations`);
-        }
+        await notificationService.processNotifications();
+        await deleteExpiredReservations();
       } catch (error) {
-        console.error('Error in auto-processing notifications:', error);
+        // Silent error handling for background process
       }
     };
 
@@ -45,7 +36,6 @@ export const useNotificationProcessor = () => {
       const deletedReservations = await deleteExpiredReservations();
       return { processedCount, deletedReservations };
     } catch (error) {
-      console.error('Error in manual processing:', error);
       throw error;
     }
   };

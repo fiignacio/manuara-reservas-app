@@ -49,7 +49,6 @@ const Calendar = () => {
         });
       }
     } catch (error) {
-      console.error('Error loading reservations:', error);
       toast({
         title: "⚠️ Error al cargar reservas",
         description: "No se pudieron cargar las reservas desde la base de datos. Por favor, verifica la conexión.",

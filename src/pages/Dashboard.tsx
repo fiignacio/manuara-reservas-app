@@ -34,10 +34,8 @@ const Dashboard = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      console.log('Loading dashboard data...');
       
       const tomorrow = getTomorrowDate();
-      console.log('Tomorrow date for dashboard:', tomorrow);
       
       const [allReservations, arrivals, departures, upcomingArr, upcomingDep, tomorrowDeps, tomorrowArrs] = await Promise.all([
         getAllReservations(),
@@ -49,16 +47,6 @@ const Dashboard = () => {
         getArrivalsForDate(tomorrow)
       ]);
       
-      console.log('Dashboard data loaded:', {
-        totalReservations: allReservations.length,
-        todayArrivals: arrivals.length,
-        todayDepartures: departures.length,
-        upcomingArrivals: upcomingArr.length,
-        upcomingDepartures: upcomingDep.length,
-        tomorrowDepartures: tomorrowDeps.length,
-        tomorrowArrivals: tomorrowArrs.length
-      });
-      
       setReservations(allReservations);
       setTodayArrivals(arrivals);
       setTodayDepartures(departures);
@@ -69,7 +57,7 @@ const Dashboard = () => {
       setLastDataUpdate(new Date().toLocaleTimeString('es-CL'));
       
     } catch (error) {
-      console.error('Error loading dashboard data:', error);
+      // Error handled silently
     } finally {
       setLoading(false);
     }
@@ -89,11 +77,7 @@ const Dashboard = () => {
   const [conflicts, setConflicts] = useState<Reservation[]>([]);
 
   const hasSameDayConflict = (departure: Reservation): boolean => {
-    const hasConflict = tomorrowArrivals.some(arrival => arrival.cabinType === departure.cabinType);
-    if (hasConflict) {
-      console.log(`Conflict detected for ${departure.cabinType}: departure ${departure.id} vs arrival ${tomorrowArrivals.find(a => a.cabinType === departure.cabinType)?.id}`);
-    }
-    return hasConflict;
+    return tomorrowArrivals.some(arrival => arrival.cabinType === departure.cabinType);
   };
 
   useEffect(() => {

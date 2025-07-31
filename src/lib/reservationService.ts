@@ -473,8 +473,6 @@ export const getUpcomingDepartures = async (days: number = 5): Promise<Reservati
   const today = new Date().toISOString().split('T')[0];
   const futureDate = addDays(today, days);
   
-  console.log(`Getting upcoming departures from ${today} to ${futureDate}`);
-  
   const q = query(
     collection(db, COLLECTION_NAME),
     where('checkOut', '>', today),
@@ -487,16 +485,6 @@ export const getUpcomingDepartures = async (days: number = 5): Promise<Reservati
     id: doc.id,
     ...doc.data()
   } as Reservation));
-  
-  console.log(`Found ${departures.length} upcoming departures:`, 
-    departures.map(d => ({
-      id: d.id,
-      passenger: d.passengerName,
-      cabin: d.cabinType,
-      checkOut: d.checkOut,
-      flight: d.departureFlight
-    }))
-  );
   
   return departures;
 };

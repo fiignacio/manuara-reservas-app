@@ -175,7 +175,6 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
             setNextAvailableDate(nextDate);
           }
         } catch (error) {
-          console.error('Error checking availability:', error);
           setAvailabilityStatus(null);
         } finally {
           setCheckingAvailability(false);
@@ -193,8 +192,6 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    console.log('ReservationModal - Submit attempt:', formData);
     
     // Validaciones finales solo si debemos validar fechas
     if (shouldValidateDates) {
@@ -248,8 +245,6 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
         comments: formData.comments || ''
       };
 
-      console.log('ReservationModal - Cleaned form data:', cleanFormData);
-
       if (reservation?.id) {
         await updateReservation(reservation.id, cleanFormData, shouldValidateDates);
         toast({
@@ -266,7 +261,6 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
       onSuccess();
       onClose();
     } catch (error: any) {
-      console.error('ReservationModal - Error:', error);
       const errorMessage = error.message || "Hubo un problema al guardar la reserva.";
       
       toast({

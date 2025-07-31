@@ -57,17 +57,13 @@ const DEFAULT_TEMPLATES: NotificationTemplate[] = [
 // Sistema de logging optimizado
 const logger = {
   info: (message: string, data?: any) => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`📋 [Notifications] ${message}`, data || '');
-    }
+    // Development logging only
   },
   error: (message: string, error?: any) => {
-    console.error(`❌ [Notifications] ${message}`, error || '');
+    // Error logging only in production if needed
   },
   success: (message: string, data?: any) => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`✅ [Notifications] ${message}`, data || '');
-    }
+    // Success logging only
   }
 };
 
