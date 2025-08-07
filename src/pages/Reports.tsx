@@ -11,7 +11,9 @@ import {
   getCabinTypes,
   getAvailableYears,
   ReportData, 
-  ReportFilters 
+  ReportFilters,
+  exportCabinGroupToCSV,
+  exportCabinGroupToPDF
 } from '@/lib/reportsService';
 import { useToast } from '@/hooks/use-toast';
 
@@ -100,6 +102,38 @@ const Reports = () => {
         variant: "destructive",
         title: "Error",
         description: "Error al exportar a PDF",
+      });
+    }
+  };
+
+  const handleGroupExportCSV = async (group: 'small-large' | 'mediums') => {
+    try {
+      await exportCabinGroupToCSV(filters, group);
+      toast({
+        title: 'Exportación exitosa',
+        description: 'El archivo CSV del grupo se ha descargado correctamente',
+      });
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Error al exportar el grupo a CSV',
+      });
+    }
+  };
+
+  const handleGroupExportPDF = async (group: 'small-large' | 'mediums') => {
+    try {
+      await exportCabinGroupToPDF(filters, group);
+      toast({
+        title: 'Exportación exitosa',
+        description: 'El archivo PDF del grupo se ha descargado correctamente',
+      });
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Error al exportar el grupo a PDF',
       });
     }
   };
@@ -250,6 +284,40 @@ const Reports = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Exportar por Grupo de Cabañas */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Download className="w-5 h-5" />
+            <span>Exportar por Grupo de Cabañas</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="flex items-center justify-between p-3 rounded-lg bg-accent/50">
+              <div>
+                <p className="font-medium text-foreground">Pequeña + Grande</p>
+                <p className="text-sm text-muted-foreground">Exporta ambas en un archivo</p>
+              </div>
+              <div className="flex space-x-2">
+                <Button variant="outline" onClick={() => handleGroupExportCSV('small-large')}>CSV</Button>
+                <Button variant="outline" onClick={() => handleGroupExportPDF('small-large')}>PDF</Button>
+              </div>
+            </div>
+            <div className="flex items-center justify-between p-3 rounded-lg bg-accent/50">
+              <div>
+                <p className="font-medium text-foreground">Medianas (1 & 2)</p>
+                <p className="text-sm text-muted-foreground">Exporta ambas en un archivo</p>
+              </div>
+              <div className="flex space-x-2">
+                <Button variant="outline" onClick={() => handleGroupExportCSV('mediums')}>CSV</Button>
+                <Button variant="outline" onClick={() => handleGroupExportPDF('mediums')}>PDF</Button>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Report Data Table */}
       {reportData.length > 0 && (
