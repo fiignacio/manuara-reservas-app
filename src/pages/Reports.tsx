@@ -68,11 +68,10 @@ const Reports = () => {
 
   const handleExportCSV = async () => {
     try {
-      if (reportData.length === 0) {
-        await loadReportData();
-        return;
-      }
-      exportToCSV(reportData, filters);
+      const dataToExport = reportData.length === 0
+        ? await generateReportData(filters)
+        : reportData;
+      exportToCSV(dataToExport, filters);
       toast({
         title: "Exportación exitosa",
         description: "El archivo CSV se ha descargado correctamente",
@@ -88,11 +87,10 @@ const Reports = () => {
 
   const handleExportPDF = async () => {
     try {
-      if (reportData.length === 0) {
-        await loadReportData();
-        return;
-      }
-      exportToPDF(reportData, filters);
+      const dataToExport = reportData.length === 0
+        ? await generateReportData(filters)
+        : reportData;
+      exportToPDF(dataToExport, filters);
       toast({
         title: "Exportación exitosa",
         description: "El archivo PDF se ha descargado correctamente",
