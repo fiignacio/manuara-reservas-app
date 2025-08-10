@@ -5,17 +5,17 @@
 
 ## Objetivo del desarrollo
 
-el objetivo principal del desarrollo es llevar un registro y orden de las reservas de mis cabañas ubicadas en rapa nui, este desarrollo es solo visitado por el administrador el cual lleva a cabo todas las modificaciones y mejoras continuas al desarrollo.
+el objetivo principal del desarrollo es llevar un registro y orden de las reservas de hospedaje de mis cabañas ubicadas en rapa nui, este desarrollo es solo visitado por el administrador el cual lleva a cabo todas las modificaciones y mejoras continuas al desarrollo.
 
 funcionalidades
-1. crear nuevas redervas
+1. crear nuevas reservas de hospedaje
 2. modificar redervas existentes
 3. eliminar redervas existentes o duplicados
 4. repostería de reservas
 5. dashboard informativo de las reservas actuales, por llegar y por salir
 
 **POSIBLES MEJORAS**
-1. validación de ocupación en vivo sin necesidad de enviar el formulario, que me indique si la fecha está disponible y que me indique que cabaña está disponible para esa fecha
+1. validación de ocupación de hospedaje de mis cabañas en vivo sin necesidad de enviar el formulario, que me indique si la fecha está disponible y que me indique que cabaña está disponible para esa fecha
 2. cotizaciones con la información relevante
 
 **URL**: https://lovable.dev/projects/5999e102-52e3-4e28-a3d7-73351bb048a2
