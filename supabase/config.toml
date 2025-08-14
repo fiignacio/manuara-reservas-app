@@ -1,1 +1,4 @@
 project_id = "ewaetndthowtdjpxvsvg"
+
+[functions.cabin-availability]
+verify_jwt = false
