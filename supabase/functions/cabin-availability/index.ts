@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 interface AvailabilityRequest {
-  cabinType: string;
+  cabinType: 'pequeña' | 'mediana1' | 'mediana2' | 'grande';
   checkIn: string;
   checkOut: string;
 }
