@@ -99,12 +99,22 @@ serve(async (req) => {
       },
     });
 
+    if (!reservationsResponse.ok) {
+      console.error('Error fetching reservations:', reservationsResponse.status, await reservationsResponse.text());
+      throw new Error(`Failed to fetch reservations: ${reservationsResponse.status}`);
+    }
+
     const reservationsData = await reservationsResponse.json();
+    console.log('Raw Firestore response:', JSON.stringify(reservationsData, null, 2));
+    
     const reservations = reservationsData.documents || [];
+    console.log(`Found ${reservations.length} total reservations in Firestore`);
 
     // Check for conflicts
     const requestCheckIn = new Date(checkIn);
     const requestCheckOut = new Date(checkOut);
+    
+    console.log(`Checking availability for cabin "${cabinType}" from ${checkIn} to ${checkOut}`);
     
     const conflictingReservations = reservations.filter((doc: any) => {
       const data = doc.fields;
@@ -113,15 +123,27 @@ serve(async (req) => {
       const reservationCheckOut = new Date(data.checkOut?.stringValue);
       const status = data.status?.stringValue;
 
+      console.log(`Checking reservation: ${reservationCabinType}, ${data.checkIn?.stringValue} to ${data.checkOut?.stringValue}, status: ${status}`);
+
       // Only check confirmed reservations for the same cabin type
-      if (reservationCabinType !== cabinType || status === 'cancelled') {
+      if (reservationCabinType !== cabinType) {
+        console.log(`  -> Skipping: different cabin type (${reservationCabinType} vs ${cabinType})`);
+        return false;
+      }
+      
+      if (status === 'cancelled') {
+        console.log(`  -> Skipping: cancelled reservation`);
         return false;
       }
 
       // Check for date overlap
-      return requestCheckIn < reservationCheckOut && requestCheckOut > reservationCheckIn;
+      const hasOverlap = requestCheckIn < reservationCheckOut && requestCheckOut > reservationCheckIn;
+      console.log(`  -> Date overlap check: ${hasOverlap} (request: ${requestCheckIn.toISOString()} - ${requestCheckOut.toISOString()}, reservation: ${reservationCheckIn.toISOString()} - ${reservationCheckOut.toISOString()})`);
+      
+      return hasOverlap;
     });
 
+    console.log(`Found ${conflictingReservations.length} conflicting reservations`);
     const available = conflictingReservations.length === 0;
     
     const response: AvailabilityResponse = {
