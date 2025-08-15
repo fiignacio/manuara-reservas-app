@@ -67,6 +67,62 @@ serve(async (req) => {
       );
     }
 
+    // Validate cabin type
+    const validCabinTypes = ['pequeña', 'mediana1', 'mediana2', 'grande'];
+    if (!validCabinTypes.includes(cabinType)) {
+      return new Response(
+        JSON.stringify({ 
+          error: `Invalid cabin type. Valid types are: ${validCabinTypes.join(', ')}` 
+        }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    // Validate dates
+    const checkInDate = new Date(checkIn);
+    const checkOutDate = new Date(checkOut);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (isNaN(checkInDate.getTime()) || isNaN(checkOutDate.getTime())) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'Invalid date format. Use YYYY-MM-DD format.' 
+        }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    if (checkInDate < today) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'Check-in date cannot be in the past.' 
+        }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    if (checkOutDate <= checkInDate) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'Check-out date must be after check-in date.' 
+        }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
     // Initialize Firebase Admin
     const serviceAccount = JSON.parse(Deno.env.get('FIREBASE_SERVICE_ACCOUNT') || '{}');
     
@@ -110,6 +166,8 @@ serve(async (req) => {
     // Query Firestore for reservations that overlap with the requested dates
     const firestoreUrl = `https://firestore.googleapis.com/v1/projects/${serviceAccount.project_id}/databases/(default)/documents/reservations`;
     
+    console.log(`Querying Firestore URL: ${firestoreUrl}`);
+    
     const reservationsResponse = await fetch(firestoreUrl, {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
@@ -118,8 +176,9 @@ serve(async (req) => {
     });
 
     if (!reservationsResponse.ok) {
-      console.error('Error fetching reservations:', reservationsResponse.status, await reservationsResponse.text());
-      throw new Error(`Failed to fetch reservations: ${reservationsResponse.status}`);
+      const errorText = await reservationsResponse.text();
+      console.error('Error fetching reservations:', reservationsResponse.status, errorText);
+      throw new Error(`Failed to fetch reservations: ${reservationsResponse.status} - ${errorText}`);
     }
 
     const reservationsData = await reservationsResponse.json();
@@ -136,21 +195,37 @@ serve(async (req) => {
     
     const conflictingReservations = reservations.filter((doc: any) => {
       const data = doc.fields;
+      
+      // Validate data structure
+      if (!data || !data.cabinType || !data.checkIn || !data.checkOut) {
+        console.log(`  -> Skipping: incomplete reservation data`);
+        return false;
+      }
+      
       const reservationCabinType = data.cabinType?.stringValue;
-      const reservationCheckIn = new Date(data.checkIn?.stringValue);
-      const reservationCheckOut = new Date(data.checkOut?.stringValue);
-      const status = data.status?.stringValue;
+      const reservationCheckInStr = data.checkIn?.stringValue;
+      const reservationCheckOutStr = data.checkOut?.stringValue;
+      const status = data.status?.stringValue || 'confirmed'; // Default to confirmed if no status
 
-      console.log(`Checking reservation: ${reservationCabinType}, ${data.checkIn?.stringValue} to ${data.checkOut?.stringValue}, status: ${status}`);
+      console.log(`Checking reservation: ${reservationCabinType}, ${reservationCheckInStr} to ${reservationCheckOutStr}, status: ${status}`);
 
-      // Only check confirmed reservations for the same cabin type
+      // Only check confirmed/active reservations for the same cabin type
       if (reservationCabinType !== cabinType) {
         console.log(`  -> Skipping: different cabin type (${reservationCabinType} vs ${cabinType})`);
         return false;
       }
       
-      if (status === 'cancelled') {
+      if (status === 'cancelled' || status === 'canceled') {
         console.log(`  -> Skipping: cancelled reservation`);
+        return false;
+      }
+
+      // Parse dates with error handling
+      const reservationCheckIn = new Date(reservationCheckInStr);
+      const reservationCheckOut = new Date(reservationCheckOutStr);
+      
+      if (isNaN(reservationCheckIn.getTime()) || isNaN(reservationCheckOut.getTime())) {
+        console.log(`  -> Skipping: invalid dates in reservation`);
         return false;
       }
 
