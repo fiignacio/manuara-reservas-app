@@ -74,7 +74,12 @@ serve(async (req) => {
       throw new Error('Firebase service account not configured');
     }
 
+    console.log('Using Firebase project:', serviceAccount.project_id);
+
     // Get Firebase Auth token
+    const jwt = await createJWT(serviceAccount);
+    console.log('JWT created successfully');
+
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: {
@@ -82,11 +87,24 @@ serve(async (req) => {
       },
       body: new URLSearchParams({
         grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-        assertion: await createJWT(serviceAccount),
+        assertion: jwt,
       }),
     });
 
+    if (!tokenResponse.ok) {
+      const errorText = await tokenResponse.text();
+      console.error('Token request failed:', tokenResponse.status, errorText);
+      throw new Error(`Failed to get access token: ${tokenResponse.status} - ${errorText}`);
+    }
+
     const tokenData = await tokenResponse.json();
+    console.log('Token response:', tokenData);
+    
+    if (!tokenData.access_token) {
+      console.error('No access token in response:', tokenData);
+      throw new Error('No access token received from Firebase');
+    }
+    
     const accessToken = tokenData.access_token;
 
     // Query Firestore for reservations that overlap with the requested dates
