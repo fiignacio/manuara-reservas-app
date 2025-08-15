@@ -184,9 +184,21 @@ async function createJWT(serviceAccount: any) {
   
   const data = encoder.encode(`${headerB64}.${payloadB64}`);
   
+  // Convert the private key from PEM format to PKCS8
+  const privateKeyPem = serviceAccount.private_key;
+  const pemHeader = "-----BEGIN PRIVATE KEY-----";
+  const pemFooter = "-----END PRIVATE KEY-----";
+  
+  const pemContents = privateKeyPem
+    .replace(pemHeader, "")
+    .replace(pemFooter, "")
+    .replace(/\s/g, "");
+  
+  const keyBuffer = Uint8Array.from(atob(pemContents), c => c.charCodeAt(0));
+  
   const key = await crypto.subtle.importKey(
     'pkcs8',
-    new TextEncoder().encode(serviceAccount.private_key),
+    keyBuffer.buffer,
     { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
     false,
     ['sign']
