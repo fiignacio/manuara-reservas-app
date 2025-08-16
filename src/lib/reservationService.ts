@@ -1,24 +1,9 @@
-import { 
-  collection, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  doc, 
-  getDocs, 
-  getDoc,
-  query, 
-  orderBy,
-  where,
-  Timestamp,
-  serverTimestamp
-} from 'firebase/firestore';
-import { db } from './firebase';
+import { supabase } from '@/integrations/supabase/client';
 import { Reservation, ReservationFormData, CheckInOutData } from '@/types/reservation';
 import { Payment, PaymentFormData } from '@/types/payment';
 import { addDays, getTomorrowDate } from './dateUtils';
-import { notificationService } from './notificationService';
 
-const COLLECTION_NAME = 'reservas';
+const COLLECTION_NAME = 'reservations';
 
 // Clean reservation data to remove undefined fields and set defaults
 const cleanReservationData = (data: Partial<Reservation>) => {
@@ -113,8 +98,6 @@ export const updatePaymentStatus = (reservation: Reservation): 'pending' | 'part
 };
 
 export const addPayment = async (reservationId: string, paymentData: PaymentFormData): Promise<void> => {
-  
-  
   // Get current reservation
   const reservations = await getAllReservations();
   const reservation = reservations.find(r => r.id === reservationId);
@@ -150,7 +133,6 @@ export const addPayment = async (reservationId: string, paymentData: PaymentForm
   const newRemainingBalance = calculateRemainingBalance(updatedReservation);
   const newPaymentStatus = updatePaymentStatus(updatedReservation);
   
-  
   const updateData = cleanReservationData({
     payments: updatedPayments,
     remainingBalance: newRemainingBalance,
@@ -158,7 +140,12 @@ export const addPayment = async (reservationId: string, paymentData: PaymentForm
     updatedAt: new Date()
   });
   
-  await updateDoc(doc(db, COLLECTION_NAME, reservationId), updateData);
+  const { error } = await supabase
+    .from(COLLECTION_NAME)
+    .update(updateData)
+    .eq('id', reservationId);
+    
+  if (error) throw error;
 };
 
 export const checkCabinAvailability = async (
@@ -167,15 +154,14 @@ export const checkCabinAvailability = async (
   checkOut: string,
   excludeReservationId?: string
 ): Promise<boolean> => {
-  let q = query(
-    collection(db, COLLECTION_NAME),
-    where('cabinType', '==', cabinType)
-  );
-
-  const querySnapshot = await getDocs(q);
+  const { data, error } = await supabase
+    .from(COLLECTION_NAME)
+    .select('*')
+    .eq('cabinType', cabinType);
+    
+  if (error) throw error;
   
-  const conflictingReservations = querySnapshot.docs
-    .map(doc => ({ id: doc.id, ...doc.data() } as Reservation))
+  const conflictingReservations = (data || [])
     .filter(reservation => {
       // Excluir la reserva actual si estamos editando
       if (excludeReservationId && reservation.id === excludeReservationId) {
@@ -234,21 +220,21 @@ export const validateReservationDates = (checkIn: string, checkOut: string): { i
 };
 
 export const getNextAvailableDate = async (cabinType: string, preferredCheckIn: string): Promise<string | null> => {
-  const q = query(
-    collection(db, COLLECTION_NAME),
-    where('cabinType', '==', cabinType),
-    where('checkOut', '>', preferredCheckIn),
-    orderBy('checkOut', 'asc')
-  );
-
-  const querySnapshot = await getDocs(q);
+  const { data, error } = await supabase
+    .from(COLLECTION_NAME)
+    .select('*')
+    .eq('cabinType', cabinType)
+    .gt('checkOut', preferredCheckIn)
+    .order('checkOut', { ascending: true });
+    
+  if (error) throw error;
   
-  if (querySnapshot.empty) {
+  if (!data || data.length === 0) {
     return preferredCheckIn; // Cabaña disponible desde la fecha preferida
   }
 
   // Buscar el primer gap disponible
-  const reservations = querySnapshot.docs.map(doc => doc.data() as Reservation);
+  const reservations = data as Reservation[];
   
   for (const reservation of reservations) {
     if (preferredCheckIn < reservation.checkIn) {
@@ -262,7 +248,6 @@ export const getNextAvailableDate = async (cabinType: string, preferredCheckIn: 
 };
 
 export const createReservation = async (data: ReservationFormData): Promise<string> => {
-
   if (!data.checkIn || !data.checkOut) {
     throw new Error('Las fechas de check-in y check-out son obligatorias.');
   }
@@ -301,28 +286,21 @@ export const createReservation = async (data: ReservationFormData): Promise<stri
     updatedAt: new Date()
   };
   
-  // Clean the data before sending to Firebase
+  // Clean the data before sending to Supabase
   const cleanedReservation = cleanReservationData(reservation);
   
-  const docRef = await addDoc(collection(db, COLLECTION_NAME), cleanedReservation);
-  
-  // Generar notificaciones automáticas para la nueva reserva
-  try {
-    const fullReservation: Reservation = {
-      ...reservation,
-      id: docRef.id
-    };
+  const { data: result, error } = await supabase
+    .from(COLLECTION_NAME)
+    .insert(cleanedReservation)
+    .select()
+    .single();
     
-    await notificationService.generateReservationNotifications(fullReservation);
-  } catch (error) {
-    // Notification errors should not fail reservation creation
-  }
+  if (error) throw error;
   
-  return docRef.id;
+  return result.id;
 };
 
 export const updateReservation = async (id: string, data: ReservationFormData, shouldUpdateDates: boolean = true): Promise<void> => {
-  
   // Validar capacidad de la cabaña siempre
   const capacityValidation = validateCabinCapacity(data.cabinType, data.adults, data.children, data.babies);
   if (!capacityValidation.isValid) {
@@ -372,357 +350,263 @@ export const updateReservation = async (id: string, data: ReservationFormData, s
     updatedAt: new Date()
   };
   
-  // Clean the data before sending to Firebase
+  // Clean the data before sending to Supabase
   const cleanedReservation = cleanReservationData(reservation);
   
-  await updateDoc(doc(db, COLLECTION_NAME, id), cleanedReservation);
-  
-  // Regenerar notificaciones solo si las fechas se actualizaron
-  if (shouldUpdateDates) {
-    try {
-      const fullReservation: Reservation = {
-        ...reservation,
-        id,
-        payments,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      } as Reservation;
-      
-      await notificationService.generateReservationNotifications(fullReservation);
-    } catch (error) {
-      // Notification errors should not fail reservation update
-    }
-  }
+  const { error } = await supabase
+    .from(COLLECTION_NAME)
+    .update(cleanedReservation)
+    .eq('id', id);
+    
+  if (error) throw error;
 };
 
 export const deleteReservation = async (id: string): Promise<void> => {
-  await deleteDoc(doc(db, COLLECTION_NAME, id));
+  const { error } = await supabase
+    .from(COLLECTION_NAME)
+    .delete()
+    .eq('id', id);
+    
+  if (error) throw error;
 };
 
 export const getAllReservations = async (): Promise<Reservation[]> => {
-  const q = query(collection(db, COLLECTION_NAME), orderBy('checkIn', 'asc'));
-  const querySnapshot = await getDocs(q);
+  const { data, error } = await supabase
+    .from(COLLECTION_NAME)
+    .select('*')
+    .order('checkIn', { ascending: true });
+    
+  if (error) throw error;
   
-  return querySnapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  } as Reservation));
+  return (data || []) as Reservation[];
 };
 
 export const getReservationsForDate = async (date: string): Promise<Reservation[]> => {
-  const q = query(
-    collection(db, COLLECTION_NAME),
-    where('checkIn', '<=', date),
-    where('checkOut', '>', date)
-  );
-  const querySnapshot = await getDocs(q);
+  const { data, error } = await supabase
+    .from(COLLECTION_NAME)
+    .select('*')
+    .lte('checkIn', date)
+    .gt('checkOut', date);
+    
+  if (error) throw error;
   
-  return querySnapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  } as Reservation));
+  return (data || []) as Reservation[];
 };
 
 export const getTodayArrivals = async (): Promise<Reservation[]> => {
   const today = new Date().toISOString().split('T')[0];
-  const q = query(
-    collection(db, COLLECTION_NAME),
-    where('checkIn', '==', today)
-  );
-  const querySnapshot = await getDocs(q);
+  const { data, error } = await supabase
+    .from(COLLECTION_NAME)
+    .select('*')
+    .eq('checkIn', today);
+    
+  if (error) throw error;
   
-  return querySnapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  } as Reservation));
+  return (data || []) as Reservation[];
 };
 
 export const getTodayDepartures = async (): Promise<Reservation[]> => {
   const today = new Date().toISOString().split('T')[0];
-  const q = query(
-    collection(db, COLLECTION_NAME),
-    where('checkOut', '==', today)
-  );
-  const querySnapshot = await getDocs(q);
+  const { data, error } = await supabase
+    .from(COLLECTION_NAME)
+    .select('*')
+    .eq('checkOut', today);
+    
+  if (error) throw error;
   
-  return querySnapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  } as Reservation));
+  return (data || []) as Reservation[];
 };
 
 export const getUpcomingArrivals = async (days: number = 5): Promise<Reservation[]> => {
   const today = new Date().toISOString().split('T')[0];
   const futureDate = addDays(today, days);
   
-  const q = query(
-    collection(db, COLLECTION_NAME),
-    where('checkIn', '>', today),
-    where('checkIn', '<=', futureDate),
-    orderBy('checkIn', 'asc')
-  );
-  const querySnapshot = await getDocs(q);
+  const { data, error } = await supabase
+    .from(COLLECTION_NAME)
+    .select('*')
+    .gt('checkIn', today)
+    .lte('checkIn', futureDate)
+    .order('checkIn', { ascending: true });
+    
+  if (error) throw error;
   
-  return querySnapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  } as Reservation));
+  return (data || []) as Reservation[];
 };
 
 export const getUpcomingDepartures = async (days: number = 5): Promise<Reservation[]> => {
   const today = new Date().toISOString().split('T')[0];
   const futureDate = addDays(today, days);
   
-  const q = query(
-    collection(db, COLLECTION_NAME),
-    where('checkOut', '>', today),
-    where('checkOut', '<=', futureDate),
-    orderBy('checkOut', 'asc')
-  );
-  const querySnapshot = await getDocs(q);
+  const { data, error } = await supabase
+    .from(COLLECTION_NAME)
+    .select('*')
+    .gt('checkOut', today)
+    .lte('checkOut', futureDate)
+    .order('checkOut', { ascending: true });
+    
+  if (error) throw error;
   
-  const departures = querySnapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  } as Reservation));
-  
-  return departures;
+  return (data || []) as Reservation[];
 };
 
 export const getTomorrowDepartures = async (): Promise<Reservation[]> => {
   const tomorrow = getTomorrowDate();
   
-  const q = query(
-    collection(db, COLLECTION_NAME),
-    where('checkOut', '==', tomorrow)
-  );
-  const querySnapshot = await getDocs(q);
+  const { data, error } = await supabase
+    .from(COLLECTION_NAME)
+    .select('*')
+    .eq('checkOut', tomorrow);
+    
+  if (error) throw error;
   
-  const departures = querySnapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  } as Reservation));
-  
-  
-  return departures;
+  return (data || []) as Reservation[];
 };
 
 export const getArrivalsForDate = async (date: string): Promise<Reservation[]> => {
-  const q = query(
-    collection(db, COLLECTION_NAME),
-    where('checkIn', '==', date)
-  );
-  const querySnapshot = await getDocs(q);
+  const { data, error } = await supabase
+    .from(COLLECTION_NAME)
+    .select('*')
+    .eq('checkIn', date);
+    
+  if (error) throw error;
   
-  return querySnapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  } as Reservation));
+  return (data || []) as Reservation[];
 };
 
 export const deleteExpiredReservations = async (): Promise<number> => {
   const today = new Date().toISOString().split('T')[0];
   
-  // Buscar reservas que salieron antes de hoy (no igual a hoy)
-  // Si checkout es '2025-01-21', se debe eliminar a partir del '2025-01-22'
-  const q = query(
-    collection(db, COLLECTION_NAME),
-    where('checkOut', '<', today)
-  );
+  const { data, error } = await supabase
+    .from(COLLECTION_NAME)
+    .delete()
+    .lt('checkOut', today)
+    .select('id');
+    
+  if (error) throw error;
   
-  const querySnapshot = await getDocs(q);
-  let deletedCount = 0;
-  
-  // Eliminar reservas vencidas
-  for (const docSnapshot of querySnapshot.docs) {
-    try {
-      await deleteDoc(doc(db, COLLECTION_NAME, docSnapshot.id));
-      deletedCount++;
-    } catch (error) {
-      // Continue with other deletions even if one fails
-    }
-  }
-  
-  return deletedCount;
+  return (data || []).length;
 };
 
 // ============= CHECK-IN/CHECK-OUT FUNCTIONS =============
 
 export const performCheckIn = async (data: CheckInOutData): Promise<void> => {
-  try {
-    const reservationRef = doc(db, COLLECTION_NAME, data.reservationId);
-    const reservationSnap = await getDoc(reservationRef);
+  const { data: reservation, error: fetchError } = await supabase
+    .from(COLLECTION_NAME)
+    .select('*')
+    .eq('id', data.reservationId)
+    .single();
     
-    if (!reservationSnap.exists()) {
-      throw new Error('Reserva no encontrada');
-    }
+  if (fetchError) throw fetchError;
+  if (!reservation) throw new Error('Reserva no encontrada');
+  
+  // Validar que no haya check-in previo
+  if (reservation.checkInStatus === 'checked_in') {
+    throw new Error('Esta reserva ya tiene check-in registrado');
+  }
 
-    const reservation = reservationSnap.data() as Reservation;
-    
-    // Validar que no haya check-in previo
-    if (reservation.checkInStatus === 'checked_in') {
-      throw new Error('Esta reserva ya tiene check-in registrado');
-    }
-
-    await updateDoc(reservationRef, {
+  const { error } = await supabase
+    .from(COLLECTION_NAME)
+    .update({
       actualCheckIn: data.actualDateTime,
       checkInStatus: 'checked_in',
       checkInNotes: data.notes || '',
-      updatedAt: new Date()
-    });
-
-  } catch (error) {
-    throw error;
-  }
+      updatedAt: new Date().toISOString()
+    })
+    .eq('id', data.reservationId);
+    
+  if (error) throw error;
 };
 
 export const performCheckOut = async (data: CheckInOutData): Promise<void> => {
-  try {
-    const reservationRef = doc(db, COLLECTION_NAME, data.reservationId);
-    const reservationSnap = await getDoc(reservationRef);
+  const { data: reservation, error: fetchError } = await supabase
+    .from(COLLECTION_NAME)
+    .select('*')
+    .eq('id', data.reservationId)
+    .single();
     
-    if (!reservationSnap.exists()) {
-      throw new Error('Reserva no encontrada');
-    }
+  if (fetchError) throw fetchError;
+  if (!reservation) throw new Error('Reserva no encontrada');
+  
+  // Validar que haya check-in previo
+  if (reservation.checkInStatus !== 'checked_in') {
+    throw new Error('No se puede hacer check-out sin check-in previo');
+  }
 
-    const reservation = reservationSnap.data() as Reservation;
-    
-    // Validar que haya check-in previo
-    if (reservation.checkInStatus !== 'checked_in') {
-      throw new Error('No se puede hacer check-out sin check-in previo');
-    }
+  // Validar que no haya check-out previo
+  if (reservation.checkOutStatus === 'checked_out') {
+    throw new Error('Esta reserva ya tiene check-out registrado');
+  }
 
-    // Validar que no haya check-out previo
-    if (reservation.checkOutStatus === 'checked_out') {
-      throw new Error('Esta reserva ya tiene check-out registrado');
-    }
-
-    await updateDoc(reservationRef, {
+  const { error } = await supabase
+    .from(COLLECTION_NAME)
+    .update({
       actualCheckOut: data.actualDateTime,
       checkOutStatus: 'checked_out',
       checkOutNotes: data.notes || '',
-      updatedAt: new Date()
-    });
-
-  } catch (error) {
-    throw error;
-  }
+      updatedAt: new Date().toISOString()
+    })
+    .eq('id', data.reservationId);
+    
+  if (error) throw error;
 };
 
 export const getCurrentlyStaying = async (): Promise<Reservation[]> => {
-  try {
-    const reservationsRef = collection(db, COLLECTION_NAME);
-    const q = query(
-      reservationsRef,
-      where('checkInStatus', '==', 'checked_in'),
-      where('checkOutStatus', '==', 'pending')
-    );
+  const { data, error } = await supabase
+    .from(COLLECTION_NAME)
+    .select('*')
+    .eq('checkInStatus', 'checked_in')
+    .eq('checkOutStatus', 'pending')
+    .order('passengerName', { ascending: true });
     
-    const querySnapshot = await getDocs(q);
-    const reservations: Reservation[] = [];
-    
-    querySnapshot.forEach((doc) => {
-      const data = doc.data() as Reservation;
-      reservations.push({
-        ...data,
-        id: doc.id,
-        createdAt: data.createdAt instanceof Date ? data.createdAt : (data.createdAt as any)?.toDate?.(),
-        updatedAt: data.updatedAt instanceof Date ? data.updatedAt : (data.updatedAt as any)?.toDate?.()
-      });
-    });
-    
-    return reservations.sort((a, b) => a.passengerName.localeCompare(b.passengerName));
-  } catch (error) {
-    return [];
-  }
+  if (error) return [];
+  
+  return (data || []) as Reservation[];
 };
 
 export const getPendingCheckIns = async (date?: string): Promise<Reservation[]> => {
-  try {
-    const targetDate = date || new Date().toISOString().split('T')[0];
-    const reservationsRef = collection(db, COLLECTION_NAME);
-    const q = query(
-      reservationsRef,
-      where('checkIn', '==', targetDate),
-      where('checkInStatus', '==', 'pending')
-    );
+  const targetDate = date || new Date().toISOString().split('T')[0];
+  
+  const { data, error } = await supabase
+    .from(COLLECTION_NAME)
+    .select('*')
+    .eq('checkIn', targetDate)
+    .eq('checkInStatus', 'pending')
+    .order('passengerName', { ascending: true });
     
-    const querySnapshot = await getDocs(q);
-    const reservations: Reservation[] = [];
-    
-    querySnapshot.forEach((doc) => {
-      const data = doc.data() as Reservation;
-      reservations.push({
-        ...data,
-        id: doc.id,
-        createdAt: data.createdAt instanceof Date ? data.createdAt : (data.createdAt as any)?.toDate?.(),
-        updatedAt: data.updatedAt instanceof Date ? data.updatedAt : (data.updatedAt as any)?.toDate?.()
-      });
-    });
-    
-    return reservations.sort((a, b) => a.passengerName.localeCompare(b.passengerName));
-  } catch (error) {
-    return [];
-  }
+  if (error) return [];
+  
+  return (data || []) as Reservation[];
 };
 
 export const getPendingCheckOuts = async (date?: string): Promise<Reservation[]> => {
-  try {
-    const targetDate = date || new Date().toISOString().split('T')[0];
-    const reservationsRef = collection(db, COLLECTION_NAME);
-    const q = query(
-      reservationsRef,
-      where('checkOut', '==', targetDate),
-      where('checkOutStatus', '==', 'pending'),
-      where('checkInStatus', '==', 'checked_in')
-    );
+  const targetDate = date || new Date().toISOString().split('T')[0];
+  
+  const { data, error } = await supabase
+    .from(COLLECTION_NAME)
+    .select('*')
+    .eq('checkOut', targetDate)
+    .eq('checkOutStatus', 'pending')
+    .eq('checkInStatus', 'checked_in')
+    .order('passengerName', { ascending: true });
     
-    const querySnapshot = await getDocs(q);
-    const reservations: Reservation[] = [];
-    
-    querySnapshot.forEach((doc) => {
-      const data = doc.data() as Reservation;
-      reservations.push({
-        ...data,
-        id: doc.id,
-        createdAt: data.createdAt instanceof Date ? data.createdAt : (data.createdAt as any)?.toDate?.(),
-        updatedAt: data.updatedAt instanceof Date ? data.updatedAt : (data.updatedAt as any)?.toDate?.()
-      });
-    });
-    
-    return reservations.sort((a, b) => a.passengerName.localeCompare(b.passengerName));
-  } catch (error) {
-    return [];
-  }
+  if (error) return [];
+  
+  return (data || []) as Reservation[];
 };
 
 export const getNoShows = async (): Promise<Reservation[]> => {
-  try {
-    const today = new Date().toISOString().split('T')[0];
-    const reservationsRef = collection(db, COLLECTION_NAME);
-    const q = query(
-      reservationsRef,
-      where('checkInStatus', '==', 'pending'),
-      where('checkIn', '<', today)
-    );
+  const today = new Date().toISOString().split('T')[0];
+  
+  const { data, error } = await supabase
+    .from(COLLECTION_NAME)
+    .select('*')
+    .eq('checkInStatus', 'pending')
+    .lt('checkIn', today)
+    .order('checkIn', { ascending: true });
     
-    const querySnapshot = await getDocs(q);
-    const reservations: Reservation[] = [];
-    
-    querySnapshot.forEach((doc) => {
-      const data = doc.data() as Reservation;
-      reservations.push({
-        ...data,
-        id: doc.id,
-        createdAt: data.createdAt instanceof Date ? data.createdAt : (data.createdAt as any)?.toDate?.(),
-        updatedAt: data.updatedAt instanceof Date ? data.updatedAt : (data.updatedAt as any)?.toDate?.()
-      });
-    });
-    
-    return reservations.sort((a, b) => new Date(a.checkIn).getTime() - new Date(b.checkIn).getTime());
-  } catch (error) {
-    return [];
-  }
+  if (error) return [];
+  
+  return (data || []) as Reservation[];
 };
 
 // Confirmation management
@@ -731,17 +615,15 @@ export const markConfirmationSent = async (
   method: 'email' | 'whatsapp' | 'manual',
   notes?: string
 ): Promise<void> => {
-  try {
-    const docRef = doc(db, COLLECTION_NAME, reservationId);
-    const updateData = {
+  const { error } = await supabase
+    .from(COLLECTION_NAME)
+    .update({
       confirmationSent: true,
       confirmationSentDate: new Date().toISOString(),
       confirmationMethod: method,
-      updatedAt: serverTimestamp()
-    };
-
-    await updateDoc(docRef, updateData);
-  } catch (error) {
-    throw new Error('Error al marcar confirmación como enviada');
-  }
+      updatedAt: new Date().toISOString()
+    })
+    .eq('id', reservationId);
+    
+  if (error) throw new Error('Error al marcar confirmación como enviada');
 };

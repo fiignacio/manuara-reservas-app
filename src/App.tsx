@@ -10,8 +10,6 @@ import Calendar from "./pages/Calendar";
 import Reservations from "./pages/Reservations";
 import Analytics from "./pages/Analytics";
 import Reports from "./pages/Reports";
-import ApiTest from "./pages/ApiTest";
-
 import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
@@ -25,7 +23,6 @@ const AppContent = () => {
         <Route path="/reservations" element={<Reservations />} />
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/reports" element={<Reports />} />
-        <Route path="/api-test" element={<ApiTest />} />
         
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
