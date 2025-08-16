@@ -7,14 +7,109 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "13.0.4"
   }
   public: {
     Tables: {
-      [_ in never]: never
+      reservations: {
+        Row: {
+          actual_check_in: string | null
+          actual_check_out: string | null
+          adults: number | null
+          babies: number | null
+          cabin_type: string
+          check_in: string
+          check_in_notes: string | null
+          check_in_status: string | null
+          check_out: string
+          check_out_notes: string | null
+          check_out_status: string | null
+          children: number | null
+          confirmation_method: string | null
+          confirmation_sent: boolean | null
+          confirmation_sent_date: string | null
+          created_at: string | null
+          custom_price: number | null
+          email: string | null
+          id: string
+          passenger_name: string
+          payment_status: string | null
+          payments: Json | null
+          phone: string | null
+          remaining_balance: number | null
+          season: string | null
+          special_requests: string | null
+          total_price: number | null
+          updated_at: string | null
+          use_custom_price: boolean | null
+        }
+        Insert: {
+          actual_check_in?: string | null
+          actual_check_out?: string | null
+          adults?: number | null
+          babies?: number | null
+          cabin_type: string
+          check_in: string
+          check_in_notes?: string | null
+          check_in_status?: string | null
+          check_out: string
+          check_out_notes?: string | null
+          check_out_status?: string | null
+          children?: number | null
+          confirmation_method?: string | null
+          confirmation_sent?: boolean | null
+          confirmation_sent_date?: string | null
+          created_at?: string | null
+          custom_price?: number | null
+          email?: string | null
+          id?: string
+          passenger_name: string
+          payment_status?: string | null
+          payments?: Json | null
+          phone?: string | null
+          remaining_balance?: number | null
+          season?: string | null
+          special_requests?: string | null
+          total_price?: number | null
+          updated_at?: string | null
+          use_custom_price?: boolean | null
+        }
+        Update: {
+          actual_check_in?: string | null
+          actual_check_out?: string | null
+          adults?: number | null
+          babies?: number | null
+          cabin_type?: string
+          check_in?: string
+          check_in_notes?: string | null
+          check_in_status?: string | null
+          check_out?: string
+          check_out_notes?: string | null
+          check_out_status?: string | null
+          children?: number | null
+          confirmation_method?: string | null
+          confirmation_sent?: boolean | null
+          confirmation_sent_date?: string | null
+          created_at?: string | null
+          custom_price?: number | null
+          email?: string | null
+          id?: string
+          passenger_name?: string
+          payment_status?: string | null
+          payments?: Json | null
+          phone?: string | null
+          remaining_balance?: number | null
+          season?: string | null
+          special_requests?: string | null
+          total_price?: number | null
+          updated_at?: string | null
+          use_custom_price?: boolean | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
