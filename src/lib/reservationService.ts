@@ -554,11 +554,11 @@ export const markLateCheckout = async (reservationId: string): Promise<void> => 
 
 // Check-in/Check-out wrapper functions
 export const performCheckIn = async (data: CheckInOutData): Promise<void> => {
-  await updateCheckInOut(data);
+  return await updateCheckInOut(data);
 };
 
 export const performCheckOut = async (data: CheckInOutData): Promise<void> => {
-  await updateCheckInOut(data);
+  return await updateCheckInOut(data);
 };
 
 // Confirmation functions
