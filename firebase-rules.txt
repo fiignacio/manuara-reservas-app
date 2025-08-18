@@ -1,0 +1,36 @@
+// Reglas de Firebase recomendadas para producción
+// Copiar estas reglas en Firebase Console > Firestore Database > Reglas
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Reglas para la colección de reservas
+    match /reservations/{document} {
+      // Por ahora permitir acceso completo para desarrollo
+      // En producción, se deberían implementar reglas más restrictivas
+      allow read, write: if true;
+      
+      // Ejemplo de reglas más seguras para implementar en el futuro:
+      // allow read: if request.auth != null;
+      // allow write: if request.auth != null 
+      //   && request.auth.uid != null
+      //   && validateReservationData(request.resource.data);
+    }
+    
+    // Función de validación para datos de reservas (ejemplo)
+    // function validateReservationData(data) {
+    //   return data.keys().hasAll(['passengerName', 'checkIn', 'checkOut', 'cabinType'])
+    //     && data.passengerName is string
+    //     && data.checkIn is string
+    //     && data.checkOut is string
+    //     && data.cabinType in ['Cabaña Pequeña (Max 3p)', 'Cabaña Mediana 1 (Max 4p)', 'Cabaña Mediana 2 (Max 4p)', 'Cabaña Grande (Max 6p)'];
+    // }
+  }
+}
+
+// IMPORTANTE:
+// 1. Estas reglas actuales permiten acceso total - solo para desarrollo
+// 2. Para producción, implementar autenticación y reglas más restrictivas
+// 3. Considerar implementar roles de usuario (admin, staff, readonly)
+// 4. Validar estructura de datos en las reglas
+// 5. Implementar rate limiting si es necesario
