@@ -1,0 +1,26 @@
+# Índices compuestos requeridos para Firebase
+
+Para optimizar las consultas de Firebase, es necesario crear los siguientes índices compuestos en Firebase Console:
+
+## Índice para getNextAvailableDate()
+
+Campo 1: cabinType (Ascendente)
+Campo 2: checkOut (Ascendente)
+
+Este índice permite consultar por tipo de cabaña y ordenar por fecha de salida simultáneamente.
+
+## Cómo crear los índices:
+
+1. Ve a Firebase Console > Firestore Database > Índices
+2. Haz clic en "Crear índice"
+3. Selecciona la colección: reservations
+4. Agrega los campos en el orden especificado
+5. Haz clic en "Crear"
+
+Alternativamente, Firebase creará automáticamente estos índices cuando se ejecuten las consultas por primera vez y aparezca el enlace de error en la consola.
+
+## Nota sobre getReservationsForDate()
+
+Esta función ha sido optimizada para evitar el uso de filtros de desigualdad en múltiples campos, 
+por lo que no requiere índices especiales. Ahora consulta todos los documentos ordenados por checkIn
+y filtra localmente para mejorar la compatibilidad.
