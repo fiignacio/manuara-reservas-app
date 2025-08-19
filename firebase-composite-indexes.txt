@@ -19,8 +19,14 @@ Este índice permite consultar por tipo de cabaña y ordenar por fecha de salida
 
 Alternativamente, Firebase creará automáticamente estos índices cuando se ejecuten las consultas por primera vez y aparezca el enlace de error en la consola.
 
-## Nota sobre getReservationsForDate()
+## Actualización - Consultas optimizadas para datos heterogéneos
 
-Esta función ha sido optimizada para evitar el uso de filtros de desigualdad en múltiples campos, 
-por lo que no requiere índices especiales. Ahora consulta todos los documentos ordenados por checkIn
-y filtra localmente para mejorar la compatibilidad.
+TODAS las funciones de lectura (getAllReservations, getTodayArrivals, etc.) han sido actualizadas para:
+- Obtener todos los documentos sin orderBy ni where complejos para evitar errores de tipo mixto
+- Normalizar fechas en el cliente (Timestamp -> YYYY-MM-DD string)
+- Filtrar y ordenar localmente después de la normalización
+
+Esto garantiza que los datos se muestren correctamente incluso si la colección contiene fechas en formatos mixtos (Timestamp vs string).
+
+Una vez que se ejecute la migración opcional para homogeneizar todos los checkIn/checkOut como strings YYYY-MM-DD, 
+se podrán rehabilitar las consultas eficientes con índices.

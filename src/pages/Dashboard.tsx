@@ -18,6 +18,7 @@ import {
 } from '@/lib/reservationService';
 import { formatDateForDisplay, getTomorrowDate } from '@/lib/dateUtils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { toast } from '@/hooks/use-toast';
 
 const Dashboard = () => {
   const [reservations, setReservations] = useState<Reservation[]>([]);
@@ -57,7 +58,12 @@ const Dashboard = () => {
       setLastDataUpdate(new Date().toLocaleTimeString('es-CL'));
       
     } catch (error) {
-      // Error handled silently
+      console.error('Error loading dashboard data:', error);
+      toast({
+        title: "Error",
+        description: "Error al cargar los datos del dashboard: " + (error instanceof Error ? error.message : 'Error desconocido'),
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
