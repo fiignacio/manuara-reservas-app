@@ -8,6 +8,7 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/u
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
+import { formatDateForDisplay } from '@/lib/dateUtils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Reservation } from '@/types/reservation';
 import { markConfirmationSent, updateReservation } from '@/lib/reservationService';
@@ -99,7 +100,7 @@ const ConfirmationModal = ({ isOpen, onClose, onSuccess, reservation }: Confirma
         <div className="text-sm text-muted-foreground">Confirmación para:</div>
         <div className="font-medium">{reservation.passengerName}</div>
         <div className="text-sm text-muted-foreground mt-1">
-          {reservation.cabinType} • {new Date(reservation.checkIn).toLocaleDateString('es-ES')} - {new Date(reservation.checkOut).toLocaleDateString('es-ES')}
+          {reservation.cabinType} • {formatDateForDisplay(reservation.checkIn)} - {formatDateForDisplay(reservation.checkOut)}
         </div>
       </div>
 

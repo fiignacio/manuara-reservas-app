@@ -10,6 +10,7 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/u
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
+import { formatDateForDisplay } from '@/lib/dateUtils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Reservation } from '@/types/reservation';
 import { PaymentFormData } from '@/types/payment';
@@ -51,7 +52,7 @@ const Content = ({
       <div className="text-sm text-muted-foreground">Reserva de:</div>
       <div className="font-medium">{reservation.passengerName}</div>
       <div className="text-sm text-muted-foreground mt-1">
-        {reservation.cabinType} • {new Date(reservation.checkIn).toLocaleDateString('es-ES')} - {new Date(reservation.checkOut).toLocaleDateString('es-ES')}
+        {reservation.cabinType} • {formatDateForDisplay(reservation.checkIn)} - {formatDateForDisplay(reservation.checkOut)}
       </div>
       <div className="mt-2 flex justify-between text-sm">
         <span>Total:</span>

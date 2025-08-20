@@ -5,6 +5,7 @@ import { es } from 'date-fns/locale';
 import Papa from 'papaparse';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { parseDate, formatDateForDisplay } from './dateUtils';
 
 export interface ReportData {
   passengerName: string;
@@ -33,7 +34,7 @@ export const generateReportData = async (filters: ReportFilters): Promise<Report
     
     const reportData: ReportData[] = reservations
       .filter((reservation) => {
-        const checkInDate = new Date(reservation.checkIn);
+        const checkInDate = parseDate(reservation.checkIn);
         const reservationYear = checkInDate.getFullYear();
         const reservationMonth = checkInDate.getMonth() + 1;
         
@@ -50,8 +51,8 @@ export const generateReportData = async (filters: ReportFilters): Promise<Report
       })
       .map((reservation) => ({
         passengerName: reservation.passengerName,
-        checkIn: format(new Date(reservation.checkIn), 'dd/MM/yyyy', { locale: es }),
-        checkOut: format(new Date(reservation.checkOut), 'dd/MM/yyyy', { locale: es }),
+        checkIn: format(parseDate(reservation.checkIn), 'dd/MM/yyyy', { locale: es }),
+        checkOut: format(parseDate(reservation.checkOut), 'dd/MM/yyyy', { locale: es }),
         arrivalFlight: reservation.arrivalFlight,
         departureFlight: reservation.departureFlight,
         totalGuests: reservation.adults + reservation.children + reservation.babies,
@@ -59,10 +60,10 @@ export const generateReportData = async (filters: ReportFilters): Promise<Report
         children: reservation.children,
         babies: reservation.babies,
         cabinType: reservation.cabinType,
-        month: format(new Date(reservation.checkIn), 'MMMM', { locale: es }),
-        year: new Date(reservation.checkIn).getFullYear().toString(),
+        month: format(parseDate(reservation.checkIn), 'MMMM', { locale: es }),
+        year: parseDate(reservation.checkIn).getFullYear().toString(),
       }))
-      .sort((a, b) => new Date(a.checkIn.split('/').reverse().join('-')).getTime() - new Date(b.checkIn.split('/').reverse().join('-')).getTime());
+      .sort((a, b) => a.checkIn.split('/').reverse().join('-').localeCompare(b.checkIn.split('/').reverse().join('-')));
     
     return reportData;
   } catch (error) {
@@ -220,7 +221,7 @@ export const generateReportDataByCabinTypes = async (filters: ReportFilters, cab
 
     const reportData: ReportData[] = reservations
       .filter((reservation) => {
-        const checkInDate = new Date(reservation.checkIn);
+        const checkInDate = parseDate(reservation.checkIn);
         const reservationYear = checkInDate.getFullYear();
         const reservationMonth = checkInDate.getMonth() + 1;
 
@@ -232,8 +233,8 @@ export const generateReportDataByCabinTypes = async (filters: ReportFilters, cab
       })
       .map((reservation) => ({
         passengerName: reservation.passengerName,
-        checkIn: format(new Date(reservation.checkIn), 'dd/MM/yyyy', { locale: es }),
-        checkOut: format(new Date(reservation.checkOut), 'dd/MM/yyyy', { locale: es }),
+        checkIn: format(parseDate(reservation.checkIn), 'dd/MM/yyyy', { locale: es }),
+        checkOut: format(parseDate(reservation.checkOut), 'dd/MM/yyyy', { locale: es }),
         arrivalFlight: reservation.arrivalFlight,
         departureFlight: reservation.departureFlight,
         totalGuests: reservation.adults + reservation.children + reservation.babies,
@@ -241,10 +242,10 @@ export const generateReportDataByCabinTypes = async (filters: ReportFilters, cab
         children: reservation.children,
         babies: reservation.babies,
         cabinType: reservation.cabinType,
-        month: format(new Date(reservation.checkIn), 'MMMM', { locale: es }),
-        year: new Date(reservation.checkIn).getFullYear().toString(),
+        month: format(parseDate(reservation.checkIn), 'MMMM', { locale: es }),
+        year: parseDate(reservation.checkIn).getFullYear().toString(),
       }))
-      .sort((a, b) => new Date(a.checkIn.split('/').reverse().join('-')).getTime() - new Date(b.checkIn.split('/').reverse().join('-')).getTime());
+      .sort((a, b) => a.checkIn.split('/').reverse().join('-').localeCompare(b.checkIn.split('/').reverse().join('-')));
 
     return reportData;
   } catch (error) {
@@ -377,7 +378,7 @@ export const exportCabinGroupToPDF = async (filters: ReportFilters, group: Cabin
 export const getAvailableYears = async (): Promise<number[]> => {
   try {
     const reservations = await getAllReservations();
-    const years = [...new Set(reservations.map(r => new Date(r.checkIn).getFullYear()))];
+    const years = [...new Set(reservations.map(r => parseDate(r.checkIn).getFullYear()))];
     return years.sort((a, b) => b - a); // Most recent first
   } catch (error) {
     console.error('Error getting available years:', error);

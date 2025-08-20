@@ -21,8 +21,11 @@ import { useToast } from '@/hooks/use-toast';
 import ReservationModal from '@/components/ReservationModal';
 import TimelineCalendar from '@/components/TimelineCalendar';
 import { Reservation } from '@/types/reservation';
-import { getAllReservations, deleteReservation } from '@/lib/reservationService';
-import { formatDateForDisplay } from '@/lib/dateUtils';
+import { 
+  getAllReservations, 
+  deleteReservation 
+} from '@/lib/reservations';
+import { formatDateForDisplay, parseDate } from '@/lib/dateUtils';
 
 const Calendar = () => {
   const { toast } = useToast();
@@ -82,9 +85,9 @@ const Calendar = () => {
     filtered.sort((a, b) => {
       switch (sortBy) {
         case 'checkIn':
-          return new Date(a.checkIn).getTime() - new Date(b.checkIn).getTime();
+          return a.checkIn.localeCompare(b.checkIn);
         case 'checkOut':
-          return new Date(a.checkOut).getTime() - new Date(b.checkOut).getTime();
+          return a.checkOut.localeCompare(b.checkOut);
         case 'passengerName':
           return a.passengerName.localeCompare(b.passengerName);
         case 'totalPrice':

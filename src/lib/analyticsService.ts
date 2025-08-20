@@ -1,6 +1,6 @@
 
 import { Reservation } from '@/types/reservation';
-import { addDays, formatDateForDisplay } from './dateUtils';
+import { addDays, formatDateForDisplay, calculateNights, parseDate } from './dateUtils';
 
 export interface OccupancyStats {
   totalReservations: number;
@@ -49,17 +49,13 @@ export const calculateOccupancyStats = (
   const totalRevenue = filteredReservations.reduce((sum, r) => sum + r.totalPrice, 0);
   
   const totalNights = filteredReservations.reduce((sum, r) => {
-    const checkIn = new Date(r.checkIn);
-    const checkOut = new Date(r.checkOut);
-    return sum + Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
+    return sum + calculateNights(r.checkIn, r.checkOut);
   }, 0);
 
   const averageStayLength = totalReservations > 0 ? totalNights / totalReservations : 0;
   
   // Calcular días totales en el período
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  const totalDaysInPeriod = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+  const totalDaysInPeriod = calculateNights(startDate, endDate);
   
   // Asumir 4 cabañas disponibles
   const totalCabinDays = totalDaysInPeriod * 4;
@@ -93,9 +89,7 @@ export const calculateCabinStats = (reservations: Reservation[]): CabinStats[] =
     const averageGuests = totalReservations > 0 ? totalGuests / totalReservations : 0;
 
     const totalNights = cabinReservations.reduce((sum, r) => {
-      const checkIn = new Date(r.checkIn);
-      const checkOut = new Date(r.checkOut);
-      return sum + Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
+      return sum + calculateNights(r.checkIn, r.checkOut);
     }, 0);
 
     // Calcular ocupación aproximada (últimos 30 días)
@@ -115,7 +109,7 @@ export const calculateMonthlyStats = (reservations: Reservation[]): MonthlyStats
   const monthlyData: { [key: string]: { reservations: number; revenue: number; guests: number; nights: number } } = {};
 
   reservations.forEach(reservation => {
-    const checkInDate = new Date(reservation.checkIn);
+    const checkInDate = parseDate(reservation.checkIn);
     const monthKey = `${checkInDate.getFullYear()}-${String(checkInDate.getMonth() + 1).padStart(2, '0')}`;
     
     if (!monthlyData[monthKey]) {
@@ -126,8 +120,7 @@ export const calculateMonthlyStats = (reservations: Reservation[]): MonthlyStats
     monthlyData[monthKey].revenue += reservation.totalPrice;
     monthlyData[monthKey].guests += reservation.adults + reservation.children;
     
-    const checkOut = new Date(reservation.checkOut);
-    const nights = Math.ceil((checkOut.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
+    const nights = calculateNights(reservation.checkIn, reservation.checkOut);
     monthlyData[monthKey].nights += nights;
   });
 
@@ -151,9 +144,7 @@ export const calculateSeasonStats = (reservations: Reservation[]): SeasonStats[]
     seasonData[season].reservations++;
     seasonData[season].revenue += reservation.totalPrice;
     
-    const checkIn = new Date(reservation.checkIn);
-    const checkOut = new Date(reservation.checkOut);
-    const nights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
+    const nights = calculateNights(reservation.checkIn, reservation.checkOut);
     seasonData[season].nights += nights;
   });
 

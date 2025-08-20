@@ -1,4 +1,5 @@
 import { ReservationFormData, Reservation } from '@/types/reservation';
+import { calculateNights } from './dateUtils';
 
 export const calculatePrice = (data: ReservationFormData): number => {
   // If using custom price, return that value
@@ -7,9 +8,7 @@ export const calculatePrice = (data: ReservationFormData): number => {
   }
 
   // Otherwise calculate automatically
-  const checkInDate = new Date(data.checkIn);
-  const checkOutDate = new Date(data.checkOut);
-  const nights = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
+  const nights = calculateNights(data.checkIn, data.checkOut);
   
   if (nights <= 0) return 0;
   
@@ -37,9 +36,8 @@ export const updatePaymentStatus = (reservation: Reservation): 'pending' | 'part
     return 'partially_paid';
   } else {
     // Check if overdue (checkout date has passed)
-    const checkOutDate = new Date(reservation.checkOut);
-    const today = new Date();
-    if (checkOutDate < today) {
+    const today = new Date().toISOString().split('T')[0];
+    if (reservation.checkOut < today) {
       return 'overdue';
     }
     return 'pending';

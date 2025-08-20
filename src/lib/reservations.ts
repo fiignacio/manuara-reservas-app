@@ -12,7 +12,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { Reservation, ReservationFormData } from '@/types/reservation';
-import { addDays, getTomorrowDate, formatDateToISO } from './dateUtils';
+import { addDays, getTomorrowDate, formatDateToISO, formatDateForDisplay, getTodayDate } from './dateUtils';
 import { validateReservationDates, validateCabinCapacity } from './validation';
 import { calculatePrice, calculateRemainingBalance, updatePaymentStatus } from './pricing';
 import { checkCabinAvailability, getNextAvailableDate } from './availability';
@@ -75,7 +75,7 @@ export const createReservation = async (data: ReservationFormData): Promise<stri
     
     if (!isAvailable) {
       const nextAvailable = await getNextAvailableDate(data.cabinType, data.checkIn);
-      throw new Error(`La ${data.cabinType} no está disponible para las fechas seleccionadas (${new Date(data.checkIn).toLocaleDateString('es-ES')} - ${new Date(data.checkOut).toLocaleDateString('es-ES')}). Próxima fecha disponible: ${nextAvailable ? new Date(nextAvailable).toLocaleDateString('es-ES') : 'No disponible'}`);
+      throw new Error(`La ${data.cabinType} no está disponible para las fechas seleccionadas (${formatDateForDisplay(data.checkIn)} - ${formatDateForDisplay(data.checkOut)}). Próxima fecha disponible: ${nextAvailable ? formatDateForDisplay(nextAvailable) : 'No disponible'}`);
     }
 
     const totalPrice = calculatePrice(data);
@@ -122,7 +122,7 @@ export const updateReservation = async (id: string, data: ReservationFormData, s
       
       if (!isAvailable) {
         const nextAvailable = await getNextAvailableDate(data.cabinType, data.checkIn);
-        throw new Error(`La ${data.cabinType} no está disponible para las fechas seleccionadas (${new Date(data.checkIn).toLocaleDateString('es-ES')} - ${new Date(data.checkOut).toLocaleDateString('es-ES')}). Próxima fecha disponible: ${nextAvailable ? new Date(nextAvailable).toLocaleDateString('es-ES') : 'No disponible'}`);
+        throw new Error(`La ${data.cabinType} no está disponible para las fechas seleccionadas (${formatDateForDisplay(data.checkIn)} - ${formatDateForDisplay(data.checkOut)}). Próxima fecha disponible: ${nextAvailable ? formatDateForDisplay(nextAvailable) : 'No disponible'}`);
       }
     }
 
@@ -210,7 +210,7 @@ export const getReservationsForDate = async (date: string): Promise<Reservation[
 
 export const getTodayArrivals = async (): Promise<Reservation[]> => {
   try {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayDate();
     
     // Fetch all reservations and filter client-side for resilience
     const querySnapshot = await getDocs(collection(db, COLLECTION_NAME));
@@ -231,7 +231,7 @@ export const getTodayArrivals = async (): Promise<Reservation[]> => {
 
 export const getTodayDepartures = async (): Promise<Reservation[]> => {
   try {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayDate();
     
     // Fetch all reservations and filter client-side for resilience
     const querySnapshot = await getDocs(collection(db, COLLECTION_NAME));
@@ -252,7 +252,7 @@ export const getTodayDepartures = async (): Promise<Reservation[]> => {
 
 export const getUpcomingArrivals = async (days: number = 5): Promise<Reservation[]> => {
   try {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayDate();
     const futureDate = addDays(today, days);
     
     // Fetch all reservations and filter client-side for resilience
@@ -275,7 +275,7 @@ export const getUpcomingArrivals = async (days: number = 5): Promise<Reservation
 
 export const getUpcomingDepartures = async (days: number = 5): Promise<Reservation[]> => {
   try {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayDate();
     const futureDate = addDays(today, days);
     
     // Fetch all reservations and filter client-side for resilience
@@ -337,7 +337,7 @@ export const getArrivalsForDate = async (date: string): Promise<Reservation[]> =
 };
 
 export const deleteExpiredReservations = async (): Promise<number> => {
-  const today = new Date().toISOString().split('T')[0];
+  const today = getTodayDate();
   
   const q = query(
     collection(db, COLLECTION_NAME),

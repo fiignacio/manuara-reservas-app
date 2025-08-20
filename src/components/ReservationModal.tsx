@@ -11,15 +11,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Reservation, ReservationFormData } from '@/types/reservation';
 import { 
-  calculatePrice, 
   createReservation, 
-  updateReservation, 
-  checkCabinAvailability,
-  validateReservationDates,
-  getNextAvailableDate,
-  validateCabinCapacity
-} from '@/lib/reservationService';
-import { addDays, getTodayDate, getTomorrowDate } from '@/lib/dateUtils';
+  updateReservation
+} from '@/lib/reservations';
+import { calculatePrice } from '@/lib/pricing';
+import { checkCabinAvailability, getNextAvailableDate } from '@/lib/availability';
+import { validateReservationDates, validateCabinCapacity } from '@/lib/validation';
+import { addDays, getTodayDate, getTomorrowDate, formatDateForDisplay } from '@/lib/dateUtils';
 
 interface ReservationModalProps {
   isOpen: boolean;
@@ -84,7 +82,7 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
   const isEditing = !!reservation;
 
   // Configurar límites de fechas
-  const today = new Date().toISOString().split('T')[0];
+  const today = getTodayDate();
   const maxDate = addDays(today, 730); // 2 años en el futuro
   const minCheckOut = formData.checkIn ? addDays(formData.checkIn, 1) : '';
 
@@ -207,7 +205,7 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
       if (availabilityStatus === 'unavailable') {
         toast({
           title: "❌ Cabaña no disponible",
-          description: `La ${formData.cabinType} no está disponible para las fechas seleccionadas. ${nextAvailableDate ? `Próxima fecha disponible: ${new Date(nextAvailableDate).toLocaleDateString('es-ES')}` : ''}`,
+          description: `La ${formData.cabinType} no está disponible para las fechas seleccionadas. ${nextAvailableDate ? `Próxima fecha disponible: ${formatDateForDisplay(nextAvailableDate)}` : ''}`,
           variant: "destructive"
         });
         return;
@@ -249,13 +247,13 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
         await updateReservation(reservation.id, cleanFormData, shouldValidateDates);
         toast({
           title: "✅ Reserva actualizada exitosamente",
-          description: `La reserva de ${formData.passengerName} para la ${formData.cabinType} ha sido modificada${shouldValidateDates ? ` del ${new Date(formData.checkIn).toLocaleDateString('es-ES')} al ${new Date(formData.checkOut).toLocaleDateString('es-ES')}` : ''}.`
+          description: `La reserva de ${formData.passengerName} para la ${formData.cabinType} ha sido modificada${shouldValidateDates ? ` del ${formatDateForDisplay(formData.checkIn)} al ${formatDateForDisplay(formData.checkOut)}` : ''}.`
         });
       } else {
         await createReservation(cleanFormData);
         toast({
           title: "🎉 Reserva creada exitosamente",
-          description: `Se ha registrado la reserva de ${formData.passengerName} para la ${formData.cabinType} del ${new Date(formData.checkIn).toLocaleDateString('es-ES')} al ${new Date(formData.checkOut).toLocaleDateString('es-ES')}.`
+          description: `Se ha registrado la reserva de ${formData.passengerName} para la ${formData.cabinType} del ${formatDateForDisplay(formData.checkIn)} al ${formatDateForDisplay(formData.checkOut)}.`
         });
       }
       onSuccess();
@@ -338,7 +336,7 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
             ❌ {formData.cabinType} no disponible para estas fechas.
             {nextAvailableDate && (
               <div className="mt-2 space-y-2">
-                <div>Próxima fecha disponible: {new Date(nextAvailableDate).toLocaleDateString('es-ES')}</div>
+                <div>Próxima fecha disponible: {formatDateForDisplay(nextAvailableDate)}</div>
                 <Button 
                   type="button" 
                   variant="outline" 

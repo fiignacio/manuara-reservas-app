@@ -1,5 +1,5 @@
 import { ReservationFormData } from '@/types/reservation';
-import { addDays } from './dateUtils';
+import { addDays, getTodayDate, formatDateForDisplay, calculateNights } from './dateUtils';
 
 export const validateCabinCapacity = (cabinType: string, adults: number, children: number, babies: number): { isValid: boolean; error?: string } => {
   const totalGuests = adults + children; // Babies don't count towards capacity limit
@@ -17,17 +17,15 @@ export const validateCabinCapacity = (cabinType: string, adults: number, childre
 };
 
 export const validateReservationDates = (checkIn: string, checkOut: string): { isValid: boolean; error?: string } => {
-  const today = new Date().toISOString().split('T')[0];
-  const checkInDate = new Date(checkIn);
-  const checkOutDate = new Date(checkOut);
+  const today = getTodayDate();
   const maxDate = addDays(today, 730); // 2 años en el futuro
-  const daysDifference = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
+  const daysDifference = calculateNights(checkIn, checkOut);
 
   // Validar que check-in no sea en el pasado
   if (checkIn < today) {
     return {
       isValid: false,
-      error: `La fecha de check-in no puede ser anterior a hoy (${new Date(today).toLocaleDateString('es-ES')})`
+      error: `La fecha de check-in no puede ser anterior a hoy (${formatDateForDisplay(today)})`
     };
   }
 
