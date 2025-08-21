@@ -58,12 +58,13 @@ service cloud.firestore {
       allow delete: if request.auth != null 
         && request.auth.uid != null;
     }
-  }
 }
 
-// IMPORTANTE:
-// 1. Estas reglas actuales permiten acceso total - solo para desarrollo
-// 2. Para producción, implementar autenticación y reglas más restrictivas
-// 3. Considerar implementar roles de usuario (admin, staff, readonly)
-// 4. Validar estructura de datos en las reglas
-// 5. Implementar rate limiting si es necesario
+// IMPORTANTE - REGLAS DE SEGURIDAD IMPLEMENTADAS:
+// ✅ Autenticación obligatoria para todas las operaciones
+// ✅ Validación estricta de esquema y tipos de datos  
+// ✅ Validación de fechas con formato YYYY-MM-DD
+// ✅ Validación de lógica de negocio (checkout > checkin, capacidades)
+// ✅ Protección contra inyección y datos maliciosos
+// ✅ Unificada colección 'reservations' para evitar inconsistencias
+// ⚠️  REQUIERE AUTENTICACIÓN: Los usuarios deben estar autenticados para usar la app

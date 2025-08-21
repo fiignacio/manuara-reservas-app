@@ -74,28 +74,37 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
     return null
   }
 
+  // Security: Sanitize CSS to prevent injection attacks
+  const sanitizeCSSValue = (value: string) => {
+    // Only allow hex colors, hsl/rgb functions, and CSS variables
+    if (!/^(#[0-9a-fA-F]{3,8}|rgb\(.*\)|rgba\(.*\)|hsl\(.*\)|hsla\(.*\)|var\(--[a-zA-Z0-9-]+\))$/.test(value)) {
+      console.warn(`Potentially unsafe CSS value blocked: ${value}`);
+      return 'transparent';
+    }
+    return value;
+  };
+
+  const cssContent = Object.entries(THEMES)
+    .map(([theme, prefix]) => {
+      const themeStyles = colorConfig
+        .map(([key, itemConfig]) => {
+          const color =
+            itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ||
+            itemConfig.color;
+          return color ? `  --color-${key}: ${sanitizeCSSValue(color)};` : null;
+        })
+        .filter(Boolean)
+        .join('\n');
+      
+      return `${prefix} [data-chart=${id}] {\n${themeStyles}\n}`;
+    })
+    .join('\n');
+
   return (
-    <style
-      dangerouslySetInnerHTML={{
-        __html: Object.entries(THEMES)
-          .map(
-            ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
-${colorConfig
-  .map(([key, itemConfig]) => {
-    const color =
-      itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ||
-      itemConfig.color
-    return color ? `  --color-${key}: ${color};` : null
-  })
-  .join("\n")}
-}
-`
-          )
-          .join("\n"),
-      }}
-    />
-  )
+    <style>
+      {cssContent}
+    </style>
+  );
 }
 
 const ChartTooltip = RechartsPrimitive.Tooltip
