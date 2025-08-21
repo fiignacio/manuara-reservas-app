@@ -33,19 +33,28 @@ const firebaseConfig = {
 
 ## 4. Configurar reglas de Firestore
 
-En Firebase Console, ve a Firestore Database > Reglas y configura:
+⚠️ **IMPORTANTE**: Configura las reglas de seguridad de producción. En Firebase Console, ve a Firestore Database > Reglas y configura las reglas de `firebase-rules.txt` que incluyen:
+
+- ✅ Autenticación obligatoria para todas las operaciones
+- ✅ Validación estricta de esquema y tipos de datos
+- ✅ Validación de fechas con formato YYYY-MM-DD
+- ✅ Validación de lógica de negocio (checkout > checkin, capacidades)
+- ✅ Protección contra inyección y datos maliciosos
 
 ```javascript
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    // Permitir lectura y escritura en reservations
-    match /reservations/{document} {
-      allow read, write: if true;
-    }
-  }
-}
+// NUNCA uses estas reglas inseguras en producción:
+// allow read, write: if true; // ❌ PELIGROSO
+
+// Usa las reglas de firebase-rules.txt que requieren autenticación
 ```
+
+## 4.1. Implementar autenticación
+
+La aplicación requiere autenticación de Firebase para funcionar. Configura Authentication en Firebase Console:
+
+1. Ve a Authentication > Sign-in method
+2. Habilita Email/Password u otros proveedores
+3. Implementa el sistema de login en la aplicación
 
 ## 5. Crear índices (si es necesario)
 

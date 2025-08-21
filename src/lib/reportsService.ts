@@ -72,19 +72,29 @@ export const generateReportData = async (filters: ReportFilters): Promise<Report
   }
 };
 
+// Security: Sanitize CSV data to prevent formula injection
+const sanitizeCSVValue = (value: string | number): string => {
+  const strValue = String(value);
+  // Prevent CSV formula injection by prefixing dangerous characters
+  if (/^[=+\-@\t\r]/.test(strValue)) {
+    return `'${strValue}`;
+  }
+  return strValue;
+};
+
 export const exportToCSV = (data: ReportData[], filters: ReportFilters): void => {
   try {
     const csvData = data.map(row => ({
-      'Nombre del Pasajero': row.passengerName,
-      'Check-in': row.checkIn,
-      'Check-out': row.checkOut,
-      'Vuelo de Llegada': row.arrivalFlight,
-      'Vuelo de Salida': row.departureFlight,
-      'Total Huéspedes': row.totalGuests,
-      'Adultos': row.adults,
-      'Niños': row.children,
-      'Bebés': row.babies,
-      'Tipo de Cabaña': row.cabinType,
+      'Nombre del Pasajero': sanitizeCSVValue(row.passengerName),
+      'Check-in': sanitizeCSVValue(row.checkIn),
+      'Check-out': sanitizeCSVValue(row.checkOut),
+      'Vuelo de Llegada': sanitizeCSVValue(row.arrivalFlight),
+      'Vuelo de Salida': sanitizeCSVValue(row.departureFlight),
+      'Total Huéspedes': sanitizeCSVValue(row.totalGuests),
+      'Adultos': sanitizeCSVValue(row.adults),
+      'Niños': sanitizeCSVValue(row.children),
+      'Bebés': sanitizeCSVValue(row.babies),
+      'Tipo de Cabaña': sanitizeCSVValue(row.cabinType),
     }));
 
     const csv = Papa.unparse(csvData);
@@ -264,16 +274,16 @@ export const exportCabinGroupToCSV = async (filters: ReportFilters, group: Cabin
   try {
     const data = await generateGroupReportData(filters, group);
     const csvData = data.map(row => ({
-      'Nombre del Pasajero': row.passengerName,
-      'Check-in': row.checkIn,
-      'Check-out': row.checkOut,
-      'Vuelo de Llegada': row.arrivalFlight,
-      'Vuelo de Salida': row.departureFlight,
-      'Total Huéspedes': row.totalGuests,
-      'Adultos': row.adults,
-      'Niños': row.children,
-      'Bebés': row.babies,
-      'Tipo de Cabaña': row.cabinType,
+      'Nombre del Pasajero': sanitizeCSVValue(row.passengerName),
+      'Check-in': sanitizeCSVValue(row.checkIn),
+      'Check-out': sanitizeCSVValue(row.checkOut),
+      'Vuelo de Llegada': sanitizeCSVValue(row.arrivalFlight),
+      'Vuelo de Salida': sanitizeCSVValue(row.departureFlight),
+      'Total Huéspedes': sanitizeCSVValue(row.totalGuests),
+      'Adultos': sanitizeCSVValue(row.adults),
+      'Niños': sanitizeCSVValue(row.children),
+      'Bebés': sanitizeCSVValue(row.babies),
+      'Tipo de Cabaña': sanitizeCSVValue(row.cabinType),
     }));
 
     const csv = Papa.unparse(csvData);
