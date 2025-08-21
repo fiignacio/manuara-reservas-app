@@ -17,7 +17,7 @@ import { validateReservationDates, validateCabinCapacity } from './validation';
 import { calculatePrice, calculateRemainingBalance, updatePaymentStatus, updateReservationStatus } from './pricing';
 import { checkCabinAvailability, getNextAvailableDate } from './availability';
 
-const COLLECTION_NAME = 'reservations';
+const COLLECTION_NAME = 'reservas';
 
 // Normalize reservation data to ensure consistent date formats
 const normalizeReservation = (rawReservation: any): Reservation => {
