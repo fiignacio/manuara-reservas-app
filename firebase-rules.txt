@@ -4,27 +4,60 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Reglas para la colección de reservas
-    match /reservations/{document} {
-      // Por ahora permitir acceso completo para desarrollo
-      // En producción, se deberían implementar reglas más restrictivas
-      allow read, write: if true;
-      
-      // Ejemplo de reglas más seguras para implementar en el futuro:
-      // allow read: if request.auth != null;
-      // allow write: if request.auth != null 
-      //   && request.auth.uid != null
-      //   && validateReservationData(request.resource.data);
+    // Función de validación para datos de reservas
+    function validateReservationData(data) {
+      return data.keys().hasAll(['passengerName', 'checkIn', 'checkOut', 'cabinType', 'adults', 'children', 'babies'])
+        && data.passengerName is string
+        && data.passengerName.size() > 0
+        && data.passengerName.size() <= 100
+        && data.checkIn is string
+        && data.checkIn.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && data.checkOut is string  
+        && data.checkOut.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && data.checkOut > data.checkIn
+        && data.cabinType in ['Cabaña Pequeña (Max 3p)', 'Cabaña Mediana 1 (Max 4p)', 'Cabaña Mediana 2 (Max 4p)', 'Cabaña Grande (Max 6p)']
+        && data.adults is int
+        && data.adults >= 1
+        && data.adults <= 6
+        && data.children is int
+        && data.children >= 0
+        && data.children <= 6
+        && data.babies is int
+        && data.babies >= 0
+        && data.babies <= 3
+        && (data.adults + data.children) <= 6
+        && (!data.keys().hasAny(['phone']) || (data.phone is string && data.phone.size() <= 20))
+        && (!data.keys().hasAny(['email']) || (data.email is string && data.email.size() <= 100))
+        && (!data.keys().hasAny(['comments']) || (data.comments is string && data.comments.size() <= 500))
+        && (!data.keys().hasAny(['totalPrice']) || data.totalPrice is number)
+        && (!data.keys().hasAny(['customPrice']) || data.customPrice is number)
+        && (!data.keys().hasAny(['useCustomPrice']) || data.useCustomPrice is bool);
     }
-    
-    // Función de validación para datos de reservas (ejemplo)
-    // function validateReservationData(data) {
-    //   return data.keys().hasAll(['passengerName', 'checkIn', 'checkOut', 'cabinType'])
-    //     && data.passengerName is string
-    //     && data.checkIn is string
-    //     && data.checkOut is string
-    //     && data.cabinType in ['Cabaña Pequeña (Max 3p)', 'Cabaña Mediana 1 (Max 4p)', 'Cabaña Mediana 2 (Max 4p)', 'Cabaña Grande (Max 6p)'];
-    // }
+
+    // Reglas para la colección de reservas - AUTENTICACIÓN REQUERIDA
+    match /reservations/{document} {
+      // Solo usuarios autenticados pueden leer reservas
+      allow read: if request.auth != null;
+      
+      // Solo usuarios autenticados pueden crear reservas con datos válidos
+      allow create: if request.auth != null 
+        && request.auth.uid != null
+        && validateReservationData(request.resource.data)
+        && request.resource.data.keys().hasAll(['createdAt', 'updatedAt'])
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+      
+      // Solo usuarios autenticados pueden actualizar reservas
+      allow update: if request.auth != null 
+        && request.auth.uid != null
+        && validateReservationData(request.resource.data)
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.createdAt == resource.data.createdAt;
+      
+      // Solo usuarios autenticados pueden eliminar reservas
+      allow delete: if request.auth != null 
+        && request.auth.uid != null;
+    }
   }
 }
 

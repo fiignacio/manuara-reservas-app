@@ -18,7 +18,7 @@ import { calculatePrice, calculateRemainingBalance, updatePaymentStatus } from '
 import { checkCabinAvailability, getNextAvailableDate } from './availability';
 import { toast } from '@/hooks/use-toast';
 
-const COLLECTION_NAME = 'reservas';
+const COLLECTION_NAME = 'reservations';
 
 // Normalize reservation data to ensure consistent date formats
 const normalizeReservation = (rawReservation: any): Reservation => {
