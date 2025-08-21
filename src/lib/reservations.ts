@@ -14,149 +14,146 @@ import { db } from './firebase';
 import { Reservation, ReservationFormData } from '@/types/reservation';
 import { addDays, getTomorrowDate, formatDateToISO, formatDateForDisplay, getTodayDate } from './dateUtils';
 import { validateReservationDates, validateCabinCapacity } from './validation';
-import { calculatePrice, calculateRemainingBalance, updatePaymentStatus } from './pricing';
+import { calculatePrice, calculateRemainingBalance, updatePaymentStatus, updateReservationStatus } from './pricing';
 import { checkCabinAvailability, getNextAvailableDate } from './availability';
-import { toast } from '@/hooks/use-toast';
 
-const COLLECTION_NAME = 'reservas';
+const COLLECTION_NAME = 'reservations';
 
 // Normalize reservation data to ensure consistent date formats
 const normalizeReservation = (rawReservation: any): Reservation => {
-  const data = rawReservation;
-  
-  // Ensure checkIn and checkOut are always YYYY-MM-DD strings
-  let checkIn = data.checkIn;
-  let checkOut = data.checkOut;
-  
-  // Handle Timestamp objects from Firestore
-  if (data.checkIn && typeof data.checkIn === 'object' && data.checkIn.toDate) {
-    checkIn = formatDateToISO(data.checkIn.toDate());
-  } else if (typeof data.checkIn === 'string' && data.checkIn.includes('T')) {
-    // Handle ISO strings with time
-    checkIn = data.checkIn.split('T')[0];
-  }
-  
-  if (data.checkOut && typeof data.checkOut === 'object' && data.checkOut.toDate) {
-    checkOut = formatDateToISO(data.checkOut.toDate());
-  } else if (typeof data.checkOut === 'string' && data.checkOut.includes('T')) {
-    // Handle ISO strings with time
-    checkOut = data.checkOut.split('T')[0];
-  }
-  
-  return {
-    ...data,
+  const checkIn = rawReservation.checkIn && typeof rawReservation.checkIn === 'object' && rawReservation.checkIn.toDate 
+    ? formatDateToISO(rawReservation.checkIn.toDate())
+    : rawReservation.checkIn?.split('T')[0] || rawReservation.checkIn;
+
+  const checkOut = rawReservation.checkOut && typeof rawReservation.checkOut === 'object' && rawReservation.checkOut.toDate 
+    ? formatDateToISO(rawReservation.checkOut.toDate())
+    : rawReservation.checkOut?.split('T')[0] || rawReservation.checkOut;
+
+  const actualCheckIn = rawReservation.actualCheckIn && typeof rawReservation.actualCheckIn === 'object' && rawReservation.actualCheckIn.toDate 
+    ? rawReservation.actualCheckIn.toDate().toISOString()
+    : rawReservation.actualCheckIn;
+
+  const actualCheckOut = rawReservation.actualCheckOut && typeof rawReservation.actualCheckOut === 'object' && rawReservation.actualCheckOut.toDate 
+    ? rawReservation.actualCheckOut.toDate().toISOString()
+    : rawReservation.actualCheckOut;
+
+  const confirmationSentDate = rawReservation.confirmationSentDate && typeof rawReservation.confirmationSentDate === 'object' && rawReservation.confirmationSentDate.toDate 
+    ? rawReservation.confirmationSentDate.toDate().toISOString()
+    : rawReservation.confirmationSentDate;
+
+  const createdAt = rawReservation.createdAt?.toDate ? rawReservation.createdAt.toDate() : rawReservation.createdAt;
+  const updatedAt = rawReservation.updatedAt?.toDate ? rawReservation.updatedAt.toDate() : rawReservation.updatedAt;
+
+  const reservation = {
+    ...rawReservation,
+    id: rawReservation.id,
     checkIn,
     checkOut,
-    createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : data.createdAt,
-    updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : data.updatedAt
+    actualCheckIn,
+    actualCheckOut,
+    confirmationSentDate,
+    createdAt,
+    updatedAt,
+    // Set default status values if missing
+    paymentStatus: rawReservation.paymentStatus || 'pending_deposit',
+    reservationStatus: rawReservation.reservationStatus || 'pending_checkin'
   } as Reservation;
+
+  return reservation;
 };
 
 export const createReservation = async (data: ReservationFormData): Promise<string> => {
-  try {
+  // Validation
+  if (!data.checkIn || !data.checkOut) {
+    throw new Error('Las fechas de check-in y check-out son obligatorias.');
+  }
+  
+  const dateValidation = validateReservationDates(data.checkIn, data.checkOut);
+  if (!dateValidation.isValid) {
+    throw new Error(dateValidation.error);
+  }
+  
+  const capacityValidation = validateCabinCapacity(data.cabinType, data.adults, data.children, data.babies);
+  if (!capacityValidation.isValid) {
+    throw new Error(capacityValidation.error);
+  }
+  
+  const isAvailable = await checkCabinAvailability(data.cabinType, data.checkIn, data.checkOut);
+  if (!isAvailable) {
+    const nextAvailable = await getNextAvailableDate(data.cabinType, data.checkIn);
+    throw new Error(`La ${data.cabinType} no está disponible para las fechas seleccionadas (${formatDateForDisplay(data.checkIn)} - ${formatDateForDisplay(data.checkOut)}). Próxima fecha disponible: ${nextAvailable ? formatDateForDisplay(nextAvailable) : 'No disponible'}`);
+  }
+
+  // Calculate price and statuses
+  const totalPrice = calculatePrice(data);
+  const paymentStatus = 'pending_deposit' as const;
+  const reservationStatus = 'pending_checkin' as const;
+
+  const reservationData = {
+    ...data,
+    totalPrice,
+    payments: [],
+    remainingBalance: totalPrice,
+    paymentStatus,
+    reservationStatus,
+    checkInStatus: 'pending' as const,
+    checkOutStatus: 'pending' as const,
+    confirmationSent: false,
+    createdAt: Timestamp.now(),
+    updatedAt: Timestamp.now()
+  };
+
+  const docRef = await addDoc(collection(db, COLLECTION_NAME), reservationData);
+  return docRef.id;
+};
+
+export const updateReservation = async (id: string, data: ReservationFormData, shouldUpdateDates: boolean = true): Promise<void> => {
+  const capacityValidation = validateCabinCapacity(data.cabinType, data.adults, data.children, data.babies);
+  if (!capacityValidation.isValid) {
+    throw new Error(capacityValidation.error);
+  }
+  
+  if (shouldUpdateDates) {
     if (!data.checkIn || !data.checkOut) {
       throw new Error('Las fechas de check-in y check-out son obligatorias.');
     }
-    
-    // Validar fechas antes de verificar disponibilidad
     const dateValidation = validateReservationDates(data.checkIn, data.checkOut);
     if (!dateValidation.isValid) {
       throw new Error(dateValidation.error);
     }
     
-    // Validar capacidad de la cabaña
-    const capacityValidation = validateCabinCapacity(data.cabinType, data.adults, data.children, data.babies);
-    if (!capacityValidation.isValid) {
-      throw new Error(capacityValidation.error);
-    }
-    
-    // Validar disponibilidad antes de crear
-    const isAvailable = await checkCabinAvailability(data.cabinType, data.checkIn, data.checkOut);
-    
+    const isAvailable = await checkCabinAvailability(data.cabinType, data.checkIn, data.checkOut, id);
     if (!isAvailable) {
       const nextAvailable = await getNextAvailableDate(data.cabinType, data.checkIn);
       throw new Error(`La ${data.cabinType} no está disponible para las fechas seleccionadas (${formatDateForDisplay(data.checkIn)} - ${formatDateForDisplay(data.checkOut)}). Próxima fecha disponible: ${nextAvailable ? formatDateForDisplay(nextAvailable) : 'No disponible'}`);
     }
-
-    const totalPrice = calculatePrice(data);
-    const reservation = {
-      ...data,
-      totalPrice,
-      remainingBalance: totalPrice,
-      paymentStatus: 'pending' as const,
-      checkInStatus: 'pending' as const,
-      checkOutStatus: 'pending' as const,
-      confirmationSent: false,
-      payments: [],
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now()
-    };
-    
-    const docRef = await addDoc(collection(db, COLLECTION_NAME), reservation);
-    return docRef.id;
-  } catch (error) {
-    console.error('Error creating reservation:', error);
-    throw error;
   }
-};
 
-export const updateReservation = async (id: string, data: ReservationFormData, shouldUpdateDates: boolean = true): Promise<void> => {
-  try {
-    // Validar capacidad de la cabaña siempre
-    const capacityValidation = validateCabinCapacity(data.cabinType, data.adults, data.children, data.babies);
-    if (!capacityValidation.isValid) {
-      throw new Error(capacityValidation.error);
-    }
-    
-    // Solo validar fechas si shouldUpdateDates es true
-    if (shouldUpdateDates) {
-      if (!data.checkIn || !data.checkOut) {
-        throw new Error('Las fechas de check-in y check-out son obligatorias.');
-      }
-      const dateValidation = validateReservationDates(data.checkIn, data.checkOut);
-      if (!dateValidation.isValid) {
-        throw new Error(dateValidation.error);
-      }
-      
-      const isAvailable = await checkCabinAvailability(data.cabinType, data.checkIn, data.checkOut, id);
-      
-      if (!isAvailable) {
-        const nextAvailable = await getNextAvailableDate(data.cabinType, data.checkIn);
-        throw new Error(`La ${data.cabinType} no está disponible para las fechas seleccionadas (${formatDateForDisplay(data.checkIn)} - ${formatDateForDisplay(data.checkOut)}). Próxima fecha disponible: ${nextAvailable ? formatDateForDisplay(nextAvailable) : 'No disponible'}`);
-      }
-    }
-
-    const totalPrice = calculatePrice(data);
-    
-    // Get current reservation to preserve payments
-    const reservations = await getAllReservations();
-    const currentReservation = reservations.find((r: any) => r.id === id);
-    const payments = currentReservation?.payments || [];
-    
-    // Recalculate remaining balance and payment status
-    const updatedReservation = {
-      ...data,
-      totalPrice,
-      payments
-    } as any;
-    
-    const remainingBalance = calculateRemainingBalance(updatedReservation);
-    const paymentStatus = updatePaymentStatus(updatedReservation);
-    
-    const reservation = {
-      ...data,
-      totalPrice,
-      remainingBalance,
-      paymentStatus,
-      updatedAt: Timestamp.now()
-    };
-    
-    const docRef = doc(db, COLLECTION_NAME, id);
-    await updateDoc(docRef, reservation);
-  } catch (error) {
-    console.error('Error updating reservation:', error);
-    throw error;
+  // Get current reservation to preserve payments
+  const reservations = await getAllReservations();
+  const reservation = reservations.find(r => r.id === id);
+  if (!reservation) {
+    throw new Error('Reserva no encontrada');
   }
+
+  // Recalculate derived fields
+  const totalPrice = calculatePrice(data);
+  const currentBalance = reservation.totalPrice - (reservation.payments?.reduce((sum, p) => sum + p.amount, 0) || 0);
+  const newBalance = totalPrice - (reservation.payments?.reduce((sum, p) => sum + p.amount, 0) || 0);
+  
+  const tempReservation = { ...reservation, totalPrice, remainingBalance: newBalance } as Reservation;
+  
+  const updateData = {
+    ...data,
+    totalPrice,
+    remainingBalance: newBalance,
+    paymentStatus: updatePaymentStatus(tempReservation),
+    reservationStatus: updateReservationStatus(tempReservation),
+    updatedAt: Timestamp.now()
+  };
+
+  const docRef = doc(db, COLLECTION_NAME, id);
+  await updateDoc(docRef, updateData);
 };
 
 export const deleteReservation = async (id: string): Promise<void> => {
@@ -165,175 +162,128 @@ export const deleteReservation = async (id: string): Promise<void> => {
 };
 
 export const getAllReservations = async (): Promise<Reservation[]> => {
+  const q = query(collection(db, COLLECTION_NAME), orderBy('checkIn', 'asc'));
+  const snapshot = await getDocs(q);
+  
+  const reservations = snapshot.docs.map(doc => {
+    const data = doc.data();
+    return normalizeReservation({ ...data, id: doc.id });
+  });
+  
+  // Update statuses for all reservations automatically
   try {
-    // Fetch all reservations without orderBy to avoid type conflicts
-    const querySnapshot = await getDocs(collection(db, COLLECTION_NAME));
-    
-    // Normalize and sort on client-side
-    const reservations = querySnapshot.docs
-      .map(doc => normalizeReservation({ id: doc.id, ...doc.data() }))
-      .sort((a, b) => a.checkIn.localeCompare(b.checkIn));
-    
-    return reservations;
+    const { runStatusMaintenance } = await import('./statusUpdater');
+    runStatusMaintenance().catch(console.error); // Run in background without blocking
   } catch (error) {
-    console.error('Error getting all reservations:', error);
-    toast({
-      title: "Error",
-      description: "Error al obtener las reservas: " + (error instanceof Error ? error.message : 'Error desconocido'),
-      variant: "destructive",
-    });
-    throw new Error('Error al obtener las reservas');
+    console.warn('Status maintenance failed:', error);
   }
+  
+  return reservations;
 };
 
 export const getReservationsForDate = async (date: string): Promise<Reservation[]> => {
-  try {
-    // Fetch all reservations and filter client-side
-    const querySnapshot = await getDocs(collection(db, COLLECTION_NAME));
-    
-    // Normalize and filter locally to find reservations that overlap with the given date
-    return querySnapshot.docs
-      .map(doc => normalizeReservation({ id: doc.id, ...doc.data() }))
-      .filter(reservation => {
-        return reservation.checkIn <= date && reservation.checkOut > date;
-      });
-  } catch (error) {
-    console.error('Error getting reservations for date:', error);
-    toast({
-      title: "Error",
-      description: "Error al obtener las reservas para la fecha: " + (error instanceof Error ? error.message : 'Error desconocido'),
-      variant: "destructive",
-    });
-    throw new Error('Error al obtener las reservas para la fecha especificada');
-  }
+  const q = query(
+    collection(db, COLLECTION_NAME),
+    where('checkIn', '<=', date),
+    where('checkOut', '>', date)
+  );
+  const snapshot = await getDocs(q);
+  
+  return snapshot.docs.map(doc => {
+    const data = doc.data();
+    return normalizeReservation({ ...data, id: doc.id });
+  });
 };
 
 export const getTodayArrivals = async (): Promise<Reservation[]> => {
-  try {
-    const today = getTodayDate();
-    
-    // Fetch all reservations and filter client-side for resilience
-    const querySnapshot = await getDocs(collection(db, COLLECTION_NAME));
-    
-    return querySnapshot.docs
-      .map(doc => normalizeReservation({ id: doc.id, ...doc.data() }))
-      .filter(reservation => reservation.checkIn === today);
-  } catch (error) {
-    console.error('Error getting today arrivals:', error);
-    toast({
-      title: "Error",
-      description: "Error al obtener llegadas de hoy: " + (error instanceof Error ? error.message : 'Error desconocido'),
-      variant: "destructive",
-    });
-    return [];
-  }
+  const today = getTodayDate();
+  const q = query(
+    collection(db, COLLECTION_NAME),
+    where('checkIn', '==', today)
+  );
+  const snapshot = await getDocs(q);
+  
+  return snapshot.docs.map(doc => {
+    const data = doc.data();
+    return normalizeReservation({ ...data, id: doc.id });
+  });
 };
 
 export const getTodayDepartures = async (): Promise<Reservation[]> => {
-  try {
-    const today = getTodayDate();
-    
-    // Fetch all reservations and filter client-side for resilience
-    const querySnapshot = await getDocs(collection(db, COLLECTION_NAME));
-    
-    return querySnapshot.docs
-      .map(doc => normalizeReservation({ id: doc.id, ...doc.data() }))
-      .filter(reservation => reservation.checkOut === today);
-  } catch (error) {
-    console.error('Error getting today departures:', error);
-    toast({
-      title: "Error",
-      description: "Error al obtener salidas de hoy: " + (error instanceof Error ? error.message : 'Error desconocido'),
-      variant: "destructive",
-    });
-    return [];
-  }
+  const today = getTodayDate();
+  const q = query(
+    collection(db, COLLECTION_NAME),
+    where('checkOut', '==', today)
+  );
+  const snapshot = await getDocs(q);
+  
+  return snapshot.docs.map(doc => {
+    const data = doc.data();
+    return normalizeReservation({ ...data, id: doc.id });
+  });
 };
 
 export const getUpcomingArrivals = async (days: number = 5): Promise<Reservation[]> => {
-  try {
-    const today = getTodayDate();
-    const futureDate = addDays(today, days);
-    
-    // Fetch all reservations and filter client-side for resilience
-    const querySnapshot = await getDocs(collection(db, COLLECTION_NAME));
-    
-    return querySnapshot.docs
-      .map(doc => normalizeReservation({ id: doc.id, ...doc.data() }))
-      .filter(reservation => reservation.checkIn > today && reservation.checkIn <= futureDate)
-      .sort((a, b) => a.checkIn.localeCompare(b.checkIn));
-  } catch (error) {
-    console.error('Error getting upcoming arrivals:', error);
-    toast({
-      title: "Error",
-      description: "Error al obtener próximas llegadas: " + (error instanceof Error ? error.message : 'Error desconocido'),
-      variant: "destructive",
-    });
-    return [];
-  }
+  const today = getTodayDate();
+  const futureDate = addDays(today, days);
+  
+  const q = query(
+    collection(db, COLLECTION_NAME),
+    where('checkIn', '>', today),
+    where('checkIn', '<=', futureDate),
+    orderBy('checkIn', 'asc')
+  );
+  const snapshot = await getDocs(q);
+  
+  return snapshot.docs.map(doc => {
+    const data = doc.data();
+    return normalizeReservation({ ...data, id: doc.id });
+  });
 };
 
 export const getUpcomingDepartures = async (days: number = 5): Promise<Reservation[]> => {
-  try {
-    const today = getTodayDate();
-    const futureDate = addDays(today, days);
-    
-    // Fetch all reservations and filter client-side for resilience
-    const querySnapshot = await getDocs(collection(db, COLLECTION_NAME));
-    
-    return querySnapshot.docs
-      .map(doc => normalizeReservation({ id: doc.id, ...doc.data() }))
-      .filter(reservation => reservation.checkOut > today && reservation.checkOut <= futureDate)
-      .sort((a, b) => a.checkOut.localeCompare(b.checkOut));
-  } catch (error) {
-    console.error('Error getting upcoming departures:', error);
-    toast({
-      title: "Error",
-      description: "Error al obtener próximas salidas: " + (error instanceof Error ? error.message : 'Error desconocido'),
-      variant: "destructive",
-    });
-    return [];
-  }
+  const today = getTodayDate();
+  const futureDate = addDays(today, days);
+  
+  const q = query(
+    collection(db, COLLECTION_NAME),
+    where('checkOut', '>', today),
+    where('checkOut', '<=', futureDate),
+    orderBy('checkOut', 'asc')
+  );
+  const snapshot = await getDocs(q);
+  
+  return snapshot.docs.map(doc => {
+    const data = doc.data();
+    return normalizeReservation({ ...data, id: doc.id });
+  });
 };
 
 export const getTomorrowDepartures = async (): Promise<Reservation[]> => {
-  try {
-    const tomorrow = getTomorrowDate();
-    
-    // Fetch all reservations and filter client-side for resilience
-    const querySnapshot = await getDocs(collection(db, COLLECTION_NAME));
-    
-    return querySnapshot.docs
-      .map(doc => normalizeReservation({ id: doc.id, ...doc.data() }))
-      .filter(reservation => reservation.checkOut === tomorrow);
-  } catch (error) {
-    console.error('Error getting tomorrow departures:', error);
-    toast({
-      title: "Error",
-      description: "Error al obtener salidas de mañana: " + (error instanceof Error ? error.message : 'Error desconocido'),
-      variant: "destructive",
-    });
-    return [];
-  }
+  const tomorrow = getTomorrowDate();
+  const q = query(
+    collection(db, COLLECTION_NAME),
+    where('checkOut', '==', tomorrow)
+  );
+  const snapshot = await getDocs(q);
+  
+  return snapshot.docs.map(doc => {
+    const data = doc.data();
+    return normalizeReservation({ ...data, id: doc.id });
+  });
 };
 
 export const getArrivalsForDate = async (date: string): Promise<Reservation[]> => {
-  try {
-    // Fetch all reservations and filter client-side for resilience
-    const querySnapshot = await getDocs(collection(db, COLLECTION_NAME));
-    
-    return querySnapshot.docs
-      .map(doc => normalizeReservation({ id: doc.id, ...doc.data() }))
-      .filter(reservation => reservation.checkIn === date);
-  } catch (error) {
-    console.error('Error getting arrivals for date:', error);
-    toast({
-      title: "Error",
-      description: "Error al obtener llegadas para la fecha: " + (error instanceof Error ? error.message : 'Error desconocido'),
-      variant: "destructive",
-    });
-    return [];
-  }
+  const q = query(
+    collection(db, COLLECTION_NAME),
+    where('checkIn', '==', date)
+  );
+  const snapshot = await getDocs(q);
+  
+  return snapshot.docs.map(doc => {
+    const data = doc.data();
+    return normalizeReservation({ ...data, id: doc.id });
+  });
 };
 
 export const deleteExpiredReservations = async (): Promise<number> => {

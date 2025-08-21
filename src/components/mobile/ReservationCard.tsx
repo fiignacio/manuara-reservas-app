@@ -47,13 +47,31 @@ const ReservationCard = ({
   const getPaymentStatusBadge = (status: string) => {
     switch (status) {
       case 'fully_paid':
-        return { variant: 'default' as const, label: 'Pagado', color: 'bg-green-500' };
-      case 'partially_paid':
-        return { variant: 'secondary' as const, label: 'Parcial', color: 'bg-yellow-500' };
+        return { variant: 'default' as const, label: 'Pago Completo', color: 'bg-green-500' };
+      case 'deposit_made':
+        return { variant: 'secondary' as const, label: 'Abono Realizado', color: 'bg-blue-500' };
+      case 'pending_payment':
+        return { variant: 'secondary' as const, label: 'Pendiente de Pago', color: 'bg-yellow-500' };
+      case 'pending_deposit':
+        return { variant: 'outline' as const, label: 'Pendiente de Abono', color: 'bg-orange-500' };
       case 'overdue':
         return { variant: 'destructive' as const, label: 'Vencido', color: 'bg-red-500' };
       default:
         return { variant: 'outline' as const, label: 'Pendiente', color: 'bg-gray-500' };
+    }
+  };
+
+  const getReservationStatusBadge = (status: string) => {
+    switch (status) {
+      case 'in_stay':
+        return { variant: 'default' as const, label: 'En Estadía', color: 'bg-green-500' };
+      case 'checked_out':
+        return { variant: 'secondary' as const, label: 'Check Out', color: 'bg-blue-500' };
+      case 'departed':
+        return { variant: 'secondary' as const, label: 'Salida', color: 'bg-gray-500' };
+      case 'pending_checkin':
+      default:
+        return { variant: 'outline' as const, label: 'Pendiente Check In', color: 'bg-orange-500' };
     }
   };
 
@@ -84,6 +102,7 @@ const ReservationCard = ({
   };
 
   const paymentBadge = getPaymentStatusBadge(reservation.paymentStatus);
+  const reservationBadge = getReservationStatusBadge(reservation.reservationStatus || 'pending_checkin');
   const checkInBadge = getCheckInStatusBadge(reservation.checkInStatus || 'pending');
   const checkOutBadge = getCheckOutStatusBadge(reservation.checkOutStatus || 'pending');
   const remainingBalance = calculateRemainingBalance(reservation);

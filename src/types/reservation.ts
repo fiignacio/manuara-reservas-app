@@ -21,8 +21,11 @@ export interface Reservation {
   comments?: string;
   payments: Payment[];
   remainingBalance: number;
-  paymentStatus: 'pending' | 'partially_paid' | 'fully_paid' | 'overdue';
-  // Check-in/Check-out tracking
+  // New payment status system
+  paymentStatus: 'pending_deposit' | 'pending_payment' | 'deposit_made' | 'fully_paid' | 'overdue';
+  // New reservation status system
+  reservationStatus: 'pending_checkin' | 'in_stay' | 'checked_out' | 'departed';
+  // Check-in/Check-out tracking (kept for backward compatibility)
   actualCheckIn?: string;
   actualCheckOut?: string;
   checkInStatus: 'pending' | 'checked_in' | 'no_show';
@@ -44,7 +47,7 @@ export interface Reservation {
   updatedAt?: Date;
 }
 
-export interface ReservationFormData extends Omit<Reservation, 'id' | 'totalPrice' | 'payments' | 'remainingBalance' | 'paymentStatus' | 'actualCheckIn' | 'actualCheckOut' | 'checkInStatus' | 'checkOutStatus' | 'checkInNotes' | 'checkOutNotes' | 'confirmationSent' | 'confirmationSentDate' | 'confirmationMethod' | 'createdAt' | 'updatedAt'> {}
+export interface ReservationFormData extends Omit<Reservation, 'id' | 'totalPrice' | 'payments' | 'remainingBalance' | 'paymentStatus' | 'reservationStatus' | 'actualCheckIn' | 'actualCheckOut' | 'checkInStatus' | 'checkOutStatus' | 'checkInNotes' | 'checkOutNotes' | 'confirmationSent' | 'confirmationSentDate' | 'confirmationMethod' | 'createdAt' | 'updatedAt'> {}
 
 export interface CheckInOutData {
   reservationId: string;

@@ -1,14 +1,20 @@
 import { doc, updateDoc, Timestamp } from 'firebase/firestore';
 import { db } from './firebase';
-import { CheckInOutData } from '@/types/reservation';
+import { CheckInOutData, Reservation } from '@/types/reservation';
+import { updatePaymentStatus, updateReservationStatus } from './pricing';
 
 const COLLECTION_NAME = 'reservations';
 
-// Check-in/Check-out functions
+// Check-in/Check-out functions with automatic status updates
 export const updateCheckInOut = async (data: CheckInOutData): Promise<void> => {
   const docRef = doc(db, COLLECTION_NAME, data.reservationId);
   
-  const updateData = data.type === 'check_in' 
+  // Get current reservation data to calculate new statuses
+  const { getDoc } = await import('firebase/firestore');
+  const reservationDoc = await getDoc(docRef);
+  const currentReservation = reservationDoc.data() as Reservation;
+  
+  const baseUpdateData = data.type === 'check_in' 
     ? {
         actualCheckIn: data.actualDateTime,
         checkInStatus: 'checked_in',
@@ -22,7 +28,26 @@ export const updateCheckInOut = async (data: CheckInOutData): Promise<void> => {
         updatedAt: Timestamp.now()
       };
   
-  await updateDoc(docRef, updateData);
+  // Calculate new statuses
+  const tempReservation = { ...currentReservation };
+  if (data.type === 'check_in') {
+    tempReservation.checkInStatus = 'checked_in' as const;
+    tempReservation.actualCheckIn = data.actualDateTime;
+  } else {
+    tempReservation.checkOutStatus = 'checked_out' as const;
+    tempReservation.actualCheckOut = data.actualDateTime;
+  }
+  
+  const newPaymentStatus = updatePaymentStatus(tempReservation);
+  const newReservationStatus = updateReservationStatus(tempReservation);
+  
+  const finalUpdateData = {
+    ...baseUpdateData,
+    paymentStatus: newPaymentStatus,
+    reservationStatus: newReservationStatus
+  };
+  
+  await updateDoc(docRef, finalUpdateData);
 };
 
 export const markNoShow = async (reservationId: string): Promise<void> => {

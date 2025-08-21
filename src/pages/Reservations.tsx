@@ -193,13 +193,31 @@ const Reservations = () => {
   const getPaymentStatusBadge = (status: string) => {
     switch (status) {
       case 'fully_paid':
-        return { variant: 'default' as const, label: 'Pagado', color: 'bg-green-500' };
-      case 'partially_paid':
-        return { variant: 'secondary' as const, label: 'Parcial', color: 'bg-yellow-500' };
+        return { variant: 'default' as const, label: 'Pago Completo', color: 'bg-green-500' };
+      case 'deposit_made':
+        return { variant: 'secondary' as const, label: 'Abono Realizado', color: 'bg-blue-500' };
+      case 'pending_payment':
+        return { variant: 'secondary' as const, label: 'Pendiente de Pago', color: 'bg-yellow-500' };
+      case 'pending_deposit':
+        return { variant: 'outline' as const, label: 'Pendiente de Abono', color: 'bg-orange-500' };
       case 'overdue':
         return { variant: 'destructive' as const, label: 'Vencido', color: 'bg-red-500' };
       default:
         return { variant: 'outline' as const, label: 'Pendiente', color: 'bg-gray-500' };
+    }
+  };
+
+  const getReservationStatusBadge = (status: string) => {
+    switch (status) {
+      case 'in_stay':
+        return { variant: 'default' as const, label: 'En Estadía', color: 'bg-green-500' };
+      case 'checked_out':
+        return { variant: 'secondary' as const, label: 'Check Out', color: 'bg-blue-500' };
+      case 'departed':
+        return { variant: 'secondary' as const, label: 'Salida', color: 'bg-gray-500' };
+      case 'pending_checkin':
+      default:
+        return { variant: 'outline' as const, label: 'Pendiente Check In', color: 'bg-orange-500' };
     }
   };
 
@@ -280,9 +298,10 @@ const Reservations = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos los estados</SelectItem>
-                  <SelectItem value="pending">Pendiente</SelectItem>
-                  <SelectItem value="partially_paid">Pago parcial</SelectItem>
-                  <SelectItem value="fully_paid">Pagado completo</SelectItem>
+                  <SelectItem value="pending_deposit">Pendiente de abono</SelectItem>
+                  <SelectItem value="pending_payment">Pendiente de pago</SelectItem>
+                  <SelectItem value="deposit_made">Abono realizado</SelectItem>
+                  <SelectItem value="fully_paid">Pago completo</SelectItem>
                   <SelectItem value="overdue">Vencido</SelectItem>
                 </SelectContent>
               </Select>
@@ -357,6 +376,7 @@ const Reservations = () => {
                 <tbody>
                   {filteredReservations.map((reservation) => {
                     const paymentBadge = getPaymentStatusBadge(reservation.paymentStatus);
+                    const reservationBadge = getReservationStatusBadge(reservation.reservationStatus || 'pending_checkin');
                     const checkInBadge = getCheckInStatusBadge(reservation.checkInStatus || 'pending');
                     const checkOutBadge = getCheckOutStatusBadge(reservation.checkOutStatus || 'pending');
                     
@@ -394,12 +414,17 @@ const Reservations = () => {
                         </td>
                         <td className="p-4">
                           <div className="space-y-1">
-                            <Badge variant={checkInBadge.variant} className="text-xs">
-                              {checkInBadge.label}
+                            <Badge variant={reservationBadge.variant} className="text-xs">
+                              {reservationBadge.label}
                             </Badge>
-                            <Badge variant={checkOutBadge.variant} className="text-xs">
-                              {checkOutBadge.label}
-                            </Badge>
+                            <div className="flex gap-1">
+                              <Badge variant={checkInBadge.variant} className="text-xs">
+                                {checkInBadge.label}
+                              </Badge>
+                              <Badge variant={checkOutBadge.variant} className="text-xs">
+                                {checkOutBadge.label}
+                              </Badge>
+                            </div>
                           </div>
                         </td>
                         <td className="p-4 text-sm">

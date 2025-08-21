@@ -2,7 +2,7 @@ import { doc, updateDoc, Timestamp } from 'firebase/firestore';
 import { db } from './firebase';
 import { Payment, PaymentFormData } from '@/types/payment';
 import { Reservation } from '@/types/reservation';
-import { calculateRemainingBalance, updatePaymentStatus } from './pricing';
+import { calculateRemainingBalance, updatePaymentStatus, updateReservationStatus } from './pricing';
 import { getAllReservations } from './reservations';
 
 const COLLECTION_NAME = 'reservations';
@@ -72,11 +72,13 @@ export const addPayment = async (reservationId: string, paymentData: PaymentForm
   
   const newRemainingBalance = calculateRemainingBalance(updatedReservation);
   const newPaymentStatus = updatePaymentStatus(updatedReservation);
+  const newReservationStatus = updateReservationStatus(updatedReservation);
   
   const updateData = cleanReservationData({
     payments: updatedPayments,
     remainingBalance: newRemainingBalance,
     paymentStatus: newPaymentStatus,
+    reservationStatus: newReservationStatus,
     updatedAt: new Date()
   });
   

@@ -257,6 +257,11 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading }: Timelin
     });
 
     const filteredReservations = reservations.filter(reservation => {
+      // Hide departed reservations from calendar
+      if (reservation.reservationStatus === 'departed') {
+        return false;
+      }
+      
       const position = getReservationPosition(reservation);
       return position !== null;
     });
