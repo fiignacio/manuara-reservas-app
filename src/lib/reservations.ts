@@ -14,7 +14,7 @@ import { db } from './firebase';
 import { Reservation, ReservationFormData } from '@/types/reservation';
 import { addDays, getTomorrowDate, formatDateToISO, formatDateForDisplay, getTodayDate } from './dateUtils';
 import { validateReservationDates, validateCabinCapacity } from './validation';
-import { calculatePrice, calculateRemainingBalance, updatePaymentStatus, updateReservationStatus } from './pricing';
+import { calculatePrice, calculateRemainingBalance, updatePaymentStatus, updateReservationStatus as updateReservationAutoStatus } from './pricing';
 import { checkCabinAvailability, getNextAvailableDate } from './availability';
 
 const COLLECTION_NAME = 'reservas';
@@ -148,7 +148,7 @@ export const updateReservation = async (id: string, data: ReservationFormData, s
     totalPrice,
     remainingBalance: newBalance,
     paymentStatus: updatePaymentStatus(tempReservation),
-    reservationStatus: updateReservationStatus(tempReservation),
+    reservationStatus: updateReservationAutoStatus(tempReservation),
     updatedAt: Timestamp.now()
   };
 
@@ -300,4 +300,23 @@ export const deleteExpiredReservations = async (): Promise<number> => {
   await Promise.all(deletePromises);
   
   return querySnapshot.docs.length;
+};
+
+// Update reservation status fields without requiring full form data
+export const updateReservationStatuses = async (
+  reservationId: string,
+  statusUpdates: Partial<Pick<Reservation, 'paymentStatus' | 'reservationStatus' | 'checkInStatus' | 'checkOutStatus' | 'checkInNotes' | 'checkOutNotes'>>
+): Promise<void> => {
+  try {
+    const reservationRef = doc(db, COLLECTION_NAME, reservationId);
+    const updateData = {
+      ...statusUpdates,
+      updatedAt: Timestamp.now()
+    };
+    
+    await updateDoc(reservationRef, updateData);
+  } catch (error) {
+    console.error('Error updating reservation status:', error);
+    throw new Error('No se pudo actualizar el estado de la reserva');
+  }
 };

@@ -47,31 +47,31 @@ const ReservationCard = ({
   const getPaymentStatusBadge = (status: string) => {
     switch (status) {
       case 'fully_paid':
-        return { variant: 'default' as const, label: 'Pago Completo', color: 'bg-green-500' };
+        return { variant: 'success' as const, label: '✅ Pago Completo' };
       case 'deposit_made':
-        return { variant: 'secondary' as const, label: 'Abono Realizado', color: 'bg-blue-500' };
+        return { variant: 'info' as const, label: '💰 Abono Realizado' };
       case 'pending_payment':
-        return { variant: 'secondary' as const, label: 'Pendiente de Pago', color: 'bg-yellow-500' };
+        return { variant: 'warning' as const, label: '⏳ Pendiente de Pago' };
       case 'pending_deposit':
-        return { variant: 'outline' as const, label: 'Pendiente de Abono', color: 'bg-orange-500' };
+        return { variant: 'pending' as const, label: '💸 Pendiente de Abono' };
       case 'overdue':
-        return { variant: 'destructive' as const, label: 'Vencido', color: 'bg-red-500' };
+        return { variant: 'destructive' as const, label: '🚨 Vencido' };
       default:
-        return { variant: 'outline' as const, label: 'Pendiente', color: 'bg-gray-500' };
+        return { variant: 'outline' as const, label: '❓ Pendiente' };
     }
   };
 
   const getReservationStatusBadge = (status: string) => {
     switch (status) {
       case 'in_stay':
-        return { variant: 'default' as const, label: 'En Estadía', color: 'bg-green-500' };
+        return { variant: 'success' as const, label: '🏠 En Estadía' };
       case 'checked_out':
-        return { variant: 'secondary' as const, label: 'Check Out', color: 'bg-blue-500' };
+        return { variant: 'info' as const, label: '🚪 Check Out' };
       case 'departed':
-        return { variant: 'secondary' as const, label: 'Salida', color: 'bg-gray-500' };
+        return { variant: 'secondary' as const, label: '✈️ Salida' };
       case 'pending_checkin':
       default:
-        return { variant: 'outline' as const, label: 'Pendiente Check In', color: 'bg-orange-500' };
+        return { variant: 'warning' as const, label: '🔑 Pendiente Check In' };
     }
   };
 

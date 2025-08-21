@@ -12,12 +12,14 @@ import { useToast } from '@/hooks/use-toast';
 import { Reservation, ReservationFormData } from '@/types/reservation';
 import { 
   createReservation, 
-  updateReservation
+  updateReservation,
+  updateReservationStatuses
 } from '@/lib/reservations';
 import { calculatePrice } from '@/lib/pricing';
 import { checkCabinAvailability, getNextAvailableDate } from '@/lib/availability';
 import { validateReservationDates, validateCabinCapacity } from '@/lib/validation';
 import { addDays, getTodayDate, getTomorrowDate, formatDateForDisplay } from '@/lib/dateUtils';
+import StatusManager from '@/components/StatusManager';
 
 interface ReservationModalProps {
   isOpen: boolean;
@@ -667,6 +669,31 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
               {formData.comments.length}/1000 caracteres
             </div>
           </div>
+
+          {/* Status Manager - Solo para editar reservas existentes */}
+          {reservation && (
+            <div className="border-t pt-6">
+              <StatusManager
+                reservation={reservation}
+                onStatusUpdate={async (updates) => {
+                  try {
+                    await updateReservationStatuses(reservation.id!, updates);
+                    toast({
+                      title: "✅ Estados actualizados",
+                      description: "Los estados de la reserva han sido actualizados exitosamente."
+                    });
+                    onSuccess(); // Refresh data
+                  } catch (error: any) {
+                    toast({
+                      title: "⚠️ Error al actualizar estados",
+                      description: error.message || "No se pudieron actualizar los estados.",
+                      variant: "destructive"
+                    });
+                  }
+                }}
+              />
+            </div>
+          )}
 
           {/* Botones */}
           <div className="flex gap-4 pt-4">
