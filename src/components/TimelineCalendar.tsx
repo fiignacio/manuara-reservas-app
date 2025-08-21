@@ -266,7 +266,7 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading }: Timelin
       if (!position) return;
 
       const cabinType = reservation.cabinType;
-      const cabinReservationList = cabinReservations[cabinType];
+      const cabinReservationList = cabinReservations[cabinType] || [];
 
       // Find available row for this reservation
       let row = 0;
