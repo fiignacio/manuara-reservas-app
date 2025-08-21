@@ -20,6 +20,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import ReservationModal from '@/components/ReservationModal';
 import TimelineCalendar from '@/components/TimelineCalendar';
+import AvailabilityCard from '@/components/AvailabilityCard';
 import { Reservation } from '@/types/reservation';
 import { 
   getAllReservations, 
@@ -37,6 +38,7 @@ const Calendar = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCabin, setFilterCabin] = useState('all');
   const [sortBy, setSortBy] = useState('checkIn');
+  const [selectedDateRange, setSelectedDateRange] = useState<{ start: string; end: string } | null>(null);
 
   const loadReservations = async () => {
     try {
@@ -132,6 +134,39 @@ const Calendar = () => {
     setSelectedReservation(null);
   };
 
+  const handleDateRangeSelect = (startDate: string, endDate: string) => {
+    setSelectedDateRange({ start: startDate, end: endDate });
+  };
+
+  const handleBookCabin = (cabinType: string) => {
+    if (selectedDateRange) {
+      setSelectedReservation({
+        checkIn: selectedDateRange.start,
+        checkOut: selectedDateRange.end,
+        cabinType,
+        passengerName: '',
+        phone: '',
+        adults: 1,
+        children: 0,
+        babies: 0,
+        season: 'Baja',
+        arrivalFlight: 'LA841',
+        departureFlight: 'LA842',
+        totalPrice: 0,
+        useCustomPrice: false,
+        customPrice: 0,
+        comments: '',
+        paymentStatus: 'pending_deposit',
+        reservationStatus: 'pending_checkin'
+      } as Reservation);
+      setIsModalOpen(true);
+    }
+  };
+
+  const handleClearSelection = () => {
+    setSelectedDateRange(null);
+  };
+
   const getSeasonBadge = (season: string) => {
     return season === 'Alta' ? 'destructive' : 'secondary';
   };
@@ -152,11 +187,23 @@ const Calendar = () => {
         </Button>
       </div>
 
+      {/* Selected Date Range Availability */}
+      {selectedDateRange && (
+        <AvailabilityCard
+          startDate={selectedDateRange.start}
+          endDate={selectedDateRange.end}
+          reservations={reservations}
+          onBookCabin={handleBookCabin}
+          onClear={handleClearSelection}
+        />
+      )}
+
       {/* Timeline Calendar */}
       <TimelineCalendar
         reservations={reservations}
         onReservationClick={handleReservationClick}
         loading={loading}
+        onDateRangeSelect={handleDateRangeSelect}
       />
 
       {/* Legend */}

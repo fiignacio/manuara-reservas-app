@@ -6,11 +6,13 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Reservation } from '@/types/reservation';
 import { formatDateForDisplay, parseDate, getDaysBetween } from '@/lib/dateUtils';
+import { useDateSelection } from '@/hooks/useDateSelection';
 
 interface TimelineCalendarProps {
   reservations: Reservation[];
   onReservationClick: (reservation: Reservation) => void;
   loading: boolean;
+  onDateRangeSelect?: (startDate: string, endDate: string) => void;
 }
 
 const CABIN_TYPES = [
@@ -20,12 +22,24 @@ const CABIN_TYPES = [
   'Cabaña Grande (Max 6p)'
 ];
 
-const TimelineCalendar = ({ reservations, onReservationClick, loading }: TimelineCalendarProps) => {
+const TimelineCalendar = ({ reservations, onReservationClick, loading, onDateRangeSelect }: TimelineCalendarProps) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'week' | 'month'>('month');
   const [dayWidth, setDayWidth] = useState(40);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
+  
+  // Date selection functionality
+  const {
+    selectionState,
+    startSelection,
+    updateSelection,
+    endSelection,
+    clearSelection,
+    isDateInRange,
+    isDateRangeStart,
+    isDateRangeEnd
+  } = useDateSelection();
 
   const getCabinColor = (cabinType: string) => {
     switch (cabinType) {
@@ -193,6 +207,19 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading }: Timelin
     }, 100);
     return () => clearTimeout(timer);
   }, [scrollToToday]);
+
+  // Handle mouse up events globally to end selection
+  useEffect(() => {
+    const handleGlobalMouseUp = () => {
+      if (selectionState.isSelecting && selectionState.startDate && selectionState.endDate) {
+        endSelection();
+        onDateRangeSelect?.(selectionState.startDate, selectionState.endDate);
+      }
+    };
+
+    document.addEventListener('mouseup', handleGlobalMouseUp);
+    return () => document.removeEventListener('mouseup', handleGlobalMouseUp);
+  }, [selectionState, endSelection, onDateRangeSelect]);
 
   // Manual scroll controls
   const scrollLeft = () => {
@@ -474,17 +501,27 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading }: Timelin
                   const isToday = dateStr === todayString;
                   
                   return (
-                    <div
+                     <div
                       key={index}
                       className={`
-                        flex flex-col items-center justify-center border-r border-border/50 text-xs cursor-pointer
+                        flex flex-col items-center justify-center border-r border-border/50 text-xs cursor-pointer select-none
                         ${!isCurrentMonth && viewMode === 'month' ? 'text-muted-foreground bg-muted/20' : ''}
                         ${isToday ? 'bg-primary/10 text-primary font-medium' : ''}
+                        ${isDateInRange(dateStr) ? 'bg-primary/20 text-primary' : ''}
+                        ${isDateRangeStart(dateStr) ? 'bg-primary text-primary-foreground' : ''}
+                        ${isDateRangeEnd(dateStr) ? 'bg-primary text-primary-foreground' : ''}
                         hover:bg-accent/50 transition-colors
                       `}
                       style={{ width: `${dayWidth}px` }}
-                      onClick={() => scrollToDate(dateStr)}
-                      title={`Click para centrar en ${formatDateForDisplay(dateStr)}`}
+                      onMouseDown={() => startSelection(dateStr)}
+                      onMouseEnter={() => selectionState.isSelecting && updateSelection(dateStr)}
+                      onMouseUp={() => {
+                        if (selectionState.isSelecting && selectionState.startDate && selectionState.endDate) {
+                          endSelection();
+                          onDateRangeSelect?.(selectionState.startDate, selectionState.endDate);
+                        }
+                      }}
+                      title={`Seleccionar fecha ${formatDateForDisplay(dateStr)}`}
                     >
                       <div className="font-medium">{date.getDate()}</div>
                       <div className="text-xs opacity-70">
@@ -508,17 +545,34 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading }: Timelin
                     className="border-b border-border/50 relative bg-background"
                     style={{ height: `${rowHeight}px` }}
                   >
-                    {/* Day grid lines */}
+                     {/* Day grid lines */}
                     {timelineDates.map((dateStr, index) => {
                       const isToday = dateStr === todayString;
+                      const isInRange = isDateInRange(dateStr);
+                      const isRangeStart = isDateRangeStart(dateStr);
+                      const isRangeEnd = isDateRangeEnd(dateStr);
+                      
                       return (
                         <div
                           key={index}
-                          className={`absolute top-0 border-r ${isToday ? 'border-primary/30 bg-primary/5' : 'border-border/20'}`}
+                          className={`
+                            absolute top-0 border-r transition-colors
+                            ${isToday ? 'border-primary/30 bg-primary/5' : 'border-border/20'}
+                            ${isInRange ? 'bg-primary/10' : ''}
+                            ${isRangeStart || isRangeEnd ? 'bg-primary/20' : ''}
+                          `}
                           style={{
                             left: `${index * dayWidth}px`,
                             width: `${dayWidth}px`,
                             height: '100%'
+                          }}
+                          onMouseDown={() => startSelection(dateStr)}
+                          onMouseEnter={() => selectionState.isSelecting && updateSelection(dateStr)}
+                          onMouseUp={() => {
+                            if (selectionState.isSelecting && selectionState.startDate && selectionState.endDate) {
+                              endSelection();
+                              onDateRangeSelect?.(selectionState.startDate, selectionState.endDate);
+                            }
                           }}
                         />
                       );

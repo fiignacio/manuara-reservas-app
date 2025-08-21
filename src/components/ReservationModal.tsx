@@ -20,6 +20,7 @@ import { checkCabinAvailability, getNextAvailableDate } from '@/lib/availability
 import { validateReservationDates, validateCabinCapacity } from '@/lib/validation';
 import { addDays, getTodayDate, getTomorrowDate, formatDateForDisplay } from '@/lib/dateUtils';
 import StatusManager from '@/components/StatusManager';
+import CabinAvailabilityMatrix from '@/components/CabinAvailabilityMatrix';
 
 interface ReservationModalProps {
   isOpen: boolean;
@@ -472,6 +473,17 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>{dateValidationError}</AlertDescription>
             </Alert>
+          )}
+
+          {/* Cabin Availability Matrix */}
+          {formData.checkIn && formData.checkOut && shouldValidateDates && (
+            <CabinAvailabilityMatrix 
+              checkIn={formData.checkIn}
+              checkOut={formData.checkOut}
+              selectedCabin={formData.cabinType}
+              onCabinSelect={(cabinType) => setFormData({ ...formData, cabinType: cabinType as any })}
+              excludeReservationId={reservation?.id}
+            />
           )}
 
           {/* Indicador de disponibilidad */}
