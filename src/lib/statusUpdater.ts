@@ -45,22 +45,31 @@ export const processDepartedReservations = async (): Promise<number> => {
     yesterday.setDate(yesterday.getDate() - 1);
     const yesterdayStr = yesterday.toISOString().split('T')[0];
     
+    // Simplify query to avoid complex index requirements
+    // First get all reservations that are checked out
     const q = query(
       collection(db, COLLECTION_NAME),
-      where('checkOut', '<=', yesterdayStr),
-      where('checkOutStatus', '==', 'checked_out'),
-      where('reservationStatus', '!=', 'departed')
+      where('checkOutStatus', '==', 'checked_out')
     );
     
     const snapshot = await getDocs(q);
     const updates: Promise<void>[] = [];
     
     snapshot.forEach((docSnapshot) => {
-      const docRef = doc(db, COLLECTION_NAME, docSnapshot.id);
-      updates.push(updateDoc(docRef, {
-        reservationStatus: 'departed',
-        updatedAt: new Date()
-      }));
+      const reservation = docSnapshot.data();
+      
+      // Filter in memory to avoid complex query
+      const shouldMarkDeparted = 
+        reservation.checkOut <= yesterdayStr && 
+        reservation.reservationStatus !== 'departed';
+        
+      if (shouldMarkDeparted) {
+        const docRef = doc(db, COLLECTION_NAME, docSnapshot.id);
+        updates.push(updateDoc(docRef, {
+          reservationStatus: 'departed',
+          updatedAt: new Date()
+        }));
+      }
     });
     
     await Promise.all(updates);
