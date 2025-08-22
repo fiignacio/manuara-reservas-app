@@ -3,7 +3,7 @@ import { db } from './firebase';
 import { Reservation } from '@/types/reservation';
 import { updatePaymentStatus, updateReservationStatus } from './pricing';
 
-const COLLECTION_NAME = 'reservations';
+const COLLECTION_NAME = 'reservas';
 
 // Function to automatically update statuses for all reservations
 export const updateAllReservationStatuses = async (): Promise<void> => {

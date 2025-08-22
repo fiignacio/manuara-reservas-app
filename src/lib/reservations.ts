@@ -19,15 +19,51 @@ import { checkCabinAvailability, getNextAvailableDate } from './availability';
 
 const COLLECTION_NAME = 'reservas';
 
+// Cabin type mapping for legacy data
+const CABIN_TYPE_MAPPING: Record<string, string> = {
+  'Cabaña Pequeña': 'Cabaña Pequeña (Max 3p)',
+  'Cabaña Mediana 1': 'Cabaña Mediana 1 (Max 4p)',
+  'Cabaña Mediana 2': 'Cabaña Mediana 2 (Max 4p)',
+  'Cabaña Grande': 'Cabaña Grande (Max 6p)',
+  'Pequeña': 'Cabaña Pequeña (Max 3p)',
+  'Mediana 1': 'Cabaña Mediana 1 (Max 4p)',
+  'Mediana 2': 'Cabaña Mediana 2 (Max 4p)',
+  'Grande': 'Cabaña Grande (Max 6p)'
+};
+
+// Date normalization - convert DD-MM-YYYY to YYYY-MM-DD
+const normalizeDateFormat = (dateStr: string): string => {
+  if (!dateStr) return '';
+  
+  // If already in YYYY-MM-DD format, return as is
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    return dateStr;
+  }
+  
+  // If in DD-MM-YYYY format, convert to YYYY-MM-DD
+  if (/^\d{2}-\d{2}-\d{4}$/.test(dateStr)) {
+    const [day, month, year] = dateStr.split('-');
+    return `${year}-${month}-${day}`;
+  }
+  
+  return dateStr; // Return original if format not recognized
+};
+
+// Cabin type normalization
+const normalizeCabinType = (cabinType: string): string => {
+  if (!cabinType) return '';
+  return CABIN_TYPE_MAPPING[cabinType] || cabinType;
+};
+
 // Normalize reservation data to ensure consistent date formats
 const normalizeReservation = (rawReservation: any): Reservation => {
   const checkIn = rawReservation.checkIn && typeof rawReservation.checkIn === 'object' && rawReservation.checkIn.toDate 
     ? formatDateToISO(rawReservation.checkIn.toDate())
-    : rawReservation.checkIn?.split('T')[0] || rawReservation.checkIn;
+    : normalizeDateFormat(rawReservation.checkIn?.split('T')[0] || rawReservation.checkIn);
 
   const checkOut = rawReservation.checkOut && typeof rawReservation.checkOut === 'object' && rawReservation.checkOut.toDate 
     ? formatDateToISO(rawReservation.checkOut.toDate())
-    : rawReservation.checkOut?.split('T')[0] || rawReservation.checkOut;
+    : normalizeDateFormat(rawReservation.checkOut?.split('T')[0] || rawReservation.checkOut);
 
   const actualCheckIn = rawReservation.actualCheckIn && typeof rawReservation.actualCheckIn === 'object' && rawReservation.actualCheckIn.toDate 
     ? rawReservation.actualCheckIn.toDate().toISOString()
@@ -54,6 +90,8 @@ const normalizeReservation = (rawReservation: any): Reservation => {
     confirmationSentDate,
     createdAt,
     updatedAt,
+    // Normalize cabin type
+    cabinType: normalizeCabinType(rawReservation.cabinType || ''),
     // Set default status values if missing
     paymentStatus: rawReservation.paymentStatus || 'pending_deposit',
     reservationStatus: rawReservation.reservationStatus || 'pending_checkin'
@@ -162,13 +200,41 @@ export const deleteReservation = async (id: string): Promise<void> => {
 };
 
 export const getAllReservations = async (): Promise<Reservation[]> => {
-  const q = query(collection(db, COLLECTION_NAME), orderBy('checkIn', 'asc'));
-  const snapshot = await getDocs(q);
+  const reservations: Reservation[] = [];
+  const seenIds = new Set<string>();
   
-  const reservations = snapshot.docs.map(doc => {
-    const data = doc.data();
-    return normalizeReservation({ ...data, id: doc.id });
-  });
+  // Read from primary collection (reservas)
+  try {
+    const q1 = query(collection(db, COLLECTION_NAME), orderBy('checkIn', 'asc'));
+    const snapshot1 = await getDocs(q1);
+    
+    snapshot1.docs.forEach(doc => {
+      const data = doc.data();
+      reservations.push(normalizeReservation({ ...data, id: doc.id }));
+      seenIds.add(doc.id);
+    });
+  } catch (error) {
+    console.warn('Could not read from reservas collection:', error);
+  }
+  
+  // Read from legacy collection (reservations) for any missing data
+  try {
+    const q2 = query(collection(db, 'reservations'), orderBy('checkIn', 'asc'));
+    const snapshot2 = await getDocs(q2);
+    
+    snapshot2.docs.forEach(doc => {
+      // Only add if not already seen from primary collection
+      if (!seenIds.has(doc.id)) {
+        const data = doc.data();
+        reservations.push(normalizeReservation({ ...data, id: doc.id }));
+      }
+    });
+  } catch (error) {
+    console.warn('Could not read from reservations collection:', error);
+  }
+  
+  // Sort by checkIn date after combining both collections
+  const sortedReservations = reservations.sort((a, b) => a.checkIn.localeCompare(b.checkIn));
   
   // Update statuses for all reservations automatically
   try {
@@ -178,7 +244,7 @@ export const getAllReservations = async (): Promise<Reservation[]> => {
     console.warn('Status maintenance failed:', error);
   }
   
-  return reservations;
+  return sortedReservations;
 };
 
 export const getReservationsForDate = async (date: string): Promise<Reservation[]> => {

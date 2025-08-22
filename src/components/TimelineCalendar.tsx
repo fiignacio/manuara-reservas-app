@@ -26,6 +26,7 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading, onDateRan
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'week' | 'month'>('month');
   const [dayWidth, setDayWidth] = useState(40);
+  const [showDeparted, setShowDeparted] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
   
@@ -284,8 +285,8 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading, onDateRan
     });
 
     const filteredReservations = reservations.filter(reservation => {
-      // Hide departed reservations from calendar
-      if (reservation.reservationStatus === 'departed') {
+      // Hide departed reservations from calendar (unless show departed is enabled)
+      if (!showDeparted && reservation.reservationStatus === 'departed') {
         return false;
       }
       
@@ -448,6 +449,17 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading, onDateRan
               <CalendarIcon className="w-4 h-4 mr-1" />
               Hoy
             </Button>
+            <div className="flex items-center gap-2 ml-4">
+              <label className="flex items-center gap-1 text-xs">
+                <input
+                  type="checkbox"
+                  checked={showDeparted}
+                  onChange={(e) => setShowDeparted(e.target.checked)}
+                  className="rounded border border-input"
+                />
+                Mostrar salidas
+              </label>
+            </div>
           </div>
         </div>
       </CardHeader>

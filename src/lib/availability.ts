@@ -7,7 +7,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 
-const COLLECTION_NAME = 'reservations';
+const COLLECTION_NAME = 'reservas';
 
 export const checkCabinAvailability = async (
   cabinType: string,
