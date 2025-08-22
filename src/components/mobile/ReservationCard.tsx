@@ -302,9 +302,9 @@ const ReservationCard = ({
                   <AlertDialogTitle>¿Eliminar reserva?</AlertDialogTitle>
                   <AlertDialogDescription>
                     Esta acción no se puede deshacer. Se eliminará permanentemente la reserva de {reservation.passengerName}.
-                    {reservation.payments.length > 0 && (
+                    {(reservation.payments || []).length > 0 && (
                       <div className="mt-2 text-destructive font-medium">
-                        ⚠️ Esta reserva tiene {reservation.payments.length} pago{reservation.payments.length !== 1 ? 's' : ''} registrado{reservation.payments.length !== 1 ? 's' : ''}.
+                        ⚠️ Esta reserva tiene {(reservation.payments || []).length} pago{(reservation.payments || []).length !== 1 ? 's' : ''} registrado{(reservation.payments || []).length !== 1 ? 's' : ''}.
                       </div>
                     )}
                   </AlertDialogDescription>

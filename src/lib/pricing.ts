@@ -22,13 +22,15 @@ export const calculatePrice = (data: ReservationFormData): number => {
 };
 
 export const calculateRemainingBalance = (reservation: Reservation): number => {
-  const totalPaid = reservation.payments.reduce((sum, payment) => sum + payment.amount, 0);
+  const payments = reservation.payments || [];
+  const totalPaid = payments.reduce((sum, payment) => sum + payment.amount, 0);
   return Math.max(0, reservation.totalPrice - totalPaid);
 };
 
 export const updatePaymentStatus = (reservation: Reservation): 'pending_deposit' | 'pending_payment' | 'deposit_made' | 'fully_paid' | 'overdue' => {
   const remainingBalance = calculateRemainingBalance(reservation);
-  const totalPaid = reservation.payments.reduce((sum, payment) => sum + payment.amount, 0);
+  const payments = reservation.payments || [];
+  const totalPaid = payments.reduce((sum, payment) => sum + payment.amount, 0);
   const today = new Date().toISOString().split('T')[0];
   
   // Check if overdue (checkout date has passed and not fully paid)

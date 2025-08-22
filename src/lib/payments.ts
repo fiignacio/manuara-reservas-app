@@ -64,7 +64,7 @@ export const addPayment = async (reservationId: string, paymentData: PaymentForm
   };
   
   // Update reservation with new payment
-  const updatedPayments = [...reservation.payments, newPayment];
+  const updatedPayments = [...(reservation.payments || []), newPayment];
   const updatedReservation = {
     ...reservation,
     payments: updatedPayments

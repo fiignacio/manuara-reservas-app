@@ -92,6 +92,8 @@ const normalizeReservation = (rawReservation: any): Reservation => {
     updatedAt,
     // Normalize cabin type
     cabinType: normalizeCabinType(rawReservation.cabinType || ''),
+    // Ensure payments array exists
+    payments: rawReservation.payments || [],
     // Set default status values if missing
     paymentStatus: rawReservation.paymentStatus || 'pending_deposit',
     reservationStatus: rawReservation.reservationStatus || 'pending_checkin'
