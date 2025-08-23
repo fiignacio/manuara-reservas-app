@@ -78,6 +78,9 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
   const [capacityValidationError, setCapacityValidationError] = useState<string | null>(null);
   const [updateDates, setUpdateDates] = useState(false);
   
+  // Estado local para la reservación que se actualiza en tiempo real
+  const [localReservation, setLocalReservation] = useState<Reservation | null>(reservation || null);
+  
   const [formData, setFormData] = useState<ReservationFormData>(initializeFormData());
 
   const [calculatedPrice, setCalculatedPrice] = useState(0);
@@ -96,6 +99,7 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
     if (reservation) {
       const initializedData = initializeFormData(reservation);
       setFormData(initializedData);
+      setLocalReservation(reservation);
       setUpdateDates(false);
     } else {
       setFormData(initializeFormData());
@@ -358,8 +362,20 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
     return null;
   };
 
+  const handleModalClose = () => {
+    // Solo recargar datos si se hicieron cambios de estado y el modal se cierra completamente
+    if (localReservation && reservation && 
+        (localReservation.paymentStatus !== reservation.paymentStatus || 
+         localReservation.reservationStatus !== reservation.reservationStatus ||
+         localReservation.checkInStatus !== reservation.checkInStatus ||
+         localReservation.checkOutStatus !== reservation.checkOutStatus)) {
+      onSuccess(); // Recargar datos solo si hubo cambios de estado
+    }
+    onClose();
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={handleModalClose}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold">
@@ -689,7 +705,7 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
           {reservation && (
             <div className="border-t pt-6">
               <StatusManager
-                reservation={reservation}
+                reservation={localReservation!}
                 onStatusUpdate={async (updates) => {
                   try {
                     // Extract the custom parameters from StatusManager
@@ -703,11 +719,20 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
                         previousReservation: _previousReservation || reservation
                       }
                     );
+                    
+                    // Actualizar el estado local inmediatamente para reflejar cambios
+                    if (localReservation) {
+                      const updatedReservation = { ...localReservation, ...statusUpdates };
+                      setLocalReservation(updatedReservation);
+                    }
+                    
                     toast({
                       title: "✅ Estados actualizados",
                       description: "Los estados de la reserva han sido actualizados exitosamente."
                     });
-                    onSuccess(); // Refresh data
+                    
+                    // NO llamar onSuccess() aquí para evitar cerrar el modal
+                    // Los cambios se reflejan inmediatamente en el modal
                   } catch (error: any) {
                     toast({
                       title: "⚠️ Error al actualizar estados",
@@ -725,7 +750,7 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
             <Button
               type="button"
               variant="outline"
-              onClick={onClose}
+              onClick={handleModalClose}
               className="flex-1"
             >
               Cancelar
