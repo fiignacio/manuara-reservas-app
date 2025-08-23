@@ -45,6 +45,8 @@ export interface Reservation {
   sernateurCode?: string;
   createdAt?: Date;
   updatedAt?: Date;
+  // Source collection tracking for robust updates
+  _sourceCollection?: 'reservas' | 'reservations';
 }
 
 export interface ReservationFormData extends Omit<Reservation, 'id' | 'totalPrice' | 'payments' | 'remainingBalance' | 'paymentStatus' | 'reservationStatus' | 'actualCheckIn' | 'actualCheckOut' | 'checkInStatus' | 'checkOutStatus' | 'checkInNotes' | 'checkOutNotes' | 'confirmationSent' | 'confirmationSentDate' | 'confirmationMethod' | 'createdAt' | 'updatedAt'> {}

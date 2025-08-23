@@ -692,7 +692,17 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
                 reservation={reservation}
                 onStatusUpdate={async (updates) => {
                   try {
-                    await updateReservationStatuses(reservation.id!, updates);
+                    // Extract the custom parameters from StatusManager
+                    const { _sourceCollection, _previousReservation, ...statusUpdates } = updates as any;
+                    
+                    await updateReservationStatuses(
+                      reservation.id!, 
+                      statusUpdates,
+                      {
+                        sourceCollection: _sourceCollection || reservation._sourceCollection,
+                        previousReservation: _previousReservation || reservation
+                      }
+                    );
                     toast({
                       title: "✅ Estados actualizados",
                       description: "Los estados de la reserva han sido actualizados exitosamente."

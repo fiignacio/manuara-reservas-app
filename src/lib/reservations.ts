@@ -212,7 +212,7 @@ export const getAllReservations = async (): Promise<Reservation[]> => {
     
     snapshot1.docs.forEach(doc => {
       const data = doc.data();
-      reservations.push(normalizeReservation({ ...data, id: doc.id }));
+      reservations.push(normalizeReservation({ ...data, id: doc.id, _sourceCollection: 'reservas' }));
       seenIds.add(doc.id);
     });
   } catch (error) {
@@ -228,7 +228,7 @@ export const getAllReservations = async (): Promise<Reservation[]> => {
       // Only add if not already seen from primary collection
       if (!seenIds.has(doc.id)) {
         const data = doc.data();
-        reservations.push(normalizeReservation({ ...data, id: doc.id }));
+        reservations.push(normalizeReservation({ ...data, id: doc.id, _sourceCollection: 'reservations' }));
       }
     });
   } catch (error) {
@@ -370,19 +370,70 @@ export const deleteExpiredReservations = async (): Promise<number> => {
   return querySnapshot.docs.length;
 };
 
-// Update reservation status fields without requiring full form data
+// Enhanced reservation status update with robust collection handling
 export const updateReservationStatuses = async (
   reservationId: string,
-  statusUpdates: Partial<Pick<Reservation, 'paymentStatus' | 'reservationStatus' | 'checkInStatus' | 'checkOutStatus' | 'checkInNotes' | 'checkOutNotes'>>
+  statusUpdates: Partial<Pick<Reservation, 'paymentStatus' | 'reservationStatus' | 'checkInStatus' | 'checkOutStatus' | 'checkInNotes' | 'checkOutNotes' | 'actualCheckIn' | 'actualCheckOut'>>,
+  options?: {
+    sourceCollection?: 'reservas' | 'reservations';
+    previousReservation?: Reservation;
+  }
 ): Promise<void> => {
   try {
-    const reservationRef = doc(db, COLLECTION_NAME, reservationId);
+    // Determine which collection to try first
+    const primaryCollection = options?.sourceCollection || 'reservas';
+    const fallbackCollection = primaryCollection === 'reservas' ? 'reservations' : 'reservas';
+    
+    // Auto-calculate actualCheckIn/Out timestamps if status changed
+    const enrichedUpdates = { ...statusUpdates };
+    const now = new Date().toISOString();
+    
+    if (options?.previousReservation) {
+      const prev = options.previousReservation;
+      
+      // If check-in status changed to 'checked_in', set actualCheckIn
+      if (statusUpdates.checkInStatus === 'checked_in' && prev.checkInStatus !== 'checked_in') {
+        enrichedUpdates.actualCheckIn = now;
+      }
+      
+      // If check-out status changed to 'checked_out', set actualCheckOut
+      if (statusUpdates.checkOutStatus === 'checked_out' && prev.checkOutStatus !== 'checked_out') {
+        enrichedUpdates.actualCheckOut = now;
+      }
+      
+      // Auto-sync reservation status based on check-in/out changes
+      if (!statusUpdates.reservationStatus) {
+        if (statusUpdates.checkInStatus === 'checked_in' && prev.reservationStatus === 'pending_checkin') {
+          enrichedUpdates.reservationStatus = 'in_stay';
+        } else if (statusUpdates.checkOutStatus === 'checked_out' && prev.reservationStatus === 'in_stay') {
+          enrichedUpdates.reservationStatus = 'checked_out';
+        }
+      }
+    }
+    
     const updateData = {
-      ...statusUpdates,
+      ...enrichedUpdates,
       updatedAt: Timestamp.now()
     };
     
-    await updateDoc(reservationRef, updateData);
+    // Try primary collection first
+    try {
+      const primaryRef = doc(db, primaryCollection, reservationId);
+      await updateDoc(primaryRef, updateData);
+      return;
+    } catch (primaryError) {
+      console.warn(`Failed to update in ${primaryCollection}:`, primaryError);
+      
+      // Fallback to secondary collection
+      try {
+        const fallbackRef = doc(db, fallbackCollection, reservationId);
+        await updateDoc(fallbackRef, updateData);
+        return;
+      } catch (fallbackError) {
+        console.error(`Failed to update in both collections:`, { primaryError, fallbackError });
+        throw new Error('No se pudo actualizar el estado de la reserva en ninguna colección');
+      }
+    }
   } catch (error) {
     console.error('Error updating reservation status:', error);
     throw new Error('No se pudo actualizar el estado de la reserva');

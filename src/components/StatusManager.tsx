@@ -93,7 +93,14 @@ const StatusManager = ({ reservation, onStatusUpdate, compact = false }: StatusM
       }
     }
 
-    onStatusUpdate(updates);
+    // Pass source collection and previous reservation for robust updates
+    const enhancedUpdates = {
+      ...updates,
+      _sourceCollection: reservation._sourceCollection,
+      _previousReservation: reservation
+    };
+
+    onStatusUpdate(enhancedUpdates);
     setIsEditing(false);
     setNotes('');
   };
@@ -168,7 +175,13 @@ const StatusManager = ({ reservation, onStatusUpdate, compact = false }: StatusM
 
               <div>
                 <Label>Estado Check In</Label>
-                <Select value={checkInStatus} onValueChange={(value: any) => setCheckInStatus(value)}>
+                <Select value={checkInStatus} onValueChange={(value: any) => {
+                  setCheckInStatus(value);
+                  // Auto-sync reservation status when check-in changes
+                  if (value === 'checked_in' && reservationStatus === 'pending_checkin') {
+                    setReservationStatus('in_stay');
+                  }
+                }}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -182,7 +195,13 @@ const StatusManager = ({ reservation, onStatusUpdate, compact = false }: StatusM
 
               <div>
                 <Label>Estado Check Out</Label>
-                <Select value={checkOutStatus} onValueChange={(value: any) => setCheckOutStatus(value)}>
+                <Select value={checkOutStatus} onValueChange={(value: any) => {
+                  setCheckOutStatus(value);
+                  // Auto-sync reservation status when check-out changes
+                  if (value === 'checked_out' && reservationStatus === 'in_stay') {
+                    setReservationStatus('checked_out');
+                  }
+                }}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -312,7 +331,13 @@ const StatusManager = ({ reservation, onStatusUpdate, compact = false }: StatusM
 
             <div>
               <Label>Estado Check In</Label>
-              <Select value={checkInStatus} onValueChange={(value: any) => setCheckInStatus(value)}>
+              <Select value={checkInStatus} onValueChange={(value: any) => {
+                setCheckInStatus(value);
+                // Auto-sync reservation status when check-in changes
+                if (value === 'checked_in' && reservationStatus === 'pending_checkin') {
+                  setReservationStatus('in_stay');
+                }
+              }}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -326,7 +351,13 @@ const StatusManager = ({ reservation, onStatusUpdate, compact = false }: StatusM
 
             <div>
               <Label>Estado Check Out</Label>
-              <Select value={checkOutStatus} onValueChange={(value: any) => setCheckOutStatus(value)}>
+              <Select value={checkOutStatus} onValueChange={(value: any) => {
+                setCheckOutStatus(value);
+                // Auto-sync reservation status when check-out changes
+                if (value === 'checked_out' && reservationStatus === 'in_stay') {
+                  setReservationStatus('checked_out');
+                }
+              }}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
