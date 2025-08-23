@@ -3,7 +3,7 @@ import { db } from './firebase';
 import { CheckInOutData, Reservation } from '@/types/reservation';
 import { updatePaymentStatus, updateReservationStatus } from './pricing';
 
-const COLLECTION_NAME = 'reservations';
+const COLLECTION_NAME = 'reservas';
 
 // Check-in/Check-out functions with automatic status updates
 export const updateCheckInOut = async (data: CheckInOutData): Promise<void> => {

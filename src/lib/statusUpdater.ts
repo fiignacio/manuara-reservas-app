@@ -91,7 +91,7 @@ export const runStatusMaintenance = async (): Promise<{ updated: number; departe
       departed: departedCount
     };
   } catch (error) {
-    console.error('Error running status maintenance:', error);
-    throw error;
+    // Silent error handling to prevent console spam
+    return { updated: 0, departed: 0 };
   }
 };

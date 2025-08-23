@@ -5,7 +5,7 @@ import { Reservation } from '@/types/reservation';
 import { calculateRemainingBalance, updatePaymentStatus, updateReservationStatus } from './pricing';
 import { getAllReservations } from './reservations';
 
-const COLLECTION_NAME = 'reservations';
+const COLLECTION_NAME = 'reservas';
 
 // Clean reservation data to remove undefined fields and set defaults
 const cleanReservationData = (data: Partial<Reservation>) => {
