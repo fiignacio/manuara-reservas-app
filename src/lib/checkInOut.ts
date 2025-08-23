@@ -1,7 +1,7 @@
 import { doc, updateDoc, Timestamp } from 'firebase/firestore';
 import { db } from './firebase';
 import { CheckInOutData, Reservation } from '@/types/reservation';
-import { updatePaymentStatus, updateReservationStatus } from './pricing';
+// Removed automatic status calculations to prevent loops
 
 const COLLECTION_NAME = 'reservas';
 
@@ -38,13 +38,9 @@ export const updateCheckInOut = async (data: CheckInOutData): Promise<void> => {
     tempReservation.actualCheckOut = data.actualDateTime;
   }
   
-  const newPaymentStatus = updatePaymentStatus(tempReservation);
-  const newReservationStatus = updateReservationStatus(tempReservation);
-  
+  // Keep existing statuses to prevent automatic changes and loops
   const finalUpdateData = {
-    ...baseUpdateData,
-    paymentStatus: newPaymentStatus,
-    reservationStatus: newReservationStatus
+    ...baseUpdateData
   };
   
   await updateDoc(docRef, finalUpdateData);
