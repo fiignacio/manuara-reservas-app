@@ -238,13 +238,11 @@ export const getAllReservations = async (): Promise<Reservation[]> => {
   // Sort by checkIn date after combining both collections
   const sortedReservations = reservations.sort((a, b) => a.checkIn.localeCompare(b.checkIn));
   
-  // Update statuses for all reservations automatically
-  try {
-    const { runStatusMaintenance } = await import('./statusUpdater');
-    runStatusMaintenance().catch(console.error); // Run in background without blocking
-  } catch (error) {
-    console.warn('Status maintenance failed:', error);
-  }
+  // Note: Removed automatic status maintenance to prevent feedback loops
+  // Previously, fetching reservations would trigger background status updates
+  // which could override manual edits and cause perceived loops.
+  
+
   
   return sortedReservations;
 };
