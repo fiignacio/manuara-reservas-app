@@ -3,7 +3,7 @@ import { CheckCircle, Send, Loader2, FileDown, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -186,6 +186,9 @@ const ConfirmationModal = ({ isOpen, onClose, onSuccess, reservation }: Confirma
               <Send className="w-5 h-5 text-primary" />
               Marcar Confirmación
             </DialogTitle>
+            <DialogDescription>
+              Registra el envío de la confirmación de reserva al huésped.
+            </DialogDescription>
           </DialogHeader>
           <Content />
         </DialogContent>

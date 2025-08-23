@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -273,6 +273,9 @@ const PaymentModal = ({ isOpen, onClose, onSuccess, reservation }: PaymentModalP
             <DollarSign className="w-5 h-5 text-primary" />
             Registrar Pago
           </DialogTitle>
+          <DialogDescription>
+            Registra un nuevo pago para esta reserva. El balance pendiente se actualizará automáticamente.
+          </DialogDescription>
         </DialogHeader>
         <Content {...contentProps} />
       </DialogContent>

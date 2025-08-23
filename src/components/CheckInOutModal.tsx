@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -160,6 +160,9 @@ const CheckInOutModal = ({ isOpen, onClose, reservation, type, onSuccess }: Chec
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>
+            {type === 'check_in' ? 'Registrar la entrada del huésped a la cabaña' : 'Registrar la salida del huésped de la cabaña'}
+          </DialogDescription>
         </DialogHeader>
         <FormContent />
       </DialogContent>

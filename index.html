@@ -24,7 +24,8 @@
     <meta name="twitter:description" content="Sistema de gestión de reservas para cabañas" />
     <meta name="twitter:image" content="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1200&h=630&fit=crop&crop=center" />
 
-    <!-- iOS PWA -->
+    <!-- PWA Mobile Web App -->
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Manuara Reservas" />
@@ -41,10 +42,10 @@
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/sw.js')
             .then((registration) => {
-              console.log('SW registered: ', registration);
+              // Service worker registered successfully (silent in production)
             })
             .catch((registrationError) => {
-              console.log('SW registration failed: ', registrationError);
+              console.warn('Service worker registration failed:', registrationError);
             });
         });
       }

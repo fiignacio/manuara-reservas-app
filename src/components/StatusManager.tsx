@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Edit, Save, X } from 'lucide-react';
@@ -130,6 +130,9 @@ const StatusManager = ({ reservation, onStatusUpdate, compact = false }: StatusM
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Editar Estados</DialogTitle>
+              <DialogDescription>
+                Modifica los estados de pago y reserva de forma rápida.
+              </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div>
@@ -271,6 +274,9 @@ const StatusManager = ({ reservation, onStatusUpdate, compact = false }: StatusM
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Editar Estados de la Reserva</DialogTitle>
+            <DialogDescription>
+              Actualiza todos los estados de la reserva, incluyendo pagos, check-in y check-out.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>

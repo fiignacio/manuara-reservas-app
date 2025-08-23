@@ -3,7 +3,7 @@ import { Users, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Reservation } from '@/types/reservation';
@@ -197,6 +197,9 @@ const GuestInfoModal = ({ isOpen, onClose, onSave, reservation }: GuestInfoModal
             <Users className="w-5 h-5 text-primary" />
             Información de Huéspedes
           </DialogTitle>
+          <DialogDescription>
+            Completa los datos de contacto y de todos los huéspedes que se alojarán en la cabaña.
+          </DialogDescription>
         </DialogHeader>
         <Content />
       </DialogContent>
