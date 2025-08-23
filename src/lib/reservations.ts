@@ -229,6 +229,13 @@ export const getAllReservations = async (): Promise<Reservation[]> => {
       if (!seenIds.has(doc.id)) {
         const data = doc.data();
         reservations.push(normalizeReservation({ ...data, id: doc.id, _sourceCollection: 'reservations' }));
+      } else {
+        console.warn('⚠️ Duplicate reservation found:', {
+          id: doc.id,
+          passengerName: doc.data().passengerName,
+          checkIn: doc.data().checkIn,
+          collections: 'both reservas and reservations'
+        });
       }
     });
   } catch (error) {
@@ -368,7 +375,7 @@ export const deleteExpiredReservations = async (): Promise<number> => {
   return querySnapshot.docs.length;
 };
 
-// Enhanced reservation status update with robust collection handling
+// Enhanced reservation status update with dual-collection handling
 export const updateReservationStatuses = async (
   reservationId: string,
   statusUpdates: Partial<Pick<Reservation, 'paymentStatus' | 'reservationStatus' | 'checkInStatus' | 'checkOutStatus' | 'checkInNotes' | 'checkOutNotes' | 'actualCheckIn' | 'actualCheckOut'>>,
@@ -378,9 +385,7 @@ export const updateReservationStatuses = async (
   }
 ): Promise<void> => {
   try {
-    // Determine which collection to try first
-    const primaryCollection = options?.sourceCollection || 'reservas';
-    const fallbackCollection = primaryCollection === 'reservas' ? 'reservations' : 'reservas';
+    console.debug('🔄 Status update started:', { reservationId, statusUpdates, sourceCollection: options?.sourceCollection });
     
     // Auto-calculate actualCheckIn/Out timestamps if status changed
     const enrichedUpdates = { ...statusUpdates };
@@ -392,19 +397,23 @@ export const updateReservationStatuses = async (
       // If check-in status changed to 'checked_in', set actualCheckIn
       if (statusUpdates.checkInStatus === 'checked_in' && prev.checkInStatus !== 'checked_in') {
         enrichedUpdates.actualCheckIn = now;
+        console.debug('🏁 Auto-set actualCheckIn timestamp');
       }
       
       // If check-out status changed to 'checked_out', set actualCheckOut
       if (statusUpdates.checkOutStatus === 'checked_out' && prev.checkOutStatus !== 'checked_out') {
         enrichedUpdates.actualCheckOut = now;
+        console.debug('🏁 Auto-set actualCheckOut timestamp');
       }
       
       // Auto-sync reservation status based on check-in/out changes
       if (!statusUpdates.reservationStatus) {
         if (statusUpdates.checkInStatus === 'checked_in' && prev.reservationStatus === 'pending_checkin') {
           enrichedUpdates.reservationStatus = 'in_stay';
+          console.debug('🔄 Auto-synced reservation status to in_stay');
         } else if (statusUpdates.checkOutStatus === 'checked_out' && prev.reservationStatus === 'in_stay') {
           enrichedUpdates.reservationStatus = 'checked_out';
+          console.debug('🔄 Auto-synced reservation status to checked_out');
         }
       }
     }
@@ -414,24 +423,49 @@ export const updateReservationStatuses = async (
       updatedAt: Timestamp.now()
     };
     
-    // Try primary collection first
+    let primarySuccess = false;
+    let fallbackSuccess = false;
+    let primaryError: any = null;
+    let fallbackError: any = null;
+    
+    // Always try to update both collections to keep them in sync
+    // Try primary collection (reservas)
     try {
-      const primaryRef = doc(db, primaryCollection, reservationId);
+      const primaryRef = doc(db, 'reservas', reservationId);
       await updateDoc(primaryRef, updateData);
-      return;
-    } catch (primaryError) {
-      console.warn(`Failed to update in ${primaryCollection}:`, primaryError);
-      
-      // Fallback to secondary collection
-      try {
-        const fallbackRef = doc(db, fallbackCollection, reservationId);
-        await updateDoc(fallbackRef, updateData);
-        return;
-      } catch (fallbackError) {
-        console.error(`Failed to update in both collections:`, { primaryError, fallbackError });
-        throw new Error('No se pudo actualizar el estado de la reserva en ninguna colección');
-      }
+      primarySuccess = true;
+      console.debug('✅ Updated in reservas collection');
+    } catch (error) {
+      primaryError = error;
+      console.debug('❌ Failed to update in reservas collection:', error);
     }
+    
+    // Try fallback collection (reservations)
+    try {
+      const fallbackRef = doc(db, 'reservations', reservationId);
+      await updateDoc(fallbackRef, updateData);
+      fallbackSuccess = true;
+      console.debug('✅ Updated in reservations collection');
+    } catch (error) {
+      fallbackError = error;
+      console.debug('❌ Failed to update in reservations collection:', error);
+    }
+    
+    // Success if at least one collection was updated
+    if (primarySuccess || fallbackSuccess) {
+      console.debug('🎉 Status update completed successfully:', {
+        reservationId,
+        updatedFields: Object.keys(enrichedUpdates),
+        primarySuccess,
+        fallbackSuccess
+      });
+      return;
+    }
+    
+    // Both failed - throw error
+    console.error('💥 Failed to update in both collections:', { primaryError, fallbackError });
+    throw new Error('No se pudo actualizar el estado de la reserva en ninguna colección');
+    
   } catch (error) {
     console.error('Error updating reservation status:', error);
     throw new Error('No se pudo actualizar el estado de la reserva');
