@@ -375,7 +375,7 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleModalClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) handleModalClose(); }}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold">
