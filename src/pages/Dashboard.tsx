@@ -19,6 +19,7 @@ import {
 import { formatDateForDisplay, getTomorrowDate, getTodayDate } from '@/lib/dateUtils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { toast } from '@/hooks/use-toast';
+import { logger } from '@/lib/logger';
 
 const Dashboard = () => {
   const [reservations, setReservations] = useState<Reservation[]>([]);
@@ -33,6 +34,9 @@ const Dashboard = () => {
   const [lastDataUpdate, setLastDataUpdate] = useState<string>('');
 
   const loadData = async () => {
+    logger.info('dashboard.loadData.start');
+    logger.time('dashboard.loadData');
+    
     try {
       setLoading(true);
       
@@ -56,8 +60,19 @@ const Dashboard = () => {
       setTomorrowDepartures(tomorrowDeps);
       setTomorrowArrivals(tomorrowArrs);
       setLastDataUpdate(new Date().toLocaleTimeString('es-CL'));
+
+      logger.info('dashboard.loadData.success', {
+        totalReservations: allReservations.length,
+        todayArrivals: arrivals.length,
+        todayDepartures: departures.length,
+        upcomingArrivals: upcomingArr.length,
+        upcomingDepartures: upcomingDep.length,
+        tomorrowDepartures: tomorrowDeps.length,
+        tomorrowArrivals: tomorrowArrs.length
+      });
       
     } catch (error) {
+      logger.error('dashboard.loadData.error', { error: String(error) });
       console.error('Error loading dashboard data:', error);
       toast({
         title: "Error",
@@ -66,11 +81,14 @@ const Dashboard = () => {
       });
     } finally {
       setLoading(false);
+      logger.timeEnd('dashboard.loadData');
     }
   };
 
   useEffect(() => {
+    logger.info('dashboard.mount');
     loadData();
+    return () => logger.info('dashboard.unmount');
   }, []);
 
   const today = new Date().toLocaleDateString('es-CL', {

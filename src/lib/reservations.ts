@@ -16,6 +16,7 @@ import { addDays, getTomorrowDate, formatDateToISO, formatDateForDisplay, getTod
 import { validateReservationDates, validateCabinCapacity } from './validation';
 import { calculatePrice, calculateRemainingBalance } from './pricing';
 import { checkCabinAvailability, getNextAvailableDate } from './availability';
+import { logger } from './logger';
 
 const COLLECTION_NAME = 'reservas';
 
@@ -103,48 +104,81 @@ const normalizeReservation = (rawReservation: any): Reservation => {
 };
 
 export const createReservation = async (data: ReservationFormData): Promise<string> => {
-  // Validation
-  if (!data.checkIn || !data.checkOut) {
-    throw new Error('Las fechas de check-in y check-out son obligatorias.');
-  }
-  
-  const dateValidation = validateReservationDates(data.checkIn, data.checkOut);
-  if (!dateValidation.isValid) {
-    throw new Error(dateValidation.error);
-  }
-  
-  const capacityValidation = validateCabinCapacity(data.cabinType, data.adults, data.children, data.babies);
-  if (!capacityValidation.isValid) {
-    throw new Error(capacityValidation.error);
-  }
-  
-  const isAvailable = await checkCabinAvailability(data.cabinType, data.checkIn, data.checkOut);
-  if (!isAvailable) {
-    const nextAvailable = await getNextAvailableDate(data.cabinType, data.checkIn);
-    throw new Error(`La ${data.cabinType} no está disponible para las fechas seleccionadas (${formatDateForDisplay(data.checkIn)} - ${formatDateForDisplay(data.checkOut)}). Próxima fecha disponible: ${nextAvailable ? formatDateForDisplay(nextAvailable) : 'No disponible'}`);
-  }
+  logger.info('reservations.createReservation.start', { 
+    cabinType: data.cabinType, 
+    checkIn: data.checkIn, 
+    checkOut: data.checkOut,
+    adults: data.adults,
+    children: data.children
+  });
+  logger.time('reservations.createReservation');
 
-  // Calculate price and statuses
-  const totalPrice = calculatePrice(data);
-  const paymentStatus = 'pending_deposit' as const;
-  const reservationStatus = 'pending_checkin' as const;
+  try {
+    // Validation
+    if (!data.checkIn || !data.checkOut) {
+      throw new Error('Las fechas de check-in y check-out son obligatorias.');
+    }
+    
+    const dateValidation = validateReservationDates(data.checkIn, data.checkOut);
+    if (!dateValidation.isValid) {
+      logger.warn('reservations.createReservation.validation.dates.failed', { error: dateValidation.error });
+      throw new Error(dateValidation.error);
+    }
+    
+    const capacityValidation = validateCabinCapacity(data.cabinType, data.adults, data.children, data.babies);
+    if (!capacityValidation.isValid) {
+      logger.warn('reservations.createReservation.validation.capacity.failed', { error: capacityValidation.error });
+      throw new Error(capacityValidation.error);
+    }
+    
+    const isAvailable = await checkCabinAvailability(data.cabinType, data.checkIn, data.checkOut);
+    if (!isAvailable) {
+      const nextAvailable = await getNextAvailableDate(data.cabinType, data.checkIn);
+      logger.warn('reservations.createReservation.availability.failed', { 
+        cabinType: data.cabinType, 
+        requestedDates: `${data.checkIn} - ${data.checkOut}`,
+        nextAvailable 
+      });
+      throw new Error(`La ${data.cabinType} no está disponible para las fechas seleccionadas (${formatDateForDisplay(data.checkIn)} - ${formatDateForDisplay(data.checkOut)}). Próxima fecha disponible: ${nextAvailable ? formatDateForDisplay(nextAvailable) : 'No disponible'}`);
+    }
 
-  const reservationData = {
-    ...data,
-    totalPrice,
-    payments: [],
-    remainingBalance: totalPrice,
-    paymentStatus,
-    reservationStatus,
-    checkInStatus: 'pending' as const,
-    checkOutStatus: 'pending' as const,
-    confirmationSent: false,
-    createdAt: Timestamp.now(),
-    updatedAt: Timestamp.now()
-  };
+    // Calculate price and statuses
+    const totalPrice = calculatePrice(data);
+    const paymentStatus = 'pending_deposit' as const;
+    const reservationStatus = 'pending_checkin' as const;
 
-  const docRef = await addDoc(collection(db, COLLECTION_NAME), reservationData);
-  return docRef.id;
+    const reservationData = {
+      ...data,
+      totalPrice,
+      payments: [],
+      remainingBalance: totalPrice,
+      paymentStatus,
+      reservationStatus,
+      checkInStatus: 'pending' as const,
+      checkOutStatus: 'pending' as const,
+      confirmationSent: false,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now()
+    };
+
+    const docRef = await addDoc(collection(db, COLLECTION_NAME), reservationData);
+    
+    logger.info('reservations.createReservation.success', { 
+      id: docRef.id, 
+      totalPrice,
+      cabinType: data.cabinType 
+    });
+    
+    return docRef.id;
+  } catch (error) {
+    logger.error('reservations.createReservation.error', { 
+      error: String(error),
+      cabinType: data.cabinType 
+    });
+    throw error;
+  } finally {
+    logger.timeEnd('reservations.createReservation');
+  }
 };
 
 export const updateReservation = async (id: string, data: ReservationFormData, shouldUpdateDates: boolean = true): Promise<void> => {
@@ -194,11 +228,24 @@ export const updateReservation = async (id: string, data: ReservationFormData, s
 };
 
 export const deleteReservation = async (id: string): Promise<void> => {
-  const docRef = doc(db, COLLECTION_NAME, id);
-  await deleteDoc(docRef);
+  logger.info('reservations.deleteReservation.start', { id });
+  logger.time('reservations.deleteReservation');
+  
+  try {
+    const docRef = doc(db, COLLECTION_NAME, id);
+    await deleteDoc(docRef);
+    logger.info('reservations.deleteReservation.success', { id });
+  } catch (error) {
+    logger.error('reservations.deleteReservation.error', { id, error: String(error) });
+    throw error;
+  } finally {
+    logger.timeEnd('reservations.deleteReservation');
+  }
 };
 
 export const getAllReservations = async (): Promise<Reservation[]> => {
+  logger.time('reservations.getAllReservations');
+  
   const reservations: Reservation[] = [];
   const seenIds = new Set<string>();
   
@@ -212,7 +259,10 @@ export const getAllReservations = async (): Promise<Reservation[]> => {
       reservations.push(normalizeReservation({ ...data, id: doc.id, _sourceCollection: 'reservas' }));
       seenIds.add(doc.id);
     });
+    
+    logger.debug('reservations.getAllReservations.primary.loaded', { count: reservations.length });
   } catch (error) {
+    logger.warn('reservations.getAllReservations.primary.error', { error: String(error) });
     // Silent error handling to prevent console spam
   }
   

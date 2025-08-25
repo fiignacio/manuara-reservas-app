@@ -15,6 +15,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { Reservation } from '@/types/reservation';
 import { PaymentFormData } from '@/types/payment';
 import { addPayment, calculateRemainingBalance } from '@/lib/reservationService';
+import { logger } from '@/lib/logger';
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -187,6 +188,7 @@ const PaymentModal = ({ isOpen, onClose, onSuccess, reservation }: PaymentModalP
 
   useEffect(() => {
     if (isOpen) {
+      logger.info('modal.payment.open', { reservationId: reservation?.id });
       setFormData({
         amount: 0,
         paymentDate: (() => {
@@ -200,13 +202,25 @@ const PaymentModal = ({ isOpen, onClose, onSuccess, reservation }: PaymentModalP
         notes: '',
         createdBy: 'Sistema'
       });
+    } else {
+      logger.info('modal.payment.close');
     }
-  }, [isOpen]);
+  }, [isOpen, reservation?.id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    logger.info('modal.payment.submit.start', { 
+      reservationId: reservation.id,
+      amount: formData.amount,
+      method: formData.method 
+    });
+
     if (formData.amount <= 0) {
+      logger.warn('modal.payment.submit.validation.amount.invalid', { 
+        amount: formData.amount,
+        reservationId: reservation.id 
+      });
       toast({
         title: "💰 Monto inválido",
         description: "El monto del pago debe ser mayor a 0.",
@@ -216,6 +230,11 @@ const PaymentModal = ({ isOpen, onClose, onSuccess, reservation }: PaymentModalP
     }
 
     if (formData.amount > remainingBalance) {
+      logger.warn('modal.payment.submit.validation.amount.exceeds_balance', { 
+        amount: formData.amount,
+        remainingBalance,
+        reservationId: reservation.id 
+      });
       toast({
         title: "💰 Monto excesivo",
         description: `El monto no puede exceder el balance pendiente de $${remainingBalance.toLocaleString('es-CL')}.`,
@@ -228,6 +247,10 @@ const PaymentModal = ({ isOpen, onClose, onSuccess, reservation }: PaymentModalP
     
     try {
       await addPayment(reservation.id!, formData);
+      logger.info('modal.payment.submit.success', { 
+        reservationId: reservation.id,
+        amount: formData.amount 
+      });
       toast({
         title: "✅ Pago registrado exitosamente",
         description: `Se ha registrado un pago de $${formData.amount.toLocaleString('es-CL')} para la reserva de ${reservation.passengerName}.`
@@ -236,6 +259,10 @@ const PaymentModal = ({ isOpen, onClose, onSuccess, reservation }: PaymentModalP
       onClose();
     } catch (error: any) {
       const errorMessage = error.message || "Hubo un problema al registrar el pago.";
+      logger.error('modal.payment.submit.error', { 
+        reservationId: reservation.id,
+        error: errorMessage 
+      });
       
       toast({
         title: "⚠️ Error al registrar pago",

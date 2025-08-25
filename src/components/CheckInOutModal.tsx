@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { Reservation, CheckInOutData } from '@/types/reservation';
 import { performCheckIn, performCheckOut } from '@/lib/reservationService';
 import { formatDateForDisplay } from '@/lib/dateUtils';
+import { logger } from '@/lib/logger';
 
 interface CheckInOutModalProps {
   isOpen: boolean;
@@ -37,9 +38,28 @@ const CheckInOutModal = ({ isOpen, onClose, reservation, type, onSuccess }: Chec
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
+  // Log modal open/close events
+  useEffect(() => {
+    if (isOpen && reservation) {
+      logger.info('modal.checkInOut.open', { 
+        type, 
+        reservationId: reservation.id,
+        passengerName: reservation.passengerName 
+      });
+    } else if (!isOpen) {
+      logger.info('modal.checkInOut.close', { type });
+    }
+  }, [isOpen, reservation, type]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!reservation?.id) return;
+
+    logger.info('modal.checkInOut.submit.start', { 
+      type,
+      reservationId: reservation.id,
+      actualDateTime: formData.actualDateTime 
+    });
 
     setIsLoading(true);
     try {
@@ -52,12 +72,14 @@ const CheckInOutModal = ({ isOpen, onClose, reservation, type, onSuccess }: Chec
 
       if (type === 'check_in') {
         await performCheckIn(checkInOutData);
+        logger.info('modal.checkInOut.submit.success', { type, reservationId: reservation.id });
         toast({
           title: "Check-in realizado",
           description: `Check-in registrado para ${reservation.passengerName}`,
         });
       } else {
         await performCheckOut(checkInOutData);
+        logger.info('modal.checkInOut.submit.success', { type, reservationId: reservation.id });
         toast({
           title: "Check-out realizado",
           description: `Check-out registrado para ${reservation.passengerName}`,
@@ -67,6 +89,11 @@ const CheckInOutModal = ({ isOpen, onClose, reservation, type, onSuccess }: Chec
       onSuccess();
       onClose();
     } catch (error) {
+      logger.error('modal.checkInOut.submit.error', { 
+        type, 
+        reservationId: reservation.id, 
+        error: String(error) 
+      });
       toast({
         title: "Error",
         description: `Error al registrar ${type === 'check_in' ? 'check-in' : 'check-out'}`,

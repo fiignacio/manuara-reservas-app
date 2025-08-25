@@ -7,6 +7,7 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Reservation } from '@/types/reservation';
 import { formatDateForDisplay, parseDate, getDaysBetween } from '@/lib/dateUtils';
 import { useDateSelection } from '@/hooks/useDateSelection';
+import { logger } from '@/lib/logger';
 
 interface TimelineCalendarProps {
   reservations: Reservation[];
@@ -218,10 +219,14 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading, onDateRan
 
   // Auto-scroll to today on mount
   useEffect(() => {
+    logger.info('timeline.mount');
     const timer = setTimeout(() => {
       scrollToToday();
     }, 100);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      logger.info('timeline.unmount');
+    };
   }, [scrollToToday]);
 
   // Handle mouse up events globally to end selection
@@ -352,6 +357,7 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading, onDateRan
   const processedReservations = useMemo(() => processReservationsForTimeline(), [reservations, timelineDates, showDeparted, dayWidth]);
 
   const navigateTime = (direction: 'prev' | 'next') => {
+    logger.debug('timeline.navigate', { direction, viewMode, currentDate: getCurrentDateString() });
     setCurrentDate(prev => {
       const newDate = new Date(prev);
       if (viewMode === 'month') {
@@ -364,11 +370,13 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading, onDateRan
   };
 
   const goToToday = () => {
+    logger.debug('timeline.goToToday');
     setCurrentDate(new Date());
     setTimeout(() => scrollToToday(), 100);
   };
 
   const adjustZoom = (direction: 'in' | 'out') => {
+    logger.debug('timeline.zoom', { direction, currentDayWidth: dayWidth });
     setDayWidth(prev => {
       if (direction === 'in') {
         return Math.min(prev + 10, 80);
@@ -431,14 +439,20 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading, onDateRan
             <Button
               variant={viewMode === 'week' ? 'default' : 'outline'}
               size="sm"
-              onClick={() => setViewMode('week')}
+              onClick={() => {
+                logger.debug('timeline.viewMode.change', { from: viewMode, to: 'week' });
+                setViewMode('week');
+              }}
             >
               Semana
             </Button>
             <Button
               variant={viewMode === 'month' ? 'default' : 'outline'}
               size="sm"
-              onClick={() => setViewMode('month')}
+              onClick={() => {
+                logger.debug('timeline.viewMode.change', { from: viewMode, to: 'month' });
+                setViewMode('month');
+              }}
             >
               Mes
             </Button>
@@ -543,10 +557,22 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading, onDateRan
                         hover:bg-accent/50 transition-colors
                       `}
                       style={{ width: `${dayWidth}px` }}
-                      onMouseDown={() => startSelection(dateStr)}
-                       onMouseEnter={() => selectionState.isSelecting && throttledUpdateSelection(dateStr)}
+                      onMouseDown={() => {
+                        logger.debug('timeline.selection.start', { date: dateStr });
+                        startSelection(dateStr);
+                      }}
+                       onMouseEnter={() => {
+                         if (selectionState.isSelecting) {
+                           logger.debug('timeline.selection.update', { date: dateStr });
+                           throttledUpdateSelection(dateStr);
+                         }
+                       }}
                       onMouseUp={() => {
                         if (selectionState.isSelecting && selectionState.startDate && selectionState.endDate) {
+                          logger.info('timeline.selection.end', { 
+                            start: selectionState.startDate, 
+                            end: selectionState.endDate 
+                          });
                           endSelection();
                           onDateRangeSelect?.(selectionState.startDate, selectionState.endDate);
                         }
@@ -596,10 +622,22 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading, onDateRan
                             width: `${dayWidth}px`,
                             height: '100%'
                           }}
-                          onMouseDown={() => startSelection(dateStr)}
-                          onMouseEnter={() => selectionState.isSelecting && throttledUpdateSelection(dateStr)}
+                          onMouseDown={() => {
+                            logger.debug('timeline.selection.start', { date: dateStr });
+                            startSelection(dateStr);
+                          }}
+                          onMouseEnter={() => {
+                            if (selectionState.isSelecting) {
+                              logger.debug('timeline.selection.update', { date: dateStr });
+                              throttledUpdateSelection(dateStr);
+                            }
+                          }}
                           onMouseUp={() => {
                             if (selectionState.isSelecting && selectionState.startDate && selectionState.endDate) {
+                              logger.info('timeline.selection.end', { 
+                                start: selectionState.startDate, 
+                                end: selectionState.endDate 
+                              });
                               endSelection();
                               onDateRangeSelect?.(selectionState.startDate, selectionState.endDate);
                             }
