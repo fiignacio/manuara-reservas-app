@@ -15,6 +15,11 @@ interface StatusManagerProps {
 }
 
 const StatusManager = ({ reservation, onStatusUpdate, compact = false }: StatusManagerProps) => {
+  // Early return if no reservation
+  if (!reservation) {
+    return null;
+  }
+
   const [isEditing, setIsEditing] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState(reservation.paymentStatus);
   const [reservationStatus, setReservationStatus] = useState(reservation.reservationStatus || 'pending_checkin');
