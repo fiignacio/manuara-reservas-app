@@ -48,12 +48,18 @@ export const formatDateRange = (startDate: string, endDate: string): string => {
 };
 
 export const isSameDate = (date1: Date, date2: string): boolean => {
-  const dateStr1 = date1.toISOString().split('T')[0];
+  const y = date1.getFullYear();
+  const m = String(date1.getMonth() + 1).padStart(2, '0');
+  const d = String(date1.getDate()).padStart(2, '0');
+  const dateStr1 = `${y}-${m}-${d}`;
   return dateStr1 === date2;
 };
 
 export const formatDateToISO = (date: Date): string => {
-  return date.toISOString().split('T')[0];
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 };
 
 export const addDays = (dateStr: string, days: number): string => {
