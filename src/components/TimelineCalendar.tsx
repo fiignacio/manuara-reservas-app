@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback, memo } from 'react';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Eye, ZoomIn, ZoomOut, ArrowLeft, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,7 +30,7 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading, onDateRan
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
   
-  // Date selection functionality
+  // Date selection functionality with throttled updates
   const {
     selectionState,
     startSelection,
@@ -41,6 +41,21 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading, onDateRan
     isDateRangeStart,
     isDateRangeEnd
   } = useDateSelection();
+
+  // Throttled selection update to improve performance
+  const throttledUpdateSelection = useCallback(
+    (() => {
+      let lastCall = 0;
+      return (date: string) => {
+        const now = Date.now();
+        if (now - lastCall >= 16) { // ~60fps
+          updateSelection(date);
+          lastCall = now;
+        }
+      };
+    })(),
+    [updateSelection]
+  );
 
   const getCabinColor = (cabinType: string) => {
     switch (cabinType) {
@@ -113,7 +128,7 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading, onDateRan
     return dates;
   };
 
-  const timelineDates = getTimelineDates();
+  const timelineDates = useMemo(() => getTimelineDates(), [currentDate, viewMode]);
 
   // Helper function to get today's date as ISO string
   const getTodayString = (): string => {
@@ -334,7 +349,7 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading, onDateRan
     return cabinReservations;
   };
 
-  const processedReservations = processReservationsForTimeline();
+  const processedReservations = useMemo(() => processReservationsForTimeline(), [reservations, timelineDates, showDeparted, dayWidth]);
 
   const navigateTime = (direction: 'prev' | 'next') => {
     setCurrentDate(prev => {
@@ -502,7 +517,10 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading, onDateRan
           <ScrollArea className="flex-1" ref={scrollAreaRef}>
             <div 
               ref={timelineRef}
-              style={{ width: `${timelineDates.length * dayWidth}px` }}
+              style={{ 
+                width: `${timelineDates.length * dayWidth}px`,
+                contain: 'content'
+              }}
               className="relative"
             >
               {/* Date Headers */}
@@ -526,7 +544,7 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading, onDateRan
                       `}
                       style={{ width: `${dayWidth}px` }}
                       onMouseDown={() => startSelection(dateStr)}
-                      onMouseEnter={() => selectionState.isSelecting && updateSelection(dateStr)}
+                       onMouseEnter={() => selectionState.isSelecting && throttledUpdateSelection(dateStr)}
                       onMouseUp={() => {
                         if (selectionState.isSelecting && selectionState.startDate && selectionState.endDate) {
                           endSelection();
@@ -579,7 +597,7 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading, onDateRan
                             height: '100%'
                           }}
                           onMouseDown={() => startSelection(dateStr)}
-                          onMouseEnter={() => selectionState.isSelecting && updateSelection(dateStr)}
+                          onMouseEnter={() => selectionState.isSelecting && throttledUpdateSelection(dateStr)}
                           onMouseUp={() => {
                             if (selectionState.isSelecting && selectionState.startDate && selectionState.endDate) {
                               endSelection();
@@ -634,4 +652,4 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading, onDateRan
   );
 };
 
-export default TimelineCalendar;
+export default memo(TimelineCalendar);
