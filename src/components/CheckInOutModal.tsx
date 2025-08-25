@@ -22,7 +22,15 @@ interface CheckInOutModalProps {
 const CheckInOutModal = ({ isOpen, onClose, reservation, type, onSuccess }: CheckInOutModalProps) => {
   const isMobile = useIsMobile();
   const [formData, setFormData] = useState<Omit<CheckInOutData, 'reservationId'>>({
-    actualDateTime: new Date().toISOString().slice(0, 16),
+    actualDateTime: (() => {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      return `${year}-${month}-${day}T${hours}:${minutes}`;
+    })(),
     notes: '',
     type
   });
@@ -71,7 +79,15 @@ const CheckInOutModal = ({ isOpen, onClose, reservation, type, onSuccess }: Chec
 
   const handleClose = () => {
     setFormData({
-      actualDateTime: new Date().toISOString().slice(0, 16),
+      actualDateTime: (() => {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
+      })(),
       notes: '',
       type
     });

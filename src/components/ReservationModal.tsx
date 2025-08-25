@@ -375,8 +375,11 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) handleModalClose(); }}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) handleModalClose(); }} modal={false}>
+      <DialogContent 
+        className="sm:max-w-2xl max-h-[90vh] overflow-y-auto"
+        onInteractOutside={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold">
             {reservation ? 'Editar Reserva' : 'Nueva Reserva'}

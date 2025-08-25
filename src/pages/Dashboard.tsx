@@ -16,7 +16,7 @@ import {
   getTomorrowDepartures, 
   getArrivalsForDate 
 } from '@/lib/reservationService';
-import { formatDateForDisplay, getTomorrowDate } from '@/lib/dateUtils';
+import { formatDateForDisplay, getTomorrowDate, getTodayDate } from '@/lib/dateUtils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { toast } from '@/hooks/use-toast';
 
@@ -166,7 +166,7 @@ const Dashboard = () => {
           <CardContent>
             <div className="text-xl sm:text-2xl font-bold text-blue-600">
               {reservations.filter(r => {
-                const today = new Date().toISOString().split('T')[0];
+                const today = getTodayDate();
                 return r.checkIn <= today && r.checkOut > today;
               }).reduce((acc, r) => acc + r.adults + r.children, 0)}
             </div>

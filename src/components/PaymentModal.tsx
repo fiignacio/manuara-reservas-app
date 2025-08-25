@@ -171,7 +171,13 @@ const PaymentModal = ({ isOpen, onClose, onSuccess, reservation }: PaymentModalP
   
   const [formData, setFormData] = useState<PaymentFormData>({
     amount: 0,
-    paymentDate: new Date().toISOString().split('T')[0],
+      paymentDate: (() => {
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      })(),
     method: 'cash',
     notes: '',
     createdBy: 'Sistema'
@@ -183,7 +189,13 @@ const PaymentModal = ({ isOpen, onClose, onSuccess, reservation }: PaymentModalP
     if (isOpen) {
       setFormData({
         amount: 0,
-        paymentDate: new Date().toISOString().split('T')[0],
+        paymentDate: (() => {
+          const today = new Date();
+          const year = today.getFullYear();
+          const month = String(today.getMonth() + 1).padStart(2, '0');
+          const day = String(today.getDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        })(),
         method: 'cash',
         notes: '',
         createdBy: 'Sistema'
