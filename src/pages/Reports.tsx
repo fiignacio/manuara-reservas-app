@@ -3,7 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { FileText, Download, Calendar, Home } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { FileText, Download, Calendar, Home, Info } from 'lucide-react';
 import { 
   generateReportData, 
   exportToCSV, 
@@ -16,25 +17,33 @@ import {
   exportCabinGroupToPDF
 } from '@/lib/reportsService';
 import { useToast } from '@/hooks/use-toast';
+import { logger } from '@/lib/logger';
 
 const Reports = () => {
   const [reportData, setReportData] = useState<ReportData[]>([]);
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState<ReportFilters>({
     year: new Date().getFullYear(),
+    includeOverlaps: false,
   });
   const [availableYears, setAvailableYears] = useState<number[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
+    logger.info('reports.component.mount');
     loadAvailableYears();
+    return () => logger.info('reports.component.unmount');
   }, []);
 
   const loadAvailableYears = async () => {
+    logger.info('reports.loadAvailableYears.start');
+    
     try {
       const years = await getAvailableYears();
       setAvailableYears(years);
+      logger.info('reports.loadAvailableYears.success', { yearCount: years.length });
     } catch (error) {
+      logger.error('reports.loadAvailableYears.error', { error: String(error) });
       toast({
         variant: "destructive",
         title: "Error",
@@ -44,18 +53,28 @@ const Reports = () => {
   };
 
   const loadReportData = async () => {
+    logger.info('reports.loadReportData.start', { filters });
+    
     try {
       setLoading(true);
       const data = await generateReportData(filters);
       setReportData(data);
+      
+      logger.info('reports.loadReportData.success', { resultCount: data.length });
       
       if (data.length === 0) {
         toast({
           title: "Sin resultados",
           description: "No se encontraron reservas para los filtros seleccionados",
         });
+      } else {
+        toast({
+          title: "Reporte generado",
+          description: `Se encontraron ${data.length} reservas`,
+        });
       }
     } catch (error) {
+      logger.error('reports.loadReportData.error', { error: String(error), filters });
       toast({
         variant: "destructive",
         title: "Error",
@@ -67,16 +86,20 @@ const Reports = () => {
   };
 
   const handleExportCSV = async () => {
+    logger.info('reports.handleExportCSV.start', { hasLoadedData: reportData.length > 0 });
+    
     try {
       const dataToExport = reportData.length === 0
         ? await generateReportData(filters)
         : reportData;
       exportToCSV(dataToExport, filters);
+      
       toast({
         title: "Exportación exitosa",
         description: "El archivo CSV se ha descargado correctamente",
       });
     } catch (error) {
+      logger.error('reports.handleExportCSV.error', { error: String(error) });
       toast({
         variant: "destructive",
         title: "Error",
@@ -86,16 +109,20 @@ const Reports = () => {
   };
 
   const handleExportPDF = async () => {
+    logger.info('reports.handleExportPDF.start', { hasLoadedData: reportData.length > 0 });
+    
     try {
       const dataToExport = reportData.length === 0
         ? await generateReportData(filters)
         : reportData;
       exportToPDF(dataToExport, filters);
+      
       toast({
         title: "Exportación exitosa",
         description: "El archivo PDF se ha descargado correctamente",
       });
     } catch (error) {
+      logger.error('reports.handleExportPDF.error', { error: String(error) });
       toast({
         variant: "destructive",
         title: "Error",
@@ -105,6 +132,8 @@ const Reports = () => {
   };
 
   const handleGroupExportCSV = async (group: 'small-large' | 'mediums') => {
+    logger.info('reports.handleGroupExportCSV.start', { group });
+    
     try {
       await exportCabinGroupToCSV(filters, group);
       toast({
@@ -112,6 +141,7 @@ const Reports = () => {
         description: 'El archivo CSV del grupo se ha descargado correctamente',
       });
     } catch (error) {
+      logger.error('reports.handleGroupExportCSV.error', { error: String(error), group });
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -121,6 +151,8 @@ const Reports = () => {
   };
 
   const handleGroupExportPDF = async (group: 'small-large' | 'mediums') => {
+    logger.info('reports.handleGroupExportPDF.start', { group });
+    
     try {
       await exportCabinGroupToPDF(filters, group);
       toast({
@@ -128,6 +160,7 @@ const Reports = () => {
         description: 'El archivo PDF del grupo se ha descargado correctamente',
       });
     } catch (error) {
+      logger.error('reports.handleGroupExportPDF.error', { error: String(error), group });
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -171,7 +204,10 @@ const Reports = () => {
               </label>
               <Select
                 value={filters.year.toString()}
-                onValueChange={(value) => setFilters({ ...filters, year: parseInt(value) })}
+                onValueChange={(value) => {
+                  logger.debug('reports.filter.year.change', { oldValue: filters.year, newValue: parseInt(value) });
+                  setFilters({ ...filters, year: parseInt(value) });
+                }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Seleccionar año" />
@@ -193,12 +229,14 @@ const Reports = () => {
               </label>
               <Select
                 value={filters.month?.toString() || "all"}
-                onValueChange={(value) => 
+                onValueChange={(value) => {
+                  const newMonth = value === "all" ? undefined : parseInt(value);
+                  logger.debug('reports.filter.month.change', { oldValue: filters.month, newValue: newMonth });
                   setFilters({ 
                     ...filters, 
-                    month: value === "all" ? undefined : parseInt(value) 
-                  })
-                }
+                    month: newMonth
+                  });
+                }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Todos los meses" />
@@ -221,12 +259,14 @@ const Reports = () => {
               </label>
               <Select
                 value={filters.cabinType || "all"}
-                onValueChange={(value) => 
+                onValueChange={(value) => {
+                  const newCabinType = value === "all" ? undefined : value;
+                  logger.debug('reports.filter.cabinType.change', { oldValue: filters.cabinType, newValue: newCabinType });
                   setFilters({ 
                     ...filters, 
-                    cabinType: value === "all" ? undefined : value 
-                  })
-                }
+                    cabinType: newCabinType
+                  });
+                }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Todas las cabañas" />
@@ -245,7 +285,10 @@ const Reports = () => {
             {/* Generate Button */}
             <div className="flex items-end">
               <Button 
-                onClick={loadReportData} 
+                onClick={() => {
+                  logger.info('reports.generateButton.click', { filters });
+                  loadReportData();
+                }} 
                 disabled={loading}
                 className="w-full"
               >
@@ -253,6 +296,29 @@ const Reports = () => {
               </Button>
             </div>
           </div>
+
+          {/* Advanced Options */}
+          {filters.month && (
+            <div className="mt-4 pt-4 border-t border-border">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="includeOverlaps"
+                  checked={filters.includeOverlaps || false}
+                  onCheckedChange={(checked) => {
+                    logger.debug('reports.filter.includeOverlaps.change', { checked });
+                    setFilters({ ...filters, includeOverlaps: checked as boolean });
+                  }}
+                />
+                <label htmlFor="includeOverlaps" className="text-sm font-medium text-foreground">
+                  Incluir reservas que se extienden fuera del mes
+                </label>
+                <Info className="w-4 h-4 text-muted-foreground" />
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Incluye reservas que comienzan antes del mes o terminan después del mes seleccionado
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 

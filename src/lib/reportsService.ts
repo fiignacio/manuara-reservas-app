@@ -1,11 +1,12 @@
 import { getAllReservations } from './reservationService';
 import { Reservation } from '@/types/reservation';
-import { format } from 'date-fns';
+import { format, isWithinInterval } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Papa from 'papaparse';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { parseDate, formatDateForDisplay } from './dateUtils';
+import { logger } from './logger';
 
 export interface ReportData {
   passengerName: string;
@@ -26,49 +27,145 @@ export interface ReportFilters {
   month?: number;
   year: number;
   cabinType?: string;
+  includeOverlaps?: boolean; // Include reservations that span month boundaries
 }
 
 export const generateReportData = async (filters: ReportFilters): Promise<ReportData[]> => {
+  logger.info('reports.generateReportData.start', { filters });
+  logger.time('reports.generateReportData');
+
   try {
     const reservations = await getAllReservations();
+    logger.debug('reports.generateReportData.loaded', { totalReservations: reservations.length });
     
     const reportData: ReportData[] = reservations
       .filter((reservation) => {
-        const checkInDate = parseDate(reservation.checkIn);
-        const reservationYear = checkInDate.getFullYear();
-        const reservationMonth = checkInDate.getMonth() + 1;
-        
-        // Filter by year
-        if (reservationYear !== filters.year) return false;
-        
-        // Filter by month if specified
-        if (filters.month && reservationMonth !== filters.month) return false;
-        
-        // Filter by cabin type if specified
-        if (filters.cabinType && reservation.cabinType !== filters.cabinType) return false;
-        
-        return true;
+        try {
+          // Validate required fields with fallbacks
+          if (!reservation.checkIn || !reservation.checkOut) {
+            logger.warn('reports.generateReportData.missing_dates', { 
+              id: reservation.id, 
+              checkIn: reservation.checkIn, 
+              checkOut: reservation.checkOut 
+            });
+            return false;
+          }
+
+          const checkInDate = parseDate(reservation.checkIn);
+          const checkOutDate = parseDate(reservation.checkOut);
+          
+          if (!checkInDate || !checkOutDate) {
+            logger.warn('reports.generateReportData.invalid_dates', { 
+              id: reservation.id, 
+              checkIn: reservation.checkIn, 
+              checkOut: reservation.checkOut 
+            });
+            return false;
+          }
+
+          const reservationYear = checkInDate.getFullYear();
+          
+          // Filter by year
+          if (reservationYear !== filters.year) {
+            // Also check checkout year for year-spanning reservations
+            const checkOutYear = checkOutDate.getFullYear();
+            if (checkOutYear !== filters.year) return false;
+          }
+          
+          // Enhanced month filtering with overlap support
+          if (filters.month) {
+            const startOfMonth = new Date(filters.year, filters.month - 1, 1);
+            const endOfMonth = new Date(filters.year, filters.month, 0);
+            
+            if (filters.includeOverlaps) {
+              // Include if reservation overlaps with the month
+              const hasOverlap = isWithinInterval(checkInDate, { start: startOfMonth, end: endOfMonth }) ||
+                               isWithinInterval(checkOutDate, { start: startOfMonth, end: endOfMonth }) ||
+                               (checkInDate <= startOfMonth && checkOutDate >= endOfMonth);
+              if (!hasOverlap) return false;
+            } else {
+              // Default: only include if check-in is in the month
+              const checkInMonth = checkInDate.getMonth() + 1;
+              if (checkInMonth !== filters.month) return false;
+            }
+          }
+          
+          // Filter by cabin type if specified
+          if (filters.cabinType && reservation.cabinType !== filters.cabinType) return false;
+          
+          return true;
+        } catch (error) {
+          logger.error('reports.generateReportData.filter_error', { 
+            id: reservation.id, 
+            error: String(error) 
+          });
+          return false;
+        }
       })
-      .map((reservation) => ({
-        passengerName: reservation.passengerName,
-        checkIn: format(parseDate(reservation.checkIn), 'dd/MM/yyyy', { locale: es }),
-        checkOut: format(parseDate(reservation.checkOut), 'dd/MM/yyyy', { locale: es }),
-        arrivalFlight: reservation.arrivalFlight,
-        departureFlight: reservation.departureFlight,
-        totalGuests: reservation.adults + reservation.children + reservation.babies,
-        adults: reservation.adults,
-        children: reservation.children,
-        babies: reservation.babies,
-        cabinType: reservation.cabinType,
-        month: format(parseDate(reservation.checkIn), 'MMMM', { locale: es }),
-        year: parseDate(reservation.checkIn).getFullYear().toString(),
-      }))
-      .sort((a, b) => a.checkIn.split('/').reverse().join('-').localeCompare(b.checkIn.split('/').reverse().join('-')));
+      .map((reservation) => {
+        try {
+          const checkInDate = parseDate(reservation.checkIn);
+          const checkOutDate = parseDate(reservation.checkOut);
+          
+          return {
+            passengerName: reservation.passengerName || 'Sin nombre',
+            checkIn: format(checkInDate, 'dd/MM/yyyy', { locale: es }),
+            checkOut: format(checkOutDate, 'dd/MM/yyyy', { locale: es }),
+            arrivalFlight: reservation.arrivalFlight || 'N/A',
+            departureFlight: reservation.departureFlight || 'N/A',
+            totalGuests: (reservation.adults || 0) + (reservation.children || 0) + (reservation.babies || 0),
+            adults: reservation.adults || 0,
+            children: reservation.children || 0,
+            babies: reservation.babies || 0,
+            cabinType: reservation.cabinType || 'Sin especificar',
+            month: format(checkInDate, 'MMMM', { locale: es }),
+            year: checkInDate.getFullYear().toString(),
+          };
+        } catch (error) {
+          logger.error('reports.generateReportData.mapping_error', { 
+            id: reservation.id, 
+            error: String(error) 
+          });
+          // Return fallback data for corrupted reservations
+          return {
+            passengerName: reservation.passengerName || 'Error en datos',
+            checkIn: reservation.checkIn || 'N/A',
+            checkOut: reservation.checkOut || 'N/A',
+            arrivalFlight: 'N/A',
+            departureFlight: 'N/A',
+            totalGuests: 0,
+            adults: 0,
+            children: 0,
+            babies: 0,
+            cabinType: reservation.cabinType || 'N/A',
+            month: 'N/A',
+            year: 'N/A',
+          };
+        }
+      })
+      // Robust date-based sorting
+      .sort((a, b) => {
+        try {
+          const dateA = a.checkIn.split('/').reverse().join('-');
+          const dateB = b.checkIn.split('/').reverse().join('-');
+          return dateA.localeCompare(dateB);
+        } catch (error) {
+          logger.warn('reports.generateReportData.sort_error', { error: String(error) });
+          return 0; // Keep original order for problematic entries
+        }
+      });
+
+    logger.info('reports.generateReportData.success', { 
+      filteredCount: reportData.length,
+      totalCount: reservations.length 
+    });
     
     return reportData;
   } catch (error) {
-    console.error('Error generating report data:', error);
+    logger.error('reports.generateReportData.error', { error: String(error), filters });
     throw new Error('Error al generar los datos del reporte');
+  } finally {
+    logger.timeEnd('reports.generateReportData');
   }
 };
 
@@ -83,6 +180,9 @@ const sanitizeCSVValue = (value: string | number): string => {
 };
 
 export const exportToCSV = (data: ReportData[], filters: ReportFilters): void => {
+  logger.info('reports.exportToCSV.start', { dataCount: data.length, filters });
+  logger.time('reports.exportToCSV');
+
   try {
     const csvData = data.map(row => ({
       'Nombre del Pasajero': sanitizeCSVValue(row.passengerName),
@@ -106,13 +206,20 @@ export const exportToCSV = (data: ReportData[], filters: ReportFilters): void =>
     link.href = URL.createObjectURL(blob);
     link.download = fileName;
     link.click();
+    
+    logger.info('reports.exportToCSV.success', { fileName, dataCount: data.length });
   } catch (error) {
-    console.error('Error exporting to CSV:', error);
+    logger.error('reports.exportToCSV.error', { error: String(error), dataCount: data.length });
     throw new Error('Error al exportar a CSV');
+  } finally {
+    logger.timeEnd('reports.exportToCSV');
   }
 };
 
 export const exportToPDF = (data: ReportData[], filters: ReportFilters): void => {
+  logger.info('reports.exportToPDF.start', { dataCount: data.length, filters });
+  logger.time('reports.exportToPDF');
+
   try {
     const doc = new jsPDF();
     
@@ -133,6 +240,9 @@ export const exportToPDF = (data: ReportData[], filters: ReportFilters): void =>
     if (filters.cabinType) {
       filterText += ` | Cabaña: ${filters.cabinType}`;
     }
+    if (filters.includeOverlaps) {
+      filterText += ' | Incluye solapamientos';
+    }
     
     doc.text(filterText, 20, 30);
     
@@ -150,18 +260,18 @@ export const exportToPDF = (data: ReportData[], filters: ReportFilters): void =>
       'Cabaña'
     ];
     
-    // Table data
+    // Table data with enhanced text wrapping
     const tableData = data.map(row => [
-      row.passengerName,
+      row.passengerName.length > 20 ? row.passengerName.substring(0, 17) + '...' : row.passengerName,
       row.checkIn,
       row.checkOut,
-      row.arrivalFlight,
-      row.departureFlight,
+      row.arrivalFlight.length > 12 ? row.arrivalFlight.substring(0, 9) + '...' : row.arrivalFlight,
+      row.departureFlight.length > 12 ? row.departureFlight.substring(0, 9) + '...' : row.departureFlight,
       row.totalGuests.toString(),
       row.adults.toString(),
       row.children.toString(),
       row.babies.toString(),
-      row.cabinType
+      row.cabinType.length > 25 ? row.cabinType.substring(0, 22) + '...' : row.cabinType
     ]);
 
     autoTable(doc, {
@@ -171,6 +281,8 @@ export const exportToPDF = (data: ReportData[], filters: ReportFilters): void =>
       styles: {
         fontSize: 8,
         cellPadding: 2,
+        overflow: 'linebreak',
+        cellWidth: 'wrap',
       },
       headStyles: {
         fillColor: [41, 128, 185],
@@ -195,9 +307,13 @@ export const exportToPDF = (data: ReportData[], filters: ReportFilters): void =>
     const fileName = `reporte_uso_${filters.year}${filters.month ? `_${String(filters.month).padStart(2, '0')}` : ''}${filters.cabinType ? `_${filters.cabinType.replace(/\s+/g, '_')}` : ''}.pdf`;
     
     doc.save(fileName);
+    
+    logger.info('reports.exportToPDF.success', { fileName, dataCount: data.length });
   } catch (error) {
-    console.error('Error exporting to PDF:', error);
+    logger.error('reports.exportToPDF.error', { error: String(error), dataCount: data.length });
     throw new Error('Error al exportar a PDF');
+  } finally {
+    logger.timeEnd('reports.exportToPDF');
   }
 };
 
@@ -226,41 +342,123 @@ const CABIN_GROUPS: Record<CabinGroup, { label: string; fileSuffix: string; type
 };
 
 export const generateReportDataByCabinTypes = async (filters: ReportFilters, cabinTypes: string[]): Promise<ReportData[]> => {
+  logger.info('reports.generateReportDataByCabinTypes.start', { filters, cabinTypes });
+  logger.time('reports.generateReportDataByCabinTypes');
+
   try {
     const reservations = await getAllReservations();
+    logger.debug('reports.generateReportDataByCabinTypes.loaded', { totalReservations: reservations.length });
 
     const reportData: ReportData[] = reservations
       .filter((reservation) => {
-        const checkInDate = parseDate(reservation.checkIn);
-        const reservationYear = checkInDate.getFullYear();
-        const reservationMonth = checkInDate.getMonth() + 1;
+        try {
+          if (!reservation.checkIn || !reservation.checkOut) return false;
+          
+          const checkInDate = parseDate(reservation.checkIn);
+          const checkOutDate = parseDate(reservation.checkOut);
+          
+          if (!checkInDate || !checkOutDate) return false;
 
-        if (reservationYear !== filters.year) return false;
-        if (filters.month && reservationMonth !== filters.month) return false;
-        if (!cabinTypes.includes(reservation.cabinType)) return false;
+          const reservationYear = checkInDate.getFullYear();
+          
+          // Year filtering with overlap support
+          if (reservationYear !== filters.year) {
+            const checkOutYear = checkOutDate.getFullYear();
+            if (checkOutYear !== filters.year) return false;
+          }
+          
+          // Enhanced month filtering
+          if (filters.month) {
+            const startOfMonth = new Date(filters.year, filters.month - 1, 1);
+            const endOfMonth = new Date(filters.year, filters.month, 0);
+            
+            if (filters.includeOverlaps) {
+              const hasOverlap = isWithinInterval(checkInDate, { start: startOfMonth, end: endOfMonth }) ||
+                               isWithinInterval(checkOutDate, { start: startOfMonth, end: endOfMonth }) ||
+                               (checkInDate <= startOfMonth && checkOutDate >= endOfMonth);
+              if (!hasOverlap) return false;
+            } else {
+              const checkInMonth = checkInDate.getMonth() + 1;
+              if (checkInMonth !== filters.month) return false;
+            }
+          }
+          
+          if (!cabinTypes.includes(reservation.cabinType)) return false;
 
-        return true;
+          return true;
+        } catch (error) {
+          logger.error('reports.generateReportDataByCabinTypes.filter_error', { 
+            id: reservation.id, 
+            error: String(error) 
+          });
+          return false;
+        }
       })
-      .map((reservation) => ({
-        passengerName: reservation.passengerName,
-        checkIn: format(parseDate(reservation.checkIn), 'dd/MM/yyyy', { locale: es }),
-        checkOut: format(parseDate(reservation.checkOut), 'dd/MM/yyyy', { locale: es }),
-        arrivalFlight: reservation.arrivalFlight,
-        departureFlight: reservation.departureFlight,
-        totalGuests: reservation.adults + reservation.children + reservation.babies,
-        adults: reservation.adults,
-        children: reservation.children,
-        babies: reservation.babies,
-        cabinType: reservation.cabinType,
-        month: format(parseDate(reservation.checkIn), 'MMMM', { locale: es }),
-        year: parseDate(reservation.checkIn).getFullYear().toString(),
-      }))
-      .sort((a, b) => a.checkIn.split('/').reverse().join('-').localeCompare(b.checkIn.split('/').reverse().join('-')));
+      .map((reservation) => {
+        try {
+          const checkInDate = parseDate(reservation.checkIn);
+          const checkOutDate = parseDate(reservation.checkOut);
+          
+          return {
+            passengerName: reservation.passengerName || 'Sin nombre',
+            checkIn: format(checkInDate, 'dd/MM/yyyy', { locale: es }),
+            checkOut: format(checkOutDate, 'dd/MM/yyyy', { locale: es }),
+            arrivalFlight: reservation.arrivalFlight || 'N/A',
+            departureFlight: reservation.departureFlight || 'N/A',
+            totalGuests: (reservation.adults || 0) + (reservation.children || 0) + (reservation.babies || 0),
+            adults: reservation.adults || 0,
+            children: reservation.children || 0,
+            babies: reservation.babies || 0,
+            cabinType: reservation.cabinType || 'Sin especificar',
+            month: format(checkInDate, 'MMMM', { locale: es }),
+            year: checkInDate.getFullYear().toString(),
+          };
+        } catch (error) {
+          logger.error('reports.generateReportDataByCabinTypes.mapping_error', { 
+            id: reservation.id, 
+            error: String(error) 
+          });
+          return {
+            passengerName: 'Error en datos',
+            checkIn: 'N/A',
+            checkOut: 'N/A',
+            arrivalFlight: 'N/A',
+            departureFlight: 'N/A',
+            totalGuests: 0,
+            adults: 0,
+            children: 0,
+            babies: 0,
+            cabinType: 'N/A',
+            month: 'N/A',
+            year: 'N/A',
+          };
+        }
+      })
+      .sort((a, b) => {
+        try {
+          const dateA = a.checkIn.split('/').reverse().join('-');
+          const dateB = b.checkIn.split('/').reverse().join('-');
+          return dateA.localeCompare(dateB);
+        } catch (error) {
+          return 0;
+        }
+      });
+
+    logger.info('reports.generateReportDataByCabinTypes.success', { 
+      filteredCount: reportData.length,
+      totalCount: reservations.length 
+    });
 
     return reportData;
   } catch (error) {
-    console.error('Error generating report data by cabin types:', error);
+    logger.error('reports.generateReportDataByCabinTypes.error', { 
+      error: String(error), 
+      filters, 
+      cabinTypes 
+    });
     throw new Error('Error al generar los datos del reporte por grupo');
+  } finally {
+    logger.timeEnd('reports.generateReportDataByCabinTypes');
   }
 };
 
@@ -271,8 +469,12 @@ export const generateGroupReportData = async (filters: ReportFilters, group: Cab
 };
 
 export const exportCabinGroupToCSV = async (filters: ReportFilters, group: CabinGroup): Promise<void> => {
+  logger.info('reports.exportCabinGroupToCSV.start', { filters, group });
+  logger.time('reports.exportCabinGroupToCSV');
+
   try {
     const data = await generateGroupReportData(filters, group);
+    
     const csvData = data.map(row => ({
       'Nombre del Pasajero': sanitizeCSVValue(row.passengerName),
       'Check-in': sanitizeCSVValue(row.checkIn),
@@ -296,13 +498,20 @@ export const exportCabinGroupToCSV = async (filters: ReportFilters, group: Cabin
     link.href = URL.createObjectURL(blob);
     link.download = fileName;
     link.click();
+    
+    logger.info('reports.exportCabinGroupToCSV.success', { fileName, dataCount: data.length, group });
   } catch (error) {
-    console.error('Error exporting cabin group to CSV:', error);
+    logger.error('reports.exportCabinGroupToCSV.error', { error: String(error), filters, group });
     throw new Error('Error al exportar a CSV (grupo)');
+  } finally {
+    logger.timeEnd('reports.exportCabinGroupToCSV');
   }
 };
 
 export const exportCabinGroupToPDF = async (filters: ReportFilters, group: CabinGroup): Promise<void> => {
+  logger.info('reports.exportCabinGroupToPDF.start', { filters, group });
+  logger.time('reports.exportCabinGroupToPDF');
+
   try {
     const data = await generateGroupReportData(filters, group);
     const doc = new jsPDF();
@@ -320,6 +529,9 @@ export const exportCabinGroupToPDF = async (filters: ReportFilters, group: Cabin
       filterText += ` | Mes: ${monthNames[filters.month - 1]}`;
     }
     filterText += ` | Grupo: ${CABIN_GROUPS[group].label}`;
+    if (filters.includeOverlaps) {
+      filterText += ' | Incluye solapamientos';
+    }
     doc.text(filterText, 20, 30);
 
     const headers = [
@@ -336,16 +548,16 @@ export const exportCabinGroupToPDF = async (filters: ReportFilters, group: Cabin
     ];
 
     const tableData = data.map(row => [
-      row.passengerName,
+      row.passengerName.length > 20 ? row.passengerName.substring(0, 17) + '...' : row.passengerName,
       row.checkIn,
       row.checkOut,
-      row.arrivalFlight,
-      row.departureFlight,
+      row.arrivalFlight.length > 12 ? row.arrivalFlight.substring(0, 9) + '...' : row.arrivalFlight,
+      row.departureFlight.length > 12 ? row.departureFlight.substring(0, 9) + '...' : row.departureFlight,
       row.totalGuests.toString(),
       row.adults.toString(),
       row.children.toString(),
       row.babies.toString(),
-      row.cabinType
+      row.cabinType.length > 25 ? row.cabinType.substring(0, 22) + '...' : row.cabinType
     ]);
 
     autoTable(doc, {
@@ -355,6 +567,8 @@ export const exportCabinGroupToPDF = async (filters: ReportFilters, group: Cabin
       styles: {
         fontSize: 8,
         cellPadding: 2,
+        overflow: 'linebreak',
+        cellWidth: 'wrap',
       },
       headStyles: {
         fillColor: [41, 128, 185],
@@ -379,19 +593,56 @@ export const exportCabinGroupToPDF = async (filters: ReportFilters, group: Cabin
     const monthPart = filters.month ? `_${String(filters.month).padStart(2, '0')}` : '';
     const fileName = `reporte_uso_${filters.year}${monthPart}_${CABIN_GROUPS[group].fileSuffix}.pdf`;
     doc.save(fileName);
+    
+    logger.info('reports.exportCabinGroupToPDF.success', { fileName, dataCount: data.length, group });
   } catch (error) {
-    console.error('Error exporting cabin group to PDF:', error);
+    logger.error('reports.exportCabinGroupToPDF.error', { error: String(error), filters, group });
     throw new Error('Error al exportar a PDF (grupo)');
+  } finally {
+    logger.timeEnd('reports.exportCabinGroupToPDF');
   }
 };
 
 export const getAvailableYears = async (): Promise<number[]> => {
+  logger.info('reports.getAvailableYears.start');
+  logger.time('reports.getAvailableYears');
+
   try {
     const reservations = await getAllReservations();
-    const years = [...new Set(reservations.map(r => parseDate(r.checkIn).getFullYear()))];
-    return years.sort((a, b) => b - a); // Most recent first
+    
+    const years = new Set<number>();
+    reservations.forEach(r => {
+      try {
+        if (r.checkIn) {
+          const checkInDate = parseDate(r.checkIn);
+          if (checkInDate) years.add(checkInDate.getFullYear());
+        }
+        if (r.checkOut) {
+          const checkOutDate = parseDate(r.checkOut);
+          if (checkOutDate) years.add(checkOutDate.getFullYear());
+        }
+      } catch (error) {
+        logger.warn('reports.getAvailableYears.date_parse_error', { 
+          id: r.id, 
+          checkIn: r.checkIn, 
+          checkOut: r.checkOut,
+          error: String(error) 
+        });
+      }
+    });
+
+    const sortedYears = Array.from(years).sort((a, b) => b - a); // Most recent first
+    
+    logger.info('reports.getAvailableYears.success', { 
+      yearsFound: sortedYears.length,
+      years: sortedYears 
+    });
+    
+    return sortedYears.length > 0 ? sortedYears : [new Date().getFullYear()];
   } catch (error) {
-    console.error('Error getting available years:', error);
+    logger.error('reports.getAvailableYears.error', { error: String(error) });
     return [new Date().getFullYear()];
+  } finally {
+    logger.timeEnd('reports.getAvailableYears');
   }
 };
