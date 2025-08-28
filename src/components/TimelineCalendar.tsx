@@ -43,15 +43,21 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading, onDateRan
     isDateRangeEnd
   } = useDateSelection();
 
-  // Throttled selection update to improve performance
+  // Optimized throttled selection update
   const throttledUpdateSelection = useCallback(
     (() => {
       let lastCall = 0;
+      let rafId: number | null = null;
+      
       return (date: string) => {
         const now = Date.now();
         if (now - lastCall >= 16) { // ~60fps
-          updateSelection(date);
-          lastCall = now;
+          if (rafId) cancelAnimationFrame(rafId);
+          rafId = requestAnimationFrame(() => {
+            updateSelection(date);
+            lastCall = now;
+            rafId = null;
+          });
         }
       };
     })(),
@@ -354,7 +360,13 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading, onDateRan
     return cabinReservations;
   };
 
-  const processedReservations = useMemo(() => processReservationsForTimeline(), [reservations, timelineDates, showDeparted, dayWidth]);
+  const processedReservations = useMemo(() => {
+    const start = performance.now();
+    const result = processReservationsForTimeline();
+    const duration = performance.now() - start;
+    logger.debug('timeline.processReservations.completed', { durationMs: duration });
+    return result;
+  }, [reservations, timelineDates, showDeparted, dayWidth]);
 
   const navigateTime = (direction: 'prev' | 'next') => {
     logger.debug('timeline.navigate', { direction, viewMode, currentDate: getCurrentDateString() });
@@ -533,7 +545,8 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading, onDateRan
               ref={timelineRef}
               style={{ 
                 width: `${timelineDates.length * dayWidth}px`,
-                contain: 'content'
+                contain: 'layout style paint',
+                willChange: 'transform'
               }}
               className="relative"
             >
@@ -557,26 +570,15 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading, onDateRan
                         hover:bg-accent/50 transition-colors
                       `}
                       style={{ width: `${dayWidth}px` }}
-                      onMouseDown={() => {
-                        logger.debug('timeline.selection.start', { date: dateStr });
+                      onMouseDown={(e) => {
+                        e.preventDefault();
                         startSelection(dateStr);
                       }}
                        onMouseEnter={() => {
                          if (selectionState.isSelecting) {
-                           logger.debug('timeline.selection.update', { date: dateStr });
                            throttledUpdateSelection(dateStr);
                          }
                        }}
-                      onMouseUp={() => {
-                        if (selectionState.isSelecting && selectionState.startDate && selectionState.endDate) {
-                          logger.info('timeline.selection.end', { 
-                            start: selectionState.startDate, 
-                            end: selectionState.endDate 
-                          });
-                          endSelection();
-                          onDateRangeSelect?.(selectionState.startDate, selectionState.endDate);
-                        }
-                      }}
                       title={`Seleccionar fecha ${formatDateForDisplay(dateStr)}`}
                     >
                       <div className="font-medium">{date.getDate()}</div>
@@ -622,24 +624,13 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading, onDateRan
                             width: `${dayWidth}px`,
                             height: '100%'
                           }}
-                          onMouseDown={() => {
-                            logger.debug('timeline.selection.start', { date: dateStr });
+                          onMouseDown={(e) => {
+                            e.preventDefault();
                             startSelection(dateStr);
                           }}
                           onMouseEnter={() => {
                             if (selectionState.isSelecting) {
-                              logger.debug('timeline.selection.update', { date: dateStr });
                               throttledUpdateSelection(dateStr);
-                            }
-                          }}
-                          onMouseUp={() => {
-                            if (selectionState.isSelecting && selectionState.startDate && selectionState.endDate) {
-                              logger.info('timeline.selection.end', { 
-                                start: selectionState.startDate, 
-                                end: selectionState.endDate 
-                              });
-                              endSelection();
-                              onDateRangeSelect?.(selectionState.startDate, selectionState.endDate);
                             }
                           }}
                         />
@@ -662,9 +653,16 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading, onDateRan
                           top: `${8 + item.row * 35}px`,
                           height: '28px'
                         }}
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const start = performance.now();
                           onReservationClick(item.reservation);
                           scrollToDate(item.reservation.checkIn);
+                          const duration = performance.now() - start;
+                          logger.debug('timeline.reservation.click', { 
+                            reservationId: item.reservation.id,
+                            durationMs: duration 
+                          });
                         }}
                         title={`${item.reservation.passengerName} - ${formatDateForDisplay(item.reservation.checkIn)} al ${formatDateForDisplay(item.reservation.checkOut)}`}
                       >
