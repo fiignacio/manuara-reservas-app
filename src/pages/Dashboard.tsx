@@ -7,15 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import ReservationModal from '@/components/ReservationModal';
 import { Reservation } from '@/types/reservation';
-import { 
-  getTodayArrivals, 
-  getTodayDepartures, 
-  getAllReservations, 
-  getUpcomingArrivals, 
-  getUpcomingDepartures,
-  getTomorrowDepartures, 
-  getArrivalsForDate 
-} from '@/lib/reservationService';
+import { getAllReservations } from '@/lib/reservationService';
+import { dashboardCache } from '@/lib/dashboardCache';
 import { formatDateForDisplay, getTomorrowDate, getTodayDate } from '@/lib/dateUtils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { toast } from '@/hooks/use-toast';
@@ -40,35 +33,48 @@ const Dashboard = () => {
     try {
       setLoading(true);
       
-      const tomorrow = getTomorrowDate();
+      // Check cache first
+      const cachedData = dashboardCache.get();
+      if (cachedData) {
+        logger.info('dashboard.loadData.cache_hit');
+        setReservations(cachedData.allReservations);
+        setTodayArrivals(cachedData.todayArrivals);
+        setTodayDepartures(cachedData.todayDepartures);
+        setUpcomingArrivals(cachedData.upcomingArrivals);
+        setUpcomingDepartures(cachedData.upcomingDepartures);
+        setTomorrowDepartures(cachedData.tomorrowDepartures);
+        setTomorrowArrivals(cachedData.tomorrowArrivals);
+        setLastDataUpdate(new Date().toLocaleTimeString('es-CL'));
+        setLoading(false);
+        logger.timeEnd('dashboard.loadData');
+        return;
+      }
+
+      // Single query instead of 7 separate queries
+      logger.info('dashboard.loadData.fetching_single_query');
+      const allReservations = await getAllReservations();
       
-      const [allReservations, arrivals, departures, upcomingArr, upcomingDep, tomorrowDeps, tomorrowArrs] = await Promise.all([
-        getAllReservations(),
-        getTodayArrivals(),
-        getTodayDepartures(),
-        getUpcomingArrivals(5),
-        getUpcomingDepartures(5),
-        getTomorrowDepartures(),
-        getArrivalsForDate(tomorrow)
-      ]);
+      // Calculate all metrics client-side
+      const dashboardData = dashboardCache.set(allReservations);
       
-      setReservations(allReservations);
-      setTodayArrivals(arrivals);
-      setTodayDepartures(departures);
-      setUpcomingArrivals(upcomingArr);
-      setUpcomingDepartures(upcomingDep);
-      setTomorrowDepartures(tomorrowDeps);
-      setTomorrowArrivals(tomorrowArrs);
+      setReservations(dashboardData.allReservations);
+      setTodayArrivals(dashboardData.todayArrivals);
+      setTodayDepartures(dashboardData.todayDepartures);
+      setUpcomingArrivals(dashboardData.upcomingArrivals);
+      setUpcomingDepartures(dashboardData.upcomingDepartures);
+      setTomorrowDepartures(dashboardData.tomorrowDepartures);
+      setTomorrowArrivals(dashboardData.tomorrowArrivals);
       setLastDataUpdate(new Date().toLocaleTimeString('es-CL'));
 
       logger.info('dashboard.loadData.success', {
-        totalReservations: allReservations.length,
-        todayArrivals: arrivals.length,
-        todayDepartures: departures.length,
-        upcomingArrivals: upcomingArr.length,
-        upcomingDepartures: upcomingDep.length,
-        tomorrowDepartures: tomorrowDeps.length,
-        tomorrowArrivals: tomorrowArrs.length
+        totalReservations: dashboardData.allReservations.length,
+        todayArrivals: dashboardData.todayArrivals.length,
+        todayDepartures: dashboardData.todayDepartures.length,
+        upcomingArrivals: dashboardData.upcomingArrivals.length,
+        upcomingDepartures: dashboardData.upcomingDepartures.length,
+        tomorrowDepartures: dashboardData.tomorrowDepartures.length,
+        tomorrowArrivals: dashboardData.tomorrowArrivals.length,
+        queriesReduced: '7 → 1'
       });
       
     } catch (error) {
