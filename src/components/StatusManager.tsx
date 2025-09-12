@@ -135,7 +135,17 @@ const StatusManager = ({ reservation, onStatusUpdate, compact = false }: StatusM
         </Badge>
         <Dialog open={isEditing} onOpenChange={setIsEditing}>
           <DialogTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+            <Button 
+              type="button"
+              variant="ghost" 
+              size="sm" 
+              className="h-6 w-6 p-0"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsEditing(true);
+              }}
+            >
               <Edit className="h-3 w-3" />
             </Button>
           </DialogTrigger>
@@ -150,10 +160,10 @@ const StatusManager = ({ reservation, onStatusUpdate, compact = false }: StatusM
               <div>
                 <Label>Estado de Pago</Label>
                 <Select value={paymentStatus} onValueChange={(value: any) => setPaymentStatus(value)}>
-                  <SelectTrigger>
+                  <SelectTrigger onClick={(e) => e.stopPropagation()}>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="z-50 bg-popover">{/* Added z-index and background */}
                     <SelectItem value="pending_deposit">Pendiente de Abono</SelectItem>
                     <SelectItem value="pending_payment">Pendiente de Pago</SelectItem>
                     <SelectItem value="deposit_made">Abono Realizado</SelectItem>
@@ -166,10 +176,10 @@ const StatusManager = ({ reservation, onStatusUpdate, compact = false }: StatusM
               <div>
                 <Label>Estado de Reserva</Label>
                 <Select value={reservationStatus} onValueChange={(value: any) => setReservationStatus(value)}>
-                  <SelectTrigger>
+                  <SelectTrigger onClick={(e) => e.stopPropagation()}>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="z-50 bg-popover">
                     <SelectItem value="pending_checkin">Pendiente Check In</SelectItem>
                     <SelectItem value="in_stay">En Estadía</SelectItem>
                     <SelectItem value="checked_out">Check Out</SelectItem>
@@ -187,10 +197,10 @@ const StatusManager = ({ reservation, onStatusUpdate, compact = false }: StatusM
                     setReservationStatus('in_stay');
                   }
                 }}>
-                  <SelectTrigger>
+                  <SelectTrigger onClick={(e) => e.stopPropagation()}>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="z-50 bg-popover">
                     <SelectItem value="pending">Pendiente</SelectItem>
                     <SelectItem value="checked_in">Ingresado</SelectItem>
                     <SelectItem value="no_show">No Show</SelectItem>
@@ -207,10 +217,10 @@ const StatusManager = ({ reservation, onStatusUpdate, compact = false }: StatusM
                     setReservationStatus('checked_out');
                   }
                 }}>
-                  <SelectTrigger>
+                  <SelectTrigger onClick={(e) => e.stopPropagation()}>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="z-50 bg-popover">
                     <SelectItem value="pending">Pendiente</SelectItem>
                     <SelectItem value="checked_out">Egresado</SelectItem>
                     <SelectItem value="late_checkout">Tardío</SelectItem>
@@ -229,11 +239,26 @@ const StatusManager = ({ reservation, onStatusUpdate, compact = false }: StatusM
               </div>
 
               <div className="flex gap-2 justify-end">
-                <Button variant="outline" onClick={handleCancel}>
+                <Button 
+                  type="button"
+                  variant="outline" 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleCancel();
+                  }}
+                >
                   <X className="w-4 h-4 mr-1" />
                   Cancelar
                 </Button>
-                <Button onClick={handleSave}>
+                <Button 
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleSave();
+                  }}
+                >
                   <Save className="w-4 h-4 mr-1" />
                   Guardar
                 </Button>
@@ -249,7 +274,16 @@ const StatusManager = ({ reservation, onStatusUpdate, compact = false }: StatusM
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold">Estados de la Reserva</h3>
-        <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+        <Button 
+          type="button"
+          variant="outline" 
+          size="sm" 
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setIsEditing(true);
+          }}
+        >
           <Edit className="w-4 h-4 mr-1" />
           Editar Estados
         </Button>
@@ -306,10 +340,10 @@ const StatusManager = ({ reservation, onStatusUpdate, compact = false }: StatusM
             <div>
               <Label>Estado de Pago</Label>
               <Select value={paymentStatus} onValueChange={(value: any) => setPaymentStatus(value)}>
-                <SelectTrigger>
+                <SelectTrigger onClick={(e) => e.stopPropagation()}>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="z-50 bg-popover">
                   <SelectItem value="pending_deposit">💸 Pendiente de Abono</SelectItem>
                   <SelectItem value="pending_payment">⏳ Pendiente de Pago</SelectItem>
                   <SelectItem value="deposit_made">💰 Abono Realizado</SelectItem>
@@ -322,10 +356,10 @@ const StatusManager = ({ reservation, onStatusUpdate, compact = false }: StatusM
             <div>
               <Label>Estado de Reserva</Label>
               <Select value={reservationStatus} onValueChange={(value: any) => setReservationStatus(value)}>
-                <SelectTrigger>
+                <SelectTrigger onClick={(e) => e.stopPropagation()}>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="z-50 bg-popover">
                   <SelectItem value="pending_checkin">🔑 Pendiente Check In</SelectItem>
                   <SelectItem value="in_stay">🏠 En Estadía</SelectItem>
                   <SelectItem value="checked_out">🚪 Check Out</SelectItem>
@@ -343,10 +377,10 @@ const StatusManager = ({ reservation, onStatusUpdate, compact = false }: StatusM
                   setReservationStatus('in_stay');
                 }
               }}>
-                <SelectTrigger>
+                <SelectTrigger onClick={(e) => e.stopPropagation()}>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="z-50 bg-popover">
                   <SelectItem value="pending">⏳ Pendiente</SelectItem>
                   <SelectItem value="checked_in">✅ Ingresado</SelectItem>
                   <SelectItem value="no_show">❌ No Show</SelectItem>
@@ -363,10 +397,10 @@ const StatusManager = ({ reservation, onStatusUpdate, compact = false }: StatusM
                   setReservationStatus('checked_out');
                 }
               }}>
-                <SelectTrigger>
+                <SelectTrigger onClick={(e) => e.stopPropagation()}>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="z-50 bg-popover">
                   <SelectItem value="pending">⏳ Pendiente</SelectItem>
                   <SelectItem value="checked_out">✅ Egresado</SelectItem>
                   <SelectItem value="late_checkout">⚠️ Tardío</SelectItem>
@@ -385,11 +419,26 @@ const StatusManager = ({ reservation, onStatusUpdate, compact = false }: StatusM
             </div>
 
             <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={handleCancel}>
+              <Button 
+                type="button"
+                variant="outline" 
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleCancel();
+                }}
+              >
                 <X className="w-4 h-4 mr-1" />
                 Cancelar
               </Button>
-              <Button onClick={handleSave}>
+              <Button 
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleSave();
+                }}
+              >
                 <Save className="w-4 h-4 mr-1" />
                 Guardar Cambios
               </Button>
