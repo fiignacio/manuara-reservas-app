@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore, initializeFirestore } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: "AIzaSyA49rKxFV1Sr-zFsR6GASKLc0Hd5GBXYc0",
@@ -16,5 +17,8 @@ const app = initializeApp(firebaseConfig);
 export const db = initializeFirestore(app, {
   experimentalAutoDetectLongPolling: true
 });
+
+// Initialize Firebase Auth
+export const auth = getAuth(app);
 
 export default app;
