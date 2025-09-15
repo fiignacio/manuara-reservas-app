@@ -34,9 +34,28 @@ export async function setupDefaultUsers(): Promise<void> {
   
   for (const defaultUser of DEFAULT_USERS) {
     try {
-      const existingProfile = await AuthService.getUserProfile(defaultUser.email);
+      // Check if user already exists by trying to get their profile first
+      // We need to check by email, but getUserProfile uses UID, so we'll try to create and handle the error
+      let userExists = false;
+      try {
+        // Try to create user - if email exists, this will throw an error
+        const testResult = await AuthService.createUser(
+          defaultUser.email,
+          'temp123', // temporary password
+          defaultUser.role,
+          defaultUser.displayName
+        );
+        
+        if (testResult.error && testResult.error.includes('ya está en uso')) {
+          userExists = true;
+        }
+      } catch (error: any) {
+        if (error.code === 'auth/email-already-in-use') {
+          userExists = true;
+        }
+      }
       
-      if (!existingProfile) {
+      if (!userExists) {
         const result = await AuthService.createUser(
           defaultUser.email,
           defaultUser.password,

@@ -61,6 +61,7 @@ export const LoginForm: React.FC = () => {
                 id="email"
                 type="email"
                 placeholder="correo@ejemplo.com"
+                autoComplete="email"
                 {...register('email')}
                 disabled={isLoading}
               />
@@ -75,6 +76,7 @@ export const LoginForm: React.FC = () => {
                 id="password"
                 type="password"
                 placeholder="••••••••"
+                autoComplete="current-password"
                 {...register('password')}
                 disabled={isLoading}
               />

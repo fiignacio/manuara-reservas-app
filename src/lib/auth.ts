@@ -35,7 +35,23 @@ export class AuthService {
       return { user, error: null };
     } catch (error: any) {
       logger.exception('auth.signin.error', error);
-      return { user: null, error: error.message };
+      let errorMessage = 'Error de autenticación';
+      
+      if (error.code === 'auth/operation-not-allowed') {
+        errorMessage = 'El método de autenticación no está habilitado. Contacte al administrador.';
+      } else if (error.code === 'auth/user-not-found') {
+        errorMessage = 'Usuario no encontrado';
+      } else if (error.code === 'auth/wrong-password') {
+        errorMessage = 'Contraseña incorrecta';
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage = 'Email inválido';
+      } else if (error.code === 'auth/user-disabled') {
+        errorMessage = 'Usuario deshabilitado';
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMessage = 'Demasiados intentos. Intente más tarde.';
+      }
+      
+      return { user: null, error: errorMessage };
     }
   }
 
@@ -89,7 +105,19 @@ export class AuthService {
       return { user: userData, error: null };
     } catch (error: any) {
       logger.exception('auth.createUser.error', error);
-      return { user: null, error: error.message };
+      let errorMessage = 'Error al crear usuario';
+      
+      if (error.code === 'auth/email-already-in-use') {
+        errorMessage = 'El email ya está en uso';
+      } else if (error.code === 'auth/weak-password') {
+        errorMessage = 'La contraseña es muy débil';
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage = 'Email inválido';
+      } else if (error.code === 'auth/operation-not-allowed') {
+        errorMessage = 'El registro de usuarios no está habilitado. Contacte al administrador.';
+      }
+      
+      return { user: null, error: errorMessage };
     }
   }
 
