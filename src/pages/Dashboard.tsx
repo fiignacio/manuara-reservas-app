@@ -47,6 +47,7 @@ const Dashboard = () => {
         setLastDataUpdate(new Date().toLocaleTimeString('es-CL'));
         setLoading(false);
         logger.timeEnd('dashboard.loadData');
+        logger.info('dashboard.loadData.completed', { source: 'cache' });
         return;
       }
 
@@ -87,7 +88,11 @@ const Dashboard = () => {
       });
     } finally {
       setLoading(false);
-      logger.timeEnd('dashboard.loadData');
+      // Only end timer if it was started (not from cache)
+      const cachedData = dashboardCache.get();
+      if (!cachedData) {
+        logger.timeEnd('dashboard.loadData');
+      }
     }
   };
 
