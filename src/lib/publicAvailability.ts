@@ -1,4 +1,4 @@
-import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
+import { collection, getDocs, query, onSnapshot } from 'firebase/firestore';
 import { db } from './firebase';
 import { CABIN_TYPES, getMaxCapacity, getCabinDisplayName, getCabinColor } from './availabilityHelpers';
 import { logger } from './logger';
@@ -201,4 +201,105 @@ export const getAvailableCabins = async (
     logger.exception('publicAvailability.getAvailableCabins.error', error);
     return [];
   }
+};
+
+// Real-time subscription to availability changes
+export const subscribeToAvailability = (
+  startDate: string,
+  endDate: string,
+  callback: (data: PublicAvailabilityResponse) => void,
+  onError?: (error: Error) => void
+): (() => void) => {
+  logger.info('publicAvailability.subscribe.start', { startDate, endDate });
+  
+  const reservasRef = collection(db, 'reservas');
+  const reservationsRef = collection(db, 'reservations');
+  
+  let reservasData: any[] = [];
+  let reservationsData: any[] = [];
+  let reservasLoaded = false;
+  let reservationsLoaded = false;
+
+  const processAndCallback = () => {
+    if (!reservasLoaded || !reservationsLoaded) return;
+    
+    const allReservations = [...reservasData, ...reservationsData].filter(res => 
+      res.checkIn < endDate && res.checkOut > startDate
+    );
+    
+    const dates = getDateRange(startDate, endDate);
+    const availability = dates.map(date => generateDayAvailability(date, allReservations));
+    
+    const response: PublicAvailabilityResponse = {
+      cabins: getCabinInfo(),
+      availability,
+      lastUpdated: new Date().toISOString()
+    };
+    
+    logger.info('publicAvailability.subscribe.updated', { 
+      reservationsCount: allReservations.length 
+    });
+    
+    callback(response);
+  };
+
+  const unsubscribeReservas = onSnapshot(
+    query(reservasRef),
+    (snapshot) => {
+      reservasData = snapshot.docs
+        .map(doc => {
+          const data = doc.data();
+          if (data.checkIn && data.checkOut && data.cabinType) {
+            return {
+              id: doc.id,
+              cabinType: data.cabinType,
+              checkIn: data.checkIn,
+              checkOut: data.checkOut
+            };
+          }
+          return null;
+        })
+        .filter(res => res !== null);
+      
+      reservasLoaded = true;
+      processAndCallback();
+    },
+    (error) => {
+      logger.exception('publicAvailability.subscribe.reservas.error', error);
+      onError?.(error);
+    }
+  );
+
+  const unsubscribeReservations = onSnapshot(
+    query(reservationsRef),
+    (snapshot) => {
+      reservationsData = snapshot.docs
+        .map(doc => {
+          const data = doc.data();
+          if (data.checkIn && data.checkOut && data.cabinType) {
+            return {
+              id: doc.id,
+              cabinType: data.cabinType,
+              checkIn: data.checkIn,
+              checkOut: data.checkOut
+            };
+          }
+          return null;
+        })
+        .filter(res => res !== null);
+      
+      reservationsLoaded = true;
+      processAndCallback();
+    },
+    (error) => {
+      logger.exception('publicAvailability.subscribe.reservations.error', error);
+      onError?.(error);
+    }
+  );
+
+  return () => {
+    logger.info('publicAvailability.subscribe.cleanup');
+    unsubscribeReservas();
+    unsubscribeReservations();
+  };
 };
