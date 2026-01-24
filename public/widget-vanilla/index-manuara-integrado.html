@@ -443,6 +443,28 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
         ];
 
         // =====================================================================
+        // MAPEO DE NOMBRES DE CABAÑAS LEGACY
+        // =====================================================================
+        const CABIN_TYPE_MAPPING = {
+            'Cabaña Pequeña': 'Cabaña Pequeña (Max 3p)',
+            'Cabaña Mediana 1': 'Cabaña Mediana 1 (Max 4p)',
+            'Cabaña Mediana 2': 'Cabaña Mediana 2 (Max 4p)',
+            'Cabaña Grande': 'Cabaña Grande (Max 6p)',
+            'Pequeña': 'Cabaña Pequeña (Max 3p)',
+            'Mediana 1': 'Cabaña Mediana 1 (Max 4p)',
+            'Mediana 2': 'Cabaña Mediana 2 (Max 4p)',
+            'Grande': 'Cabaña Grande (Max 6p)',
+            'cabana-pequena': 'Cabaña Pequeña (Max 3p)',
+            'cabana-mediana-1': 'Cabaña Mediana 1 (Max 4p)',
+            'cabana-mediana-2': 'Cabaña Mediana 2 (Max 4p)',
+            'cabana-grande': 'Cabaña Grande (Max 6p)'
+        };
+
+        function normalizeCabinType(cabinType) {
+            return CABIN_TYPE_MAPPING[cabinType] || cabinType;
+        }
+
+        // =====================================================================
         // CLASE AVAILABILITY WIDGET
         // =====================================================================
         class AvailabilityWidget {
@@ -461,7 +483,8 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                 this.hoverDate = null;
                 this.reservations = [];
                 this.loading = true;
-                this.unsubscribe = null;
+                this.unsubscribe1 = null;
+                this.unsubscribe2 = null;
             }
 
             init(db) {
@@ -471,29 +494,86 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             }
 
             subscribeToAvailability() {
-                // Escuchar cambios en reservas
                 const reservasRef = collection(this.db, 'reservas');
+                const reservationsRef = collection(this.db, 'reservations');
                 
-                this.unsubscribe = onSnapshot(reservasRef, (snapshot) => {
+                let reservasData = [];
+                let reservationsData = [];
+                let reservasLoaded = false;
+                let reservationsLoaded = false;
+
+                const updateReservations = () => {
+                    if (!reservasLoaded || !reservationsLoaded) return;
+                    
+                    // Combinar ambas colecciones, evitando duplicados por ID
+                    const seenIds = new Set();
                     this.reservations = [];
+                    
+                    // Primero agregar de 'reservas' (prioridad)
+                    reservasData.forEach(res => {
+                        if (!seenIds.has(res.id)) {
+                            seenIds.add(res.id);
+                            this.reservations.push(res);
+                        }
+                    });
+                    
+                    // Luego agregar de 'reservations' si no existen
+                    reservationsData.forEach(res => {
+                        if (!seenIds.has(res.id)) {
+                            seenIds.add(res.id);
+                            this.reservations.push(res);
+                        }
+                    });
+                    
+                    console.log(`Widget: Cargadas ${this.reservations.length} reservas (${reservasData.length} de reservas, ${reservationsData.length} de reservations)`);
+                    this.loading = false;
+                    this.render();
+                };
+
+                // Suscribirse a 'reservas'
+                this.unsubscribe1 = onSnapshot(reservasRef, (snapshot) => {
+                    reservasData = [];
                     snapshot.forEach(doc => {
                         const data = doc.data();
                         if (data.checkIn && data.checkOut && data.cabinType) {
-                            this.reservations.push({
+                            reservasData.push({
                                 id: doc.id,
                                 checkIn: data.checkIn,
                                 checkOut: data.checkOut,
-                                cabinType: data.cabinType,
-                                status: data.status || 'confirmed'
+                                cabinType: normalizeCabinType(data.cabinType),
+                                status: data.status || data.reservationStatus || 'confirmed'
                             });
                         }
                     });
-                    this.loading = false;
-                    this.render();
+                    reservasLoaded = true;
+                    updateReservations();
                 }, (error) => {
-                    console.error('Error loading availability:', error);
-                    this.loading = false;
-                    this.render();
+                    console.error('Error loading reservas:', error);
+                    reservasLoaded = true;
+                    updateReservations();
+                });
+
+                // Suscribirse a 'reservations' (legacy)
+                this.unsubscribe2 = onSnapshot(reservationsRef, (snapshot) => {
+                    reservationsData = [];
+                    snapshot.forEach(doc => {
+                        const data = doc.data();
+                        if (data.checkIn && data.checkOut && data.cabinType) {
+                            reservationsData.push({
+                                id: doc.id,
+                                checkIn: data.checkIn,
+                                checkOut: data.checkOut,
+                                cabinType: normalizeCabinType(data.cabinType),
+                                status: data.status || data.reservationStatus || 'confirmed'
+                            });
+                        }
+                    });
+                    reservationsLoaded = true;
+                    updateReservations();
+                }, (error) => {
+                    console.error('Error loading reservations:', error);
+                    reservationsLoaded = true;
+                    updateReservations();
                 });
             }
 
@@ -865,9 +945,8 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             }
 
             destroy() {
-                if (this.unsubscribe) {
-                    this.unsubscribe();
-                }
+                if (this.unsubscribe1) this.unsubscribe1();
+                if (this.unsubscribe2) this.unsubscribe2();
                 if (this.container) {
                     this.container.innerHTML = '';
                 }
