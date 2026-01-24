@@ -1,0 +1,1320 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cabañas Manuara - Alojamiento en Isla de Pascua</title>
+    <!-- Favicon -->
+    <link rel="icon" href="https://raw.githubusercontent.com/fiignacio/WebCabanasManuara/main/logo.png" type="image/png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #D97706; /* Un tono terracota cálido */
+            --secondary-color: #3B82F6; /* Un azul océano */
+            --background-color: #FDFBF8;
+            --text-dark: #3D405B;
+            --text-light: #4B5563;
+        }
+
+        body { font-family: 'Inter', sans-serif; background-color: var(--background-color); color: var(--text-dark); }
+        h1, h2, h3 { font-family: 'Playfair Display', serif; }
+        
+        .card-shadow { box-shadow: 0 4px 15px -1px rgba(0, 0, 0, 0.06), 0 2px 8px -1px rgba(0, 0, 0, 0.04); transition: all 0.3s ease-in-out; }
+        .card-shadow:hover { transform: translateY(-5px); box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.1), 0 4px 10px -2px rgba(0, 0, 0, 0.06); }
+
+        .btn { transition: all 0.3s ease; }
+        .btn-primary { background-color: var(--primary-color); color: white; }
+        .btn-primary:hover { background-color: #B45309; }
+        
+        html { scroll-behavior: smooth; }
+        #notification { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); padding: 1rem 2rem; border-radius: 0.5rem; color: white; z-index: 1000; transition: opacity 0.5s, visibility 0.5s; opacity: 0; visibility: hidden; }
+        #notification.show { opacity: 1; visibility: visible; }
+        
+        /* Carousel Styles */
+        .carousel-container { position: relative; overflow: hidden; border-radius: 0.5rem; }
+        .carousel-track { display: flex; transition: transform 0.5s ease-in-out; height: 100%;}
+        .carousel-slide { min-width: 100%; box-sizing: border-box; cursor: pointer; }
+        .carousel-button { position: absolute; top: 50%; transform: translateY(-50%); background-color: rgba(0, 0, 0, 0.4); color: white; border: none; padding: 0.5rem; cursor: pointer; z-index: 10; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; transition: background-color 0.3s; }
+        .carousel-button:hover { background-color: rgba(0, 0, 0, 0.7); }
+        .carousel-button.prev { left: 10px; }
+        .carousel-button.next { right: 10px; }
+        .carousel-dots { position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; }
+        .carousel-dot { width: 10px; height: 10px; border-radius: 50%; background-color: rgba(255, 255, 255, 0.6); cursor: pointer; transition: background-color 0.3s; border: 1px solid rgba(0,0,0,0.2); }
+        .carousel-dot.active { background-color: white; }
+
+        /* Lightbox Styles */
+        #lightbox { transition: opacity 0.3s ease; }
+
+        /* Animation Styles */
+        .fade-in-section {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+        }
+        .fade-in-section.is-visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- Header -->
+    <header class="bg-white/80 backdrop-blur-lg sticky top-0 z-50 shadow-sm">
+        <nav class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <a href="#" class="flex items-center space-x-3">
+                <img src="https://raw.githubusercontent.com/fiignacio/WebCabanasManuara/main/logo.png" alt="Logo Cabañas Manuara" class="h-10 w-10 object-contain">
+                <span class="text-2xl font-bold text-gray-800">Cabañas Manuara</span>
+            </a>
+            <div class="hidden md:flex space-x-8">
+                <a href="#cabanas" class="text-gray-600 hover:text-[var(--primary-color)] transition-colors">Cabañas</a>
+                <a href="#servicios" class="text-gray-600 hover:text-[var(--primary-color)] transition-colors">Servicios</a>
+                <a href="#ubicacion" class="text-gray-600 hover:text-[var(--primary-color)] transition-colors">Ubicación</a>
+                <a href="#testimonios" class="text-gray-600 hover:text-[var(--primary-color)] transition-colors">Testimonios</a>
+                <a href="#cotizar" class="text-gray-600 hover:text-[var(--primary-color)] transition-colors">Cotizar</a>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="relative h-[60vh] min-h-[400px] bg-cover bg-center text-white" style="background-image: url('https://raw.githubusercontent.com/fiignacio/WebCabanasManuara/main/IMG-20230803-WA0002.jpg');">
+        <div class="absolute inset-0 bg-gradient-to-t from-[var(--overlay-dark)]/40 to-transparent"></div>
+        <div class="relative container mx-auto px-6 h-full flex flex-col justify-center items-center text-center">
+            <h1 class="text-4xl md:text-6xl font-bold mb-4">Tu hogar en el ombligo del mundo</h1>
+            <p class="text-lg md:text-xl max-w-3xl">Descubre la magia de Rapa Nui desde la comodidad de nuestras cabañas privadas.</p>
+        </div>
+    </section>
+
+    <main class="container mx-auto px-6 py-16">
+        <!-- Cabañas Section -->
+        <section id="cabanas" class="mb-20 scroll-mt-20 fade-in-section">
+            <h2 class="text-4xl font-bold text-center mb-12">Nuestras Cabañas</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+
+                <!-- Cabaña Pequeña con Carrusel -->
+                <div class="bg-white rounded-lg overflow-hidden card-shadow">
+                    <div class="carousel-container h-56" data-carousel-id="cabana-pequena">
+                        <div class="carousel-track">
+                            <img src="https://raw.githubusercontent.com/fiignacio/WebCabanasManuara/main/caba%C3%B1a%20chica/20240922_145048.jpg" alt="Foto 1 de la cabaña pequeña" class="carousel-slide w-full h-full object-cover">
+                            <img src="https://raw.githubusercontent.com/fiignacio/WebCabanasManuara/main/caba%C3%B1a%20chica/20240922_145117.jpg" alt="Foto 2 de la cabaña pequeña" class="carousel-slide w-full h-full object-cover">
+                            <img src="https://raw.githubusercontent.com/fiignacio/WebCabanasManuara/main/caba%C3%B1a%20chica/20240922_145205.jpg" alt="Foto 3 de la cabaña pequeña" class="carousel-slide w-full h-full object-cover">
+                            <img src="https://raw.githubusercontent.com/fiignacio/WebCabanasManuara/main/caba%C3%B1a%20chica/35af3ed6-f763-4e35-9f2f-2410c67d5766.jpg" alt="Foto 4 de la cabaña pequeña" class="carousel-slide w-full h-full object-cover">
+                            <img src="https://raw.githubusercontent.com/fiignacio/WebCabanasManuara/main/caba%C3%B1a%20chica/9629d318-58c2-48dd-bec2-db904ac0c353.jpg" alt="Foto 5 de la cabaña pequeña" class="carousel-slide w-full h-full object-cover">
+                        </div>
+                    </div>
+                    <div class="p-6">
+                        <h3 class="text-2xl font-bold mb-2">Cabaña Turi</h3>
+                        <p class="text-gray-600 mb-4">Capacidad máxima: 3 personas</p>
+                        <p class="text-gray-700">Ideal para parejas o viajeros solitarios que buscan un refugio acogedor y funcional.</p>
+                    </div>
+                </div>
+
+                <!-- Cabaña Mediana con Carrusel -->
+                <div class="bg-white rounded-lg overflow-hidden card-shadow">
+                    <div class="carousel-container h-56" data-carousel-id="cabana-mediana">
+                        <div class="carousel-track">
+                            <img src="https://raw.githubusercontent.com/fiignacio/WebCabanasManuara/main/caba%C3%B1a%20ana/20240922_145557.jpg" alt="Foto 1 de la cabaña mediana" class="carousel-slide w-full h-full object-cover">
+                            <img src="https://raw.githubusercontent.com/fiignacio/WebCabanasManuara/main/caba%C3%B1a%20ana/20240922_145533.jpg" alt="Foto 2 de la cabaña mediana" class="carousel-slide w-full h-full object-cover">
+                            <img src="https://raw.githubusercontent.com/fiignacio/WebCabanasManuara/main/caba%C3%B1a%20ana/20240922_145603.jpg" alt="Foto 3 de la cabaña mediana" class="carousel-slide w-full h-full object-cover">
+                            <img src="https://raw.githubusercontent.com/fiignacio/WebCabanasManuara/main/caba%C3%B1a%20ana/20240922_145608.jpg" alt="Foto 4 de la cabaña mediana" class="carousel-slide w-full h-full object-cover">
+                            <img src="https://raw.githubusercontent.com/fiignacio/WebCabanasManuara/main/caba%C3%B1a%20ana/48cadbf6-8473-4206-b88c-a11ede465b53.jpg" alt="Foto 5 de la cabaña mediana" class="carousel-slide w-full h-full object-cover">
+                            <img src="https://raw.githubusercontent.com/fiignacio/WebCabanasManuara/main/caba%C3%B1a%20ana/db23f19d-fde0-4e8f-8c2f-a85b2afc26ca.jpg" alt="Foto 6 de la cabaña mediana" class="carousel-slide w-full h-full object-cover">
+                            <img src="https://raw.githubusercontent.com/fiignacio/WebCabanasManuara/main/caba%C3%B1a%20ana/eaa0b6e8-c460-4112-926a-9c98df73c199.jpg" alt="Foto 7 de la cabaña mediana" class="carousel-slide w-full h-full object-cover">
+                            <img src="https://raw.githubusercontent.com/fiignacio/WebCabanasManuara/main/caba%C3%B1a%20ana/f936cb38-3305-4ae4-a5b8-8cc6458c93ef.jpg" alt="Foto 8 de la cabaña mediana" class="carousel-slide w-full h-full object-cover">
+                        </div>
+                    </div>
+                    <div class="p-6">
+                        <h3 class="text-2xl font-bold mb-2">Cabaña Kava</h3>
+                        <p class="text-gray-600 mb-4">Capacidad máxima: 4 personas</p>
+                        <p class="text-gray-700">Perfecta para familias pequeñas o grupos de amigos. Contamos con dos unidades de este tipo.</p>
+                    </div>
+                </div>
+
+                <!-- Cabaña Grande con Carrusel -->
+                <div class="bg-white rounded-lg overflow-hidden card-shadow md:col-span-2 lg:col-span-1">
+                     <div class="carousel-container h-56" data-carousel-id="cabana-grande">
+                        <div class="carousel-track">
+                           <img src="https://raw.githubusercontent.com/fiignacio/WebCabanasManuara/main/caba%C3%B1a%20grande/51dcf6f5-23ca-4146-a043-596e64838429.jpg" alt="Foto 1 de la cabaña grande" class="carousel-slide w-full h-full object-cover">
+                            <img src="https://raw.githubusercontent.com/fiignacio/WebCabanasManuara/main/caba%C3%B1a%20grande/6462f2b7-df65-4a5d-857c-50897cd2b3f6.jpg" alt="Foto 2 de la cabaña grande" class="carousel-slide w-full h-full object-cover">
+                            <img src="https://raw.githubusercontent.com/fiignacio/WebCabanasManuara/main/caba%C3%B1a%20grande/67a036ac-8142-4d0b-8404-3f77738c3d8c.jpg" alt="Foto 3 de la cabaña grande" class="carousel-slide w-full h-full object-cover">
+                            <img src="https://raw.githubusercontent.com/fiignacio/WebCabanasManuara/main/caba%C3%B1a%20grande/768df86d-08b0-4723-b1e0-6a89f4a9a54e.jpg" alt="Foto 4 de la cabaña grande" class="carousel-slide w-full h-full object-cover">
+                            <img src="https://raw.githubusercontent.com/fiignacio/WebCabanasManuara/main/caba%C3%B1a%20grande/da90541c-af4f-435d-9245-239cc5a0cb9a.jpg" alt="Foto 5 de la cabaña grande" class="carousel-slide w-full h-full object-cover">
+                        </div>
+                    </div>
+                    <div class="p-6">
+                        <h3 class="text-2xl font-bold mb-2">Cabaña Ariki</h3>
+                        <p class="text-gray-600 mb-4">Capacidad máxima: 6 personas</p>
+                        <p class="text-gray-700">El espacio más amplio para familias grandes, con todas las comodidades para una estadía inolvidable.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Servicios Section -->
+        <section id="servicios" class="mb-20 scroll-mt-20 fade-in-section">
+            <h2 class="text-4xl font-bold text-center mb-12">Servicios</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-10 max-w-4xl mx-auto">
+                <div class="bg-white p-8 rounded-lg card-shadow">
+                    <h3 class="text-2xl font-bold mb-6 text-center text-[var(--primary-color)]">Incluidos en tu Estadía</h3>
+                    <ul class="space-y-4 text-gray-700">
+                        <li class="flex items-start">
+                            <svg class="w-6 h-6 text-green-500 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            <span>Traslado aeropuerto (ida/vuelta) con bienvenida de collar de flores.</span>
+                        </li>
+                        <li class="flex items-start">
+                            <svg class="w-6 h-6 text-green-500 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.128 19.825A1.586 1.586 0 0110.4 18.32l.005-.006a1.585 1.585 0 012.232-.433l.006.006a1.586 1.586 0 01.433 2.232l-.006.005a1.585 1.585 0 01-2.232.433l-.005-.006a1.586 1.586 0 01-.433-2.232z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.252v1.504m-3.182 8.044a5.25 5.25 0 007.364-7.364m-7.364 7.364a5.25 5.25 0 010-7.364"></path></svg>
+                            <span>WiFi de alta velocidad en todas las cabañas.</span>
+                        </li>
+                        <li class="flex items-start">
+                             <svg class="w-6 h-6 text-green-500 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                            <span>Cocina y baño privado con agua caliente en cada cabaña.</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="bg-white p-8 rounded-lg card-shadow">
+                    <h3 class="text-2xl font-bold mb-6 text-center text-[var(--secondary-color)]">Adicionales</h3>
+                    <ul class="space-y-4 text-gray-700">
+                        <li class="flex items-start">
+                            <svg class="w-6 h-6 text-[var(--secondary-color)] mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                            <span>Tours privados con guía local Rapa Nui por los lugares más emblemáticos.</span>
+                        </li>
+                        <li class="flex items-start">
+                            <svg class="w-6 h-6 text-[var(--secondary-color)] mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+                            <span>Arriendo de vehículos para explorar la isla a tu ritmo.</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section id="ubicacion" class="mb-20 scroll-mt-20 fade-in-section">
+            <h2 class="text-4xl font-bold text-center mb-12">Nuestra Ubicación</h2>
+            <div class="w-full h-96 rounded-lg overflow-hidden card-shadow">
+                <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2510.2742621142315!2d-109.43173944650727!3d-27.154279429377368!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x9947fbb9f5cbf71f%3A0x348c66a152db5827!2sCaba%C3%B1as%20Manuara!5e0!3m2!1ses!2scl!4v1752448394360!5m2!1ses!2scl" width="100%" height="100%" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+            </div>
+            <a href="https://maps.app.goo.gl/hKPdc8w2jTfL3Rkh9" target="_blank" rel="noopener noreferrer" class="btn btn-primary inline-flex items-center mt-6 py-2 px-6 rounded-md">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13V7m0 13h6m-6 0l6-3m-6 3V7m6 10v-4a2 2 0 00-2-2h-2a2 2 0 00-2 2v4m6 0l6-3m-6 3h6m6-3l-5.447 2.724A1 1 0 0115 16.382V5.618a1 1 0 011.447-.894L21 7"></path></svg>
+                Abrir en Google Maps
+            </a>
+        </section>
+
+        <section id="testimonios" class="mb-20 scroll-mt-20 fade-in-section">
+            <h2 class="text-4xl font-bold text-center mb-12">Lo que dicen nuestros huéspedes</h2>
+            
+            <div class="bg-white p-8 rounded-lg card-shadow max-w-2xl mx-auto mb-12">
+                <h3 class="text-2xl font-bold mb-6 text-center">¡Deja tu comentario!</h3>
+                <form id="testimonio-form">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label for="testimonio-nombre" class="block text-sm font-medium text-gray-700">Tu Nombre</label>
+                            <input type="text" id="testimonio-nombre" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2">
+                        </div>
+                        <div>
+                            <label for="testimonio-origen" class="block text-sm font-medium text-gray-700">Ciudad/País</label>
+                            <input type="text" id="testimonio-origen" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2">
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700">Tu Valoración</label>
+                        <div class="flex justify-center mt-2" id="testimonio-estrellas">
+                        </div>
+                    </div>
+                    <div class="mb-6">
+                        <label for="testimonio-mensaje" class="block text-sm font-medium text-gray-700">Tu Experiencia</label>
+                        <textarea id="testimonio-mensaje" rows="4" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2"></textarea>
+                    </div>
+                    <div class="text-center">
+                        <button type="submit" class="btn btn-primary inline-flex justify-center py-3 px-8 border border-transparent shadow-sm text-sm font-medium rounded-md">
+                            Enviar Testimonio
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div id="testimonios-lista" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <p id="loading-testimonios" class="col-span-full text-center text-gray-500">Aún no hay comentarios (se el primero)...</p>
+            </div>
+        </section>
+
+        <section id="cotizar" class="bg-white p-8 md:p-12 rounded-lg card-shadow max-w-4xl mx-auto scroll-mt-20 fade-in-section">
+            <h2 class="text-4xl font-bold text-center mb-8">Solicita tu Cotización</h2>
+
+<!-- Sección de Disponibilidad con Widget Integrado -->
+<section id="disponibilidad" class="py-12 bg-gray-50 rounded-lg mb-8">
+  <div class="container mx-auto px-4">
+    <div class="text-center mb-8">
+      <h3 class="text-2xl font-bold text-gray-900 mb-2">
+        📅 Consulta Disponibilidad en Tiempo Real
+      </h3>
+      <p class="text-gray-600 max-w-2xl mx-auto">
+        Selecciona tus fechas de llegada y salida, luego elige una cabaña disponible
+      </p>
+    </div>
+    
+    <!-- Contenedor del widget de calendario -->
+    <div id="availability-widget" class="max-w-md mx-auto"></div>
+    
+    <!-- Formulario de solicitud (aparece después de seleccionar cabaña) -->
+    <div id="booking-request-form" class="hidden max-w-lg mx-auto mt-8 bg-white p-6 rounded-lg shadow-lg">
+      <h4 class="text-xl font-bold mb-4 text-center text-gray-800">Completa tu Solicitud</h4>
+      
+      <!-- Resumen de selección -->
+      <div id="booking-summary" class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <span class="text-sm text-gray-600">Cabaña:</span>
+            <span id="summary-cabin" class="font-semibold text-gray-800 ml-1">-</span>
+          </div>
+          <div>
+            <span class="text-sm text-gray-600">Fechas:</span>
+            <span id="summary-dates" class="font-semibold text-gray-800 ml-1">-</span>
+          </div>
+          <div>
+            <span class="text-sm text-gray-600">Noches:</span>
+            <span id="summary-nights" class="font-semibold text-gray-800 ml-1">-</span>
+          </div>
+        </div>
+      </div>
+      
+      <form id="solicitud-form" class="space-y-4">
+        <!-- Campos ocultos -->
+        <input type="hidden" id="form-cabin" name="cabin">
+        <input type="hidden" id="form-cabin-type" name="cabinType">
+        <input type="hidden" id="form-checkin" name="checkIn">
+        <input type="hidden" id="form-checkout" name="checkOut">
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label for="form-name" class="block text-sm font-medium text-gray-700 mb-1">Nombre Completo *</label>
+            <input type="text" id="form-name" name="guestName" required 
+              class="w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-amber-500 focus:border-amber-500">
+          </div>
+          <div>
+            <label for="form-email" class="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+            <input type="email" id="form-email" name="guestEmail" required 
+              class="w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-amber-500 focus:border-amber-500">
+          </div>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label for="form-phone" class="block text-sm font-medium text-gray-700 mb-1">Teléfono *</label>
+            <input type="tel" id="form-phone" name="guestPhone" required 
+              class="w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-amber-500 focus:border-amber-500"
+              placeholder="+56 9 1234 5678">
+          </div>
+          <div>
+            <label for="form-guests" class="block text-sm font-medium text-gray-700 mb-1">Número de Huéspedes *</label>
+            <select id="form-guests" name="guests" required 
+              class="w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-amber-500 focus:border-amber-500">
+              <option value="1">1 persona</option>
+              <option value="2">2 personas</option>
+              <option value="3">3 personas</option>
+              <option value="4">4 personas</option>
+              <option value="5">5 personas</option>
+              <option value="6">6 personas</option>
+            </select>
+          </div>
+        </div>
+        
+        <div>
+          <label for="form-message" class="block text-sm font-medium text-gray-700 mb-1">Mensaje (opcional)</label>
+          <textarea id="form-message" name="notes" rows="3" 
+            class="w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-amber-500 focus:border-amber-500"
+            placeholder="Cuéntanos más sobre tu viaje o si tienes alguna solicitud especial..."></textarea>
+        </div>
+        
+        <div class="flex gap-3 pt-2">
+          <button type="button" id="cancel-booking-btn" 
+            class="flex-1 py-3 px-4 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors">
+            Cancelar
+          </button>
+          <button type="submit" id="submit-booking-btn"
+            class="flex-1 btn btn-primary py-3 px-4 rounded-md font-medium">
+            Enviar Solicitud
+          </button>
+        </div>
+      </form>
+    </div>
+    
+    <!-- Mensaje de éxito -->
+    <div id="booking-success" class="hidden max-w-lg mx-auto mt-8 bg-green-50 border border-green-200 rounded-lg p-6 text-center">
+      <div class="text-green-600 text-5xl mb-4">✓</div>
+      <h4 class="text-xl font-bold text-green-800 mb-2">¡Solicitud Enviada!</h4>
+      <p class="text-green-700 mb-4">
+        Hemos recibido tu solicitud de reserva. Te contactaremos pronto para confirmar disponibilidad y precio.
+      </p>
+      <button id="new-booking-btn" class="btn btn-primary py-2 px-6 rounded-md">
+        Nueva Consulta
+      </button>
+    </div>
+  </div>
+</section>
+           <!-- <form id="cotizacion-form" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label for="nombre" class="block text-sm font-medium text-gray-700">Nombre Completo</label>
+                    <input type="text" id="nombre" name="nombre" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2">
+                </div>
+                <div>
+                    <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
+                    <input type="email" id="email" name="email" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2">
+                </div>
+                <div>
+                    <label for="llegada" class="block text-sm font-medium text-gray-700">Fecha de Llegada</label>
+                    <input type="date" id="llegada" name="llegada" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2">
+                </div>
+                <div>
+                    <label for="salida" class="block text-sm font-medium text-gray-700">Fecha de Salida</label>
+                    <input type="date" id="salida" name="salida" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2">
+                </div>
+                <div>
+                    <label for="personas" class="block text-sm font-medium text-gray-700">Número de Personas</label>
+                    <input type="number" id="personas" name="personas" min="1" max="10" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2">
+                </div>
+                <div>
+                    <label for="cabana-tipo" class="block text-sm font-medium text-gray-700">Tipo de Cabaña</label>
+                    <select id="cabana-tipo" name="cabana-tipo" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2">
+                        <option>Cabaña Pequeña (hasta 3 personas)</option>
+                        <option>Cabaña Mediana (hasta 4 personas)</option>
+                        <option>Cabaña Grande (hasta 6 personas)</option>
+                        <option>No estoy seguro</option>
+                    </select>
+                </div>
+                <div class="md:col-span-2">
+                    <label for="mensaje" class="block text-sm font-medium text-gray-700">Mensaje</label>
+                    <textarea id="mensaje" name="mensaje" rows="4" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2" placeholder="Cuéntanos más sobre tu viaje o si tienes alguna pregunta."></textarea>
+                </div>
+                <div class="md:col-span-2 text-center">
+                    <button type="submit" class="btn bg-green-500 hover:bg-green-600 text-white inline-flex justify-center items-center py-3 px-8 border border-transparent shadow-sm text-sm font-medium rounded-md">
+                        <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.894 11.892-1.99 0-3.903-.52-5.687-1.475L.057 24zM6.51 19.318l.444.262c1.615.962 3.427 1.466 5.278 1.466 5.445 0 9.888-4.444 9.889-9.889.001-5.445-4.443-9.888-9.889-9.888-5.444 0-9.888 4.444-9.888 9.888 0 1.931.558 3.817 1.626 5.482l.272.435-1.026 3.753 3.803-1.002z"/></svg>
+                        Enviar por WhatsApp
+                    </button>
+                </div>
+            </form>
+            -->
+        </section> 
+    </main>
+    
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white">
+        <div class="container mx-auto px-6 py-8 text-center">
+            <p>&copy; 2024 Cabañas Manuara. Todos los derechos reservados.</p>
+            <p class="text-gray-400 mt-2">Hanga Roa, Rapa Nui (Isla de Pascua)</p>
+            <div class="mt-6 flex flex-col md:flex-row justify-center items-center space-y-4 md:space-y-0 md:space-x-6">
+                <!-- Email -->
+                <a href="mailto:cabanasmanuara@gmail.com" class="flex items-center text-gray-300 hover:text-white transition-colors">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                    <span>cabanasmanuara@gmail.com</span>
+                </a>
+                <!-- WhatsApp -->
+                <a href="https://wa.me/56984562244" target="_blank" rel="noopener noreferrer" class="flex items-center text-gray-300 hover:text-white transition-colors">
+                     <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.894 11.892-1.99 0-3.903-.52-5.687-1.475L.057 24zM6.51 19.318l.444.262c1.615.962 3.427 1.466 5.278 1.466 5.445 0 9.888-4.444 9.889-9.889.001-5.445-4.443-9.888-9.889-9.888-5.444 0-9.888 4.444-9.888 9.888 0 1.931.558 3.817 1.626 5.482l.272.435-1.026 3.753 3.803-1.002z"/></svg>
+                    <span>+56 9 8456 2244</span>
+                </a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Lightbox Modal -->
+    <div id="lightbox" class="fixed inset-0 bg-black bg-opacity-80 z-50 hidden items-center justify-center p-4">
+        <span id="lightbox-close" class="absolute top-4 right-6 text-white text-5xl font-bold cursor-pointer hover:text-gray-300 transition-colors">&times;</span>
+        <img id="lightbox-image" src="" alt="Imagen ampliada" class="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl">
+    </div>
+
+    <div id="notification"></div>
+
+    <script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, serverTimestamp, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        // =====================================================================
+        // CONFIGURACIÓN DE CABAÑAS
+        // =====================================================================
+        const CABIN_TYPES = [
+            { id: 'cabana-pequena', name: 'Cabaña Pequeña (Max 3p)', displayName: 'Cabaña Turi', maxCapacity: 3, color: '#3B82F6' },
+            { id: 'cabana-mediana-1', name: 'Cabaña Mediana 1 (Max 4p)', displayName: 'Cabaña Kava 1', maxCapacity: 4, color: '#8B5CF6' },
+            { id: 'cabana-mediana-2', name: 'Cabaña Mediana 2 (Max 4p)', displayName: 'Cabaña Kava 2', maxCapacity: 4, color: '#F59E0B' },
+            { id: 'cabana-grande', name: 'Cabaña Grande (Max 6p)', displayName: 'Cabaña Ariki', maxCapacity: 6, color: '#EC4899' }
+        ];
+
+        // =====================================================================
+        // CLASE AVAILABILITY WIDGET
+        // =====================================================================
+        class AvailabilityWidget {
+            constructor(containerId, options = {}) {
+                this.container = document.getElementById(containerId);
+                this.options = {
+                    maxMonthsAhead: options.maxMonthsAhead || 6,
+                    showLegend: options.showLegend !== false,
+                    onDateSelect: options.onDateSelect || null,
+                    onCabinSelect: options.onCabinSelect || null
+                };
+                
+                this.currentMonth = new Date();
+                this.selectedCheckIn = null;
+                this.selectedCheckOut = null;
+                this.hoverDate = null;
+                this.reservations = [];
+                this.loading = true;
+                this.unsubscribe = null;
+            }
+
+            init(db) {
+                this.db = db;
+                this.render();
+                this.subscribeToAvailability();
+            }
+
+            subscribeToAvailability() {
+                // Escuchar cambios en reservas
+                const reservasRef = collection(this.db, 'reservas');
+                
+                this.unsubscribe = onSnapshot(reservasRef, (snapshot) => {
+                    this.reservations = [];
+                    snapshot.forEach(doc => {
+                        const data = doc.data();
+                        if (data.checkIn && data.checkOut && data.cabinType) {
+                            this.reservations.push({
+                                id: doc.id,
+                                checkIn: data.checkIn,
+                                checkOut: data.checkOut,
+                                cabinType: data.cabinType,
+                                status: data.status || 'confirmed'
+                            });
+                        }
+                    });
+                    this.loading = false;
+                    this.render();
+                }, (error) => {
+                    console.error('Error loading availability:', error);
+                    this.loading = false;
+                    this.render();
+                });
+            }
+
+            // Helpers de fecha
+            formatDate(date) {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            }
+
+            parseDate(dateStr) {
+                const [year, month, day] = dateStr.split('-').map(Number);
+                return new Date(year, month - 1, day);
+            }
+
+            addMonths(date, months) {
+                const result = new Date(date);
+                result.setMonth(result.getMonth() + months);
+                return result;
+            }
+
+            startOfMonth(date) {
+                return new Date(date.getFullYear(), date.getMonth(), 1);
+            }
+
+            endOfMonth(date) {
+                return new Date(date.getFullYear(), date.getMonth() + 1, 0);
+            }
+
+            startOfWeek(date) {
+                const d = new Date(date);
+                const day = d.getDay();
+                const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+                return new Date(d.setDate(diff));
+            }
+
+            endOfWeek(date) {
+                const d = this.startOfWeek(date);
+                d.setDate(d.getDate() + 6);
+                return d;
+            }
+
+            isSameMonth(date1, date2) {
+                return date1.getFullYear() === date2.getFullYear() && date1.getMonth() === date2.getMonth();
+            }
+
+            // Calcular disponibilidad para una fecha
+            getDateStatus(dateStr) {
+                const today = this.formatDate(new Date());
+                if (dateStr < today) return 'past';
+
+                let availableCount = 0;
+                CABIN_TYPES.forEach(cabin => {
+                    if (this.isCabinAvailable(cabin.name, dateStr)) {
+                        availableCount++;
+                    }
+                });
+
+                if (availableCount === CABIN_TYPES.length) return 'full';
+                if (availableCount > 0) return 'partial';
+                return 'none';
+            }
+
+            isCabinAvailable(cabinType, dateStr) {
+                return !this.reservations.some(res => {
+                    if (res.cabinType !== cabinType) return false;
+                    if (res.status === 'cancelled') return false;
+                    return dateStr >= res.checkIn && dateStr < res.checkOut;
+                });
+            }
+
+            isInRange(dateStr) {
+                if (!this.selectedCheckIn) return false;
+                const endDate = this.selectedCheckOut || this.hoverDate;
+                if (!endDate) return dateStr === this.selectedCheckIn;
+                const start = this.selectedCheckIn < endDate ? this.selectedCheckIn : endDate;
+                const end = this.selectedCheckIn < endDate ? endDate : this.selectedCheckIn;
+                return dateStr >= start && dateStr <= end;
+            }
+
+            handleDateClick(dateStr) {
+                const today = this.formatDate(new Date());
+                if (dateStr < today) return;
+
+                if (!this.selectedCheckIn || (this.selectedCheckIn && this.selectedCheckOut)) {
+                    this.selectedCheckIn = dateStr;
+                    this.selectedCheckOut = null;
+                } else {
+                    if (dateStr < this.selectedCheckIn) {
+                        this.selectedCheckOut = this.selectedCheckIn;
+                        this.selectedCheckIn = dateStr;
+                    } else if (dateStr > this.selectedCheckIn) {
+                        this.selectedCheckOut = dateStr;
+                        if (this.options.onDateSelect) {
+                            this.options.onDateSelect(this.selectedCheckIn, this.selectedCheckOut);
+                        }
+                    }
+                }
+                this.render();
+            }
+
+            handleDateHover(dateStr) {
+                if (this.selectedCheckIn && !this.selectedCheckOut) {
+                    this.hoverDate = dateStr;
+                    this.render();
+                }
+            }
+
+            clearSelection() {
+                this.selectedCheckIn = null;
+                this.selectedCheckOut = null;
+                this.hoverDate = null;
+                this.render();
+            }
+
+            goToPreviousMonth() {
+                const prevMonth = this.addMonths(this.currentMonth, -1);
+                const today = new Date();
+                if (prevMonth >= this.startOfMonth(today)) {
+                    this.currentMonth = prevMonth;
+                    this.render();
+                }
+            }
+
+            goToNextMonth() {
+                const maxDate = this.addMonths(new Date(), this.options.maxMonthsAhead);
+                const nextMonth = this.addMonths(this.currentMonth, 1);
+                if (nextMonth <= maxDate) {
+                    this.currentMonth = nextMonth;
+                    this.render();
+                }
+            }
+
+            getAvailableCabins() {
+                if (!this.selectedCheckIn || !this.selectedCheckOut) return [];
+                
+                return CABIN_TYPES.filter(cabin => {
+                    let current = this.selectedCheckIn;
+                    while (current < this.selectedCheckOut) {
+                        if (!this.isCabinAvailable(cabin.name, current)) {
+                            return false;
+                        }
+                        const d = this.parseDate(current);
+                        d.setDate(d.getDate() + 1);
+                        current = this.formatDate(d);
+                    }
+                    return true;
+                });
+            }
+
+            selectCabin(cabin) {
+                if (this.options.onCabinSelect) {
+                    this.options.onCabinSelect(cabin, this.selectedCheckIn, this.selectedCheckOut);
+                }
+            }
+
+            calculateNights() {
+                if (!this.selectedCheckIn || !this.selectedCheckOut) return 0;
+                const start = this.parseDate(this.selectedCheckIn);
+                const end = this.parseDate(this.selectedCheckOut);
+                return Math.round((end - start) / (1000 * 60 * 60 * 24));
+            }
+
+            // Renderizado
+            render() {
+                if (!this.container) return;
+
+                const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
+                                   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+                const weekDays = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sa', 'Do'];
+
+                const canGoPrev = this.currentMonth > this.startOfMonth(new Date());
+                const canGoNext = this.currentMonth < this.addMonths(new Date(), this.options.maxMonthsAhead - 1);
+
+                let html = `
+                    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+                        <!-- Header -->
+                        <div class="bg-gradient-to-r from-amber-500 to-amber-600 text-white p-4">
+                            <div class="flex items-center justify-between">
+                                <button class="nav-btn prev p-2 rounded-full hover:bg-white/20 transition-colors ${!canGoPrev ? 'opacity-50 cursor-not-allowed' : ''}" ${!canGoPrev ? 'disabled' : ''}>
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                                </button>
+                                <h3 class="text-lg font-semibold capitalize">${monthNames[this.currentMonth.getMonth()]} ${this.currentMonth.getFullYear()}</h3>
+                                <button class="nav-btn next p-2 rounded-full hover:bg-white/20 transition-colors ${!canGoNext ? 'opacity-50 cursor-not-allowed' : ''}" ${!canGoNext ? 'disabled' : ''}>
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                                </button>
+                            </div>
+                            ${this.selectedCheckIn ? `
+                                <div class="flex items-center justify-between mt-3 text-sm bg-white/10 rounded-lg px-3 py-2">
+                                    <span>${this.selectedCheckOut 
+                                        ? `${this.selectedCheckIn} → ${this.selectedCheckOut}` 
+                                        : `Check-in: ${this.selectedCheckIn}`}</span>
+                                    <button class="clear-btn text-xs underline hover:no-underline">Limpiar</button>
+                                </div>
+                            ` : ''}
+                        </div>
+
+                        <div class="p-4">
+                            ${this.loading ? this.renderLoading() : this.renderCalendar(weekDays)}
+                            ${this.options.showLegend ? this.renderLegend() : ''}
+                            ${this.selectedCheckIn && this.selectedCheckOut ? this.renderCabinSelector() : ''}
+                        </div>
+                    </div>
+                `;
+
+                this.container.innerHTML = html;
+                this.attachEventListeners();
+            }
+
+            renderLoading() {
+                return `
+                    <div class="flex items-center justify-center py-12">
+                        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500"></div>
+                        <span class="ml-3 text-gray-600">Cargando disponibilidad...</span>
+                    </div>
+                `;
+            }
+
+            renderCalendar(weekDays) {
+                const monthStart = this.startOfMonth(this.currentMonth);
+                const monthEnd = this.endOfMonth(this.currentMonth);
+                const calendarStart = this.startOfWeek(monthStart);
+                const calendarEnd = this.endOfWeek(monthEnd);
+
+                let days = [];
+                let current = new Date(calendarStart);
+                while (current <= calendarEnd) {
+                    days.push(new Date(current));
+                    current.setDate(current.getDate() + 1);
+                }
+
+                let html = `
+                    <div class="grid grid-cols-7 gap-1 mb-2">
+                        ${weekDays.map(d => `<div class="text-center text-xs font-medium text-gray-500 py-1">${d}</div>`).join('')}
+                    </div>
+                    <div class="grid grid-cols-7 gap-1">
+                `;
+
+                days.forEach(date => {
+                    const dateStr = this.formatDate(date);
+                    const status = this.getDateStatus(dateStr);
+                    const isCurrentMonth = this.isSameMonth(date, this.currentMonth);
+                    const isSelected = dateStr === this.selectedCheckIn || dateStr === this.selectedCheckOut;
+                    const inRange = this.isInRange(dateStr);
+
+                    let classes = 'w-full aspect-square flex items-center justify-center text-sm font-medium rounded-lg transition-all cursor-pointer ';
+                    
+                    if (!isCurrentMonth) {
+                        classes += 'text-gray-300 cursor-default';
+                    } else if (status === 'past') {
+                        classes += 'bg-gray-100 text-gray-400 cursor-not-allowed';
+                    } else if (isSelected) {
+                        classes += 'bg-amber-500 text-white ring-2 ring-amber-500 ring-offset-2';
+                    } else if (inRange) {
+                        classes += 'bg-amber-100 text-amber-800';
+                    } else {
+                        switch (status) {
+                            case 'full':
+                                classes += 'bg-emerald-100 text-emerald-800 border border-emerald-300 hover:bg-emerald-200';
+                                break;
+                            case 'partial':
+                                classes += 'bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200';
+                                break;
+                            case 'none':
+                                classes += 'bg-rose-100 text-rose-800 border border-rose-300 hover:bg-rose-200';
+                                break;
+                        }
+                    }
+
+                    const disabled = !isCurrentMonth || status === 'past';
+                    html += `
+                        <button class="day-btn ${classes}" 
+                            data-date="${dateStr}" 
+                            ${disabled ? 'disabled' : ''}>
+                            ${date.getDate()}
+                        </button>
+                    `;
+                });
+
+                html += '</div>';
+                return html;
+            }
+
+            renderLegend() {
+                return `
+                    <div class="flex flex-wrap justify-center gap-4 mt-4 pt-4 border-t border-gray-100">
+                        <div class="flex items-center gap-2">
+                            <div class="w-4 h-4 rounded bg-emerald-100 border border-emerald-300"></div>
+                            <span class="text-xs text-gray-600">Todas disponibles</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="w-4 h-4 rounded bg-amber-100 border border-amber-300"></div>
+                            <span class="text-xs text-gray-600">Algunas disponibles</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="w-4 h-4 rounded bg-rose-100 border border-rose-300"></div>
+                            <span class="text-xs text-gray-600">Sin disponibilidad</span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            renderCabinSelector() {
+                const availableCabins = this.getAvailableCabins();
+                const nights = this.calculateNights();
+
+                if (availableCabins.length === 0) {
+                    return `
+                        <div class="mt-4 p-4 bg-rose-50 border border-rose-200 rounded-lg text-center">
+                            <p class="text-rose-700">No hay cabañas disponibles para las fechas seleccionadas.</p>
+                            <button class="clear-selection-btn mt-2 text-sm text-rose-600 underline">Seleccionar otras fechas</button>
+                        </div>
+                    `;
+                }
+
+                return `
+                    <div class="mt-4 p-4 bg-gray-50 rounded-lg">
+                        <div class="flex items-center justify-between mb-3">
+                            <h4 class="font-semibold text-gray-800">Cabañas Disponibles</h4>
+                            <span class="text-sm text-gray-600">${nights} noche${nights !== 1 ? 's' : ''}</span>
+                        </div>
+                        <div class="space-y-2">
+                            ${availableCabins.map(cabin => `
+                                <button class="cabin-btn w-full flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg hover:border-amber-400 hover:bg-amber-50 transition-all" data-cabin-id="${cabin.id}" data-cabin-name="${cabin.name}">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-3 h-3 rounded-full" style="background-color: ${cabin.color}"></div>
+                                        <div class="text-left">
+                                            <div class="font-medium text-gray-800">${cabin.displayName}</div>
+                                            <div class="text-xs text-gray-500">Máx. ${cabin.maxCapacity} personas</div>
+                                        </div>
+                                    </div>
+                                    <span class="text-xs px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full">Disponible</span>
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            attachEventListeners() {
+                // Navegación de meses
+                const prevBtn = this.container.querySelector('.nav-btn.prev');
+                const nextBtn = this.container.querySelector('.nav-btn.next');
+                
+                if (prevBtn) prevBtn.addEventListener('click', () => this.goToPreviousMonth());
+                if (nextBtn) nextBtn.addEventListener('click', () => this.goToNextMonth());
+
+                // Botón limpiar
+                const clearBtn = this.container.querySelector('.clear-btn');
+                if (clearBtn) clearBtn.addEventListener('click', () => this.clearSelection());
+
+                const clearSelectionBtn = this.container.querySelector('.clear-selection-btn');
+                if (clearSelectionBtn) clearSelectionBtn.addEventListener('click', () => this.clearSelection());
+
+                // Días del calendario
+                this.container.querySelectorAll('.day-btn:not([disabled])').forEach(btn => {
+                    btn.addEventListener('click', () => this.handleDateClick(btn.dataset.date));
+                    btn.addEventListener('mouseenter', () => this.handleDateHover(btn.dataset.date));
+                });
+
+                // Selección de cabaña
+                this.container.querySelectorAll('.cabin-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const cabin = CABIN_TYPES.find(c => c.id === btn.dataset.cabinId);
+                        if (cabin) this.selectCabin(cabin);
+                    });
+                });
+            }
+
+            destroy() {
+                if (this.unsubscribe) {
+                    this.unsubscribe();
+                }
+                if (this.container) {
+                    this.container.innerHTML = '';
+                }
+            }
+        }
+
+        const { jsPDF } = window.jspdf;
+
+        // --- Carousel Logic ---
+        function setupCarousels() {
+            const carousels = document.querySelectorAll('.carousel-container');
+            
+            carousels.forEach(carousel => {
+                const track = carousel.querySelector('.carousel-track');
+                if (!track || !track.children.length) return;
+
+                const slides = Array.from(track.children);
+                let currentIndex = 0;
+                let autoPlayInterval;
+
+                const prevButton = document.createElement('button');
+                prevButton.innerHTML = '&#10094;';
+                prevButton.classList.add('carousel-button', 'prev');
+                carousel.appendChild(prevButton);
+
+                const nextButton = document.createElement('button');
+                nextButton.innerHTML = '&#10095;';
+                nextButton.classList.add('carousel-button', 'next');
+                carousel.appendChild(nextButton);
+                
+                const dotsNav = document.createElement('div');
+                dotsNav.classList.add('carousel-dots');
+                carousel.appendChild(dotsNav);
+
+                slides.forEach((_, index) => {
+                    const dot = document.createElement('button');
+                    dot.classList.add('carousel-dot');
+                    if(index === 0) dot.classList.add('active');
+                    dotsNav.appendChild(dot);
+                    
+                    dot.addEventListener('click', () => {
+                        moveToSlide(index);
+                        resetAutoPlay();
+                    });
+                });
+                
+                const dots = Array.from(dotsNav.children);
+
+                const moveToSlide = (index) => {
+                    const containerWidth = carousel.getBoundingClientRect().width;
+                    track.style.transform = `translateX(-${containerWidth * index}px)`;
+                    currentIndex = index;
+                    dots.forEach(dot => dot.classList.remove('active'));
+                    dots[currentIndex].classList.add('active');
+                };
+                
+                const moveNext = () => {
+                    const newIndex = (currentIndex + 1) % slides.length;
+                    moveToSlide(newIndex);
+                };
+
+                const startAutoPlay = () => {
+                    autoPlayInterval = setInterval(moveNext, 5000);
+                };
+
+                const stopAutoPlay = () => {
+                    clearInterval(autoPlayInterval);
+                };
+                
+                const resetAutoPlay = () => {
+                    stopAutoPlay();
+                    startAutoPlay();
+                };
+
+                nextButton.addEventListener('click', () => {
+                    moveNext();
+                    resetAutoPlay();
+                });
+
+                prevButton.addEventListener('click', () => {
+                    const newIndex = (currentIndex - 1 + slides.length) % slides.length;
+                    moveToSlide(newIndex);
+                    resetAutoPlay();
+                });
+                
+                carousel.addEventListener('mouseenter', stopAutoPlay);
+                carousel.addEventListener('mouseleave', startAutoPlay);
+
+                window.addEventListener('resize', () => moveToSlide(currentIndex));
+                
+                startAutoPlay();
+            });
+        }
+
+        // --- Lightbox Logic ---
+        function setupLightbox() {
+            const lightbox = document.getElementById('lightbox');
+            const lightboxImage = document.getElementById('lightbox-image');
+            const closeButton = document.getElementById('lightbox-close');
+            const images = document.querySelectorAll('.carousel-slide');
+
+            images.forEach(image => {
+                image.addEventListener('click', () => {
+                    lightboxImage.src = image.src;
+                    lightbox.classList.remove('hidden');
+                    lightbox.classList.add('flex');
+                });
+            });
+
+            const closeLightbox = () => {
+                lightbox.classList.add('hidden');
+                lightbox.classList.remove('flex');
+                lightboxImage.src = '';
+            };
+
+            closeButton.addEventListener('click', closeLightbox);
+            lightbox.addEventListener('click', (e) => {
+                if (e.target === lightbox) {
+                    closeLightbox();
+                }
+            });
+        }
+        
+        // --- Scroll Animation Logic ---
+        function setupScrollAnimations() {
+            const sections = document.querySelectorAll('.fade-in-section');
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('is-visible');
+                    }
+                });
+            }, { threshold: 0.1 });
+
+            sections.forEach(section => observer.observe(section));
+        }
+
+        // =================================================================================
+        // Firebase Configuration
+        // =================================================================================
+        const firebaseConfig = {
+             apiKey: "AIzaSyCulAcD35Z4NdF_g0NyjbuAQ3KjUhS_Amk",
+             authDomain: "cabanas-manuara.firebaseapp.com",
+             projectId: "cabanas-manuara",
+             storageBucket: "cabanas-manuara.appspot.com",
+             messagingSenderId: "864729742711",
+             appId: "1:864729742711:web:2f4041a703ae21e70bf572"
+        };
+        
+        const appId = 'cabanas-manuara';
+        let db, auth;
+
+        function showNotification(message, isSuccess = true) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = isSuccess ? 'bg-green-500' : 'bg-red-500';
+            notification.classList.add('show');
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+
+        function renderStars(rating, isInput = false, containerId = null) {
+            let starsHtml = '';
+            for (let i = 1; i <= 5; i++) {
+                if (isInput) {
+                    starsHtml += `
+                        <label class="cursor-pointer text-gray-300 hover:text-yellow-400 transition-colors">
+                            <input type="radio" name="rating" value="${i}" class="hidden" />
+                            <svg class="w-8 h-8 star-icon" data-value="${i}" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>
+                        </label>
+                    `;
+                } else {
+                    const color = i <= rating ? 'text-yellow-400' : 'text-gray-300';
+                    starsHtml += `<svg class="w-5 h-5 ${color}" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>`;
+                }
+            }
+            if (isInput && containerId) {
+                document.getElementById(containerId).innerHTML = starsHtml;
+            }
+            return starsHtml;
+        }
+
+        function setupTestimonialForm() {
+            const form = document.getElementById('testimonio-form');
+            if (!form) return;
+            const starsContainer = document.getElementById('testimonio-estrellas');
+            
+            renderStars(0, true, 'testimonio-estrellas');
+
+            starsContainer.addEventListener('click', e => {
+                const label = e.target.closest('label');
+                if (!label) return;
+                const starInput = label.querySelector('input[name="rating"]');
+                if (starInput) {
+                    const rating = starInput.value;
+                    const allStars = starsContainer.querySelectorAll('.star-icon');
+                    allStars.forEach(star => {
+                        star.classList.toggle('text-yellow-400', star.dataset.value <= rating);
+                        star.classList.toggle('text-gray-300', star.dataset.value > rating);
+                    });
+                }
+            });
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const ratingInput = form.querySelector('input[name="rating"]:checked');
+                if (!ratingInput) {
+                    showNotification("Por favor, selecciona una valoración en estrellas.", false);
+                    return;
+                }
+
+                const data = {
+                    nombre: document.getElementById('testimonio-nombre').value,
+                    origen: document.getElementById('testimonio-origen').value,
+                    comentario: document.getElementById('testimonio-mensaje').value,
+                    estrellas: Number(ratingInput.value),
+                    timestamp: serverTimestamp()
+                };
+
+                try {
+                    const testimoniosCollection = collection(db, `artifacts/${appId}/public/data/testimonios`);
+                    await addDoc(testimoniosCollection, data);
+                    showNotification("¡Gracias por tu comentario!", true);
+                    form.reset();
+                    renderStars(0, true, 'testimonio-estrellas');
+                } catch (error) {
+                    console.error("Error submitting testimonial: ", error);
+                    showNotification("Hubo un error al enviar tu comentario.", false);
+                }
+            });
+        }
+
+        function loadTestimonials() {
+            const testimoniosCollection = collection(db, `artifacts/${appId}/public/data/testimonios`);
+            const q = query(testimoniosCollection);
+
+            onSnapshot(q, (snapshot) => {
+                const testimoniosLista = document.getElementById('testimonios-lista');
+                if (!testimoniosLista) return;
+                testimoniosLista.innerHTML = ''; 
+
+                if (snapshot.empty) {
+                    testimoniosLista.innerHTML = '<p class="col-span-full text-center text-gray-500">Aún no hay testimonios. ¡Sé el primero!</p>';
+                } else {
+                     const docs = snapshot.docs.sort((a, b) => (b.data().timestamp?.toDate() || 0) - (a.data().timestamp?.toDate() || 0));
+                     docs.forEach(doc => {
+                        const testimonio = doc.data();
+                        const date = testimonio.timestamp ? testimonio.timestamp.toDate() : null;
+                        const formattedDate = date ? new Intl.DateTimeFormat('es-ES', { month: 'long', year: 'numeric' }).format(date) : '';
+                        
+                        const card = document.createElement('div');
+                        card.className = "bg-white p-6 rounded-lg card-shadow flex flex-col";
+                        card.innerHTML = `
+                            <div class="flex items-center mb-4">${renderStars(testimonio.estrellas)}</div>
+                            <p class="text-gray-600 italic mb-4 flex-grow">"${testimonio.comentario}"</p>
+                            <div class="mt-auto pt-4 border-t border-gray-100">
+                                <p class="font-bold text-gray-800">- ${testimonio.nombre}</p>
+                                <p class="text-sm text-gray-500">${testimonio.origen}</p>
+                                <p class="text-xs text-gray-400 mt-2">${formattedDate}</p>
+                            </div>
+                        `;
+                        testimoniosLista.appendChild(card);
+                    });
+                }
+            }, (error) => {
+                console.error("Error loading testimonials: ", error);
+                showNotification("Error al cargar los testimonios.", false);
+            });
+        }
+        
+        // --- Main Application Logic ---
+        document.addEventListener('DOMContentLoaded', async () => {
+            setupCarousels();
+            setupLightbox();
+            setupScrollAnimations();
+
+            if (!firebaseConfig.apiKey) {
+                console.warn("Firebase config is missing. Testimonial feature will be disabled.");
+                const testimoniosSection = document.getElementById('testimonios');
+                if(testimoniosSection) testimoniosSection.style.display = 'none';
+            } else {
+                 try {
+                    const app = initializeApp(firebaseConfig);
+                    db = getFirestore(app);
+                    auth = getAuth(app);
+                    await signInAnonymously(auth);
+                    console.log("Firebase authentication successful.");
+                    setupTestimonialForm();
+                    loadTestimonials();
+                    setupAvailabilityWidget(db); // Inicializar widget de disponibilidad
+                } catch (error) {
+                    console.error("Firebase initialization failed:", error);
+                    showNotification("No se pudo conectar a la base de datos.", false);
+                }
+            }
+        });
+        
+        // =====================================================================
+        // WIDGET DE DISPONIBILIDAD - SETUP
+        // =====================================================================
+        function setupAvailabilityWidget(db) {
+            const widgetContainer = document.getElementById('availability-widget');
+            const bookingForm = document.getElementById('booking-request-form');
+            const bookingSuccess = document.getElementById('booking-success');
+            const solicitudForm = document.getElementById('solicitud-form');
+            
+            if (!widgetContainer) {
+                console.warn('Widget container not found');
+                return;
+            }
+
+            // Estado de selección
+            let selectedCabin = null;
+            let selectedCheckIn = null;
+            let selectedCheckOut = null;
+
+            // Crear widget
+            const widget = new AvailabilityWidget('availability-widget', {
+                maxMonthsAhead: 6,
+                showLegend: true,
+                onDateSelect: (checkIn, checkOut) => {
+                    console.log('Fechas seleccionadas:', checkIn, checkOut);
+                },
+                onCabinSelect: (cabin, checkIn, checkOut) => {
+                    selectedCabin = cabin;
+                    selectedCheckIn = checkIn;
+                    selectedCheckOut = checkOut;
+
+                    // Actualizar campos ocultos
+                    document.getElementById('form-cabin').value = cabin.displayName;
+                    document.getElementById('form-cabin-type').value = cabin.name;
+                    document.getElementById('form-checkin').value = checkIn;
+                    document.getElementById('form-checkout').value = checkOut;
+
+                    // Actualizar resumen
+                    document.getElementById('summary-cabin').textContent = cabin.displayName;
+                    document.getElementById('summary-dates').textContent = `${formatDateDisplay(checkIn)} → ${formatDateDisplay(checkOut)}`;
+                    
+                    const nights = calculateNightsBetween(checkIn, checkOut);
+                    document.getElementById('summary-nights').textContent = `${nights} noche${nights !== 1 ? 's' : ''}`;
+
+                    // Actualizar opciones de huéspedes según capacidad
+                    const guestsSelect = document.getElementById('form-guests');
+                    guestsSelect.innerHTML = '';
+                    for (let i = 1; i <= cabin.maxCapacity; i++) {
+                        const option = document.createElement('option');
+                        option.value = i;
+                        option.textContent = `${i} persona${i !== 1 ? 's' : ''}`;
+                        guestsSelect.appendChild(option);
+                    }
+
+                    // Mostrar formulario
+                    bookingForm.classList.remove('hidden');
+                    bookingSuccess.classList.add('hidden');
+                    
+                    // Scroll suave al formulario
+                    bookingForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            });
+
+            widget.init(db);
+
+            // Helper para formatear fechas
+            function formatDateDisplay(dateStr) {
+                const [year, month, day] = dateStr.split('-');
+                const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+                return `${parseInt(day)} ${months[parseInt(month) - 1]}`;
+            }
+
+            function calculateNightsBetween(checkIn, checkOut) {
+                const start = new Date(checkIn);
+                const end = new Date(checkOut);
+                return Math.round((end - start) / (1000 * 60 * 60 * 24));
+            }
+
+            // Botón cancelar
+            document.getElementById('cancel-booking-btn').addEventListener('click', () => {
+                bookingForm.classList.add('hidden');
+                widget.clearSelection();
+                selectedCabin = null;
+                selectedCheckIn = null;
+                selectedCheckOut = null;
+            });
+
+            // Botón nueva reserva
+            document.getElementById('new-booking-btn').addEventListener('click', () => {
+                bookingSuccess.classList.add('hidden');
+                widget.clearSelection();
+                widgetContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            });
+
+            // Envío del formulario
+            solicitudForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const submitBtn = document.getElementById('submit-booking-btn');
+                const originalText = submitBtn.textContent;
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Enviando...';
+
+                try {
+                    const formData = new FormData(solicitudForm);
+                    
+                    const solicitud = {
+                        // Datos de la reserva
+                        cabinType: formData.get('cabinType'),
+                        cabinDisplayName: formData.get('cabin'),
+                        checkIn: formData.get('checkIn'),
+                        checkOut: formData.get('checkOut'),
+                        
+                        // Datos del huésped
+                        guestName: formData.get('guestName'),
+                        guestEmail: formData.get('guestEmail'),
+                        guestPhone: formData.get('guestPhone'),
+                        guests: parseInt(formData.get('guests')),
+                        notes: formData.get('notes') || '',
+                        
+                        // Metadatos
+                        status: 'pendiente',
+                        source: 'web',
+                        createdAt: serverTimestamp()
+                    };
+
+                    // Guardar en colección solicitudes_reserva
+                    await addDoc(collection(db, 'solicitudes_reserva'), solicitud);
+
+                    // Mostrar éxito
+                    bookingForm.classList.add('hidden');
+                    bookingSuccess.classList.remove('hidden');
+                    bookingSuccess.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    
+                    // Limpiar formulario
+                    solicitudForm.reset();
+                    widget.clearSelection();
+                    
+                    showNotification('¡Solicitud enviada correctamente!', true);
+
+                } catch (error) {
+                    console.error('Error al enviar solicitud:', error);
+                    showNotification('Error al enviar la solicitud. Intenta de nuevo.', false);
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = originalText;
+                }
+            });
+        }
+    </script>
+</body>
+</html>
