@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Plus, Search, Filter, Edit, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,53 +21,25 @@ import ReservationModal from '@/components/ReservationModal';
 import TimelineCalendar from '@/components/TimelineCalendar';
 import AvailabilityCard from '@/components/AvailabilityCard';
 import { Reservation } from '@/types/reservation';
-import { 
-  getAllReservations, 
-  deleteReservation 
-} from '@/lib/reservations';
+import { useReservationsQuery, useDeleteReservation, useInvalidateReservations } from '@/hooks/useReservations';
 import { formatDateForDisplay, parseDate } from '@/lib/dateUtils';
 
 const Calendar = () => {
   const { toast } = useToast();
-  const [reservations, setReservations] = useState<Reservation[]>([]);
-  const [filteredReservations, setFilteredReservations] = useState<Reservation[]>([]);
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCabin, setFilterCabin] = useState('all');
   const [sortBy, setSortBy] = useState('checkIn');
   const [selectedDateRange, setSelectedDateRange] = useState<{ start: string; end: string } | null>(null);
 
-  const loadReservations = async () => {
-    try {
-      setLoading(true);
-      const data = await getAllReservations();
-      setReservations(data);
-      setFilteredReservations(data);
-      
-      if (data.length > 0) {
-        toast({
-          title: "📊 Timeline actualizado",
-          description: `Se han cargado ${data.length} reserva${data.length === 1 ? '' : 's'} exitosamente.`
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "⚠️ Error al cargar reservas",
-        description: "No se pudieron cargar las reservas desde la base de datos. Por favor, verifica la conexión.",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  // React Query hooks
+  const { data: reservations = [], isLoading: loading } = useReservationsQuery();
+  const deleteReservationMutation = useDeleteReservation();
+  const invalidateReservations = useInvalidateReservations();
 
-  useEffect(() => {
-    loadReservations();
-  }, []);
-
-  useEffect(() => {
+  // Filter and sort reservations
+  const filteredReservations = useMemo(() => {
     let filtered = [...reservations];
 
     // Filtrar por búsqueda
@@ -99,7 +70,7 @@ const Calendar = () => {
       }
     });
 
-    setFilteredReservations(filtered);
+    return filtered;
   }, [reservations, searchTerm, filterCabin, sortBy]);
 
   const handleReservationClick = (reservation: Reservation) => {
@@ -114,12 +85,11 @@ const Calendar = () => {
 
   const handleDelete = async (id: string) => {
     try {
-      await deleteReservation(id);
+      await deleteReservationMutation.mutateAsync(id);
       toast({
         title: "Éxito",
         description: "Reserva eliminada correctamente."
       });
-      loadReservations();
     } catch (error) {
       toast({
         title: "Error",
@@ -398,7 +368,7 @@ const Calendar = () => {
       <ReservationModal
         isOpen={isModalOpen}
         onClose={handleModalClose}
-        onSuccess={loadReservations}
+        onSuccess={invalidateReservations}
         reservation={selectedReservation}
       />
     </div>

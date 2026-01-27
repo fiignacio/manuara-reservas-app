@@ -1,103 +1,58 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Plus, LogIn, LogOut, CalendarDays, Users, Clock, AlertTriangle, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import ReservationModal from '@/components/ReservationModal';
-import { Reservation } from '@/types/reservation';
-import { getAllReservations } from '@/lib/reservationService';
-import { dashboardCache } from '@/lib/dashboardCache';
-import { formatDateForDisplay, getTodayDate } from '@/lib/dateUtils';
+import { formatDateForDisplay, getTodayDate, getTomorrowDate, addDays } from '@/lib/dateUtils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { toast } from '@/hooks/use-toast';
 import { logger } from '@/lib/logger';
+import { useReservationsQuery, useInvalidateReservations } from '@/hooks/useReservations';
+import { Reservation } from '@/types/reservation';
 
 const Dashboard = () => {
-  const [reservations, setReservations] = useState<Reservation[]>([]);
-  const [todayArrivals, setTodayArrivals] = useState<Reservation[]>([]);
-  const [todayDepartures, setTodayDepartures] = useState<Reservation[]>([]);
-  const [upcomingArrivals, setUpcomingArrivals] = useState<Reservation[]>([]);
-  const [upcomingDepartures, setUpcomingDepartures] = useState<Reservation[]>([]);
-  const [tomorrowDepartures, setTomorrowDepartures] = useState<Reservation[]>([]);
-  const [tomorrowArrivals, setTomorrowArrivals] = useState<Reservation[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [lastDataUpdate, setLastDataUpdate] = useState<string>('');
-
-  const loadData = async () => {
-    logger.info('dashboard.loadData.start');
-    logger.time('dashboard.loadData');
+  
+  // Use React Query for data fetching with caching
+  const { data: reservations = [], isLoading: loading, dataUpdatedAt } = useReservationsQuery();
+  const invalidateReservations = useInvalidateReservations();
+  
+  // Calculate dashboard metrics from reservations
+  const dashboardData = useMemo(() => {
+    const today = getTodayDate();
+    const tomorrow = getTomorrowDate();
+    const fiveDaysFromNow = addDays(today, 5);
     
-    try {
-      setLoading(true);
-      
-      // Check cache first
-      const cachedData = dashboardCache.get();
-      if (cachedData) {
-        logger.info('dashboard.loadData.cache_hit');
-        setReservations(cachedData.allReservations);
-        setTodayArrivals(cachedData.todayArrivals);
-        setTodayDepartures(cachedData.todayDepartures);
-        setUpcomingArrivals(cachedData.upcomingArrivals);
-        setUpcomingDepartures(cachedData.upcomingDepartures);
-        setTomorrowDepartures(cachedData.tomorrowDepartures);
-        setTomorrowArrivals(cachedData.tomorrowArrivals);
-        setLastDataUpdate(new Date().toLocaleTimeString('es-CL'));
-        setLoading(false);
-        logger.timeEnd('dashboard.loadData');
-        logger.info('dashboard.loadData.completed', { source: 'cache' });
-        return;
-      }
-
-      // Single query instead of 7 separate queries
-      logger.info('dashboard.loadData.fetching_single_query');
-      const allReservations = await getAllReservations();
-      
-      // Calculate all metrics client-side
-      const dashboardData = dashboardCache.set(allReservations);
-      
-      setReservations(dashboardData.allReservations);
-      setTodayArrivals(dashboardData.todayArrivals);
-      setTodayDepartures(dashboardData.todayDepartures);
-      setUpcomingArrivals(dashboardData.upcomingArrivals);
-      setUpcomingDepartures(dashboardData.upcomingDepartures);
-      setTomorrowDepartures(dashboardData.tomorrowDepartures);
-      setTomorrowArrivals(dashboardData.tomorrowArrivals);
-      setLastDataUpdate(new Date().toLocaleTimeString('es-CL'));
-
-      logger.info('dashboard.loadData.success', {
-        totalReservations: dashboardData.allReservations.length,
-        todayArrivals: dashboardData.todayArrivals.length,
-        todayDepartures: dashboardData.todayDepartures.length,
-        upcomingArrivals: dashboardData.upcomingArrivals.length,
-        upcomingDepartures: dashboardData.upcomingDepartures.length,
-        tomorrowDepartures: dashboardData.tomorrowDepartures.length,
-        tomorrowArrivals: dashboardData.tomorrowArrivals.length,
-        queriesReduced: '7 → 1'
-      });
-      
-    } catch (error) {
-      logger.error('dashboard.loadData.error', { error: String(error) });
-      console.error('Error loading dashboard data:', error);
-      toast({
-        title: "Error",
-        description: "Error al cargar los datos del dashboard: " + (error instanceof Error ? error.message : 'Error desconocido'),
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-      // Only end timer if it was started (not from cache)
-      const cachedData = dashboardCache.get();
-      if (!cachedData) {
-        logger.timeEnd('dashboard.loadData');
-      }
-    }
-  };
+    const todayArrivals = reservations.filter(r => r.checkIn === today);
+    const todayDepartures = reservations.filter(r => r.checkOut === today);
+    const tomorrowDepartures = reservations.filter(r => r.checkOut === tomorrow);
+    const tomorrowArrivals = reservations.filter(r => r.checkIn === tomorrow);
+    
+    const upcomingArrivals = reservations.filter(r => 
+      r.checkIn > today && r.checkIn <= fiveDaysFromNow
+    ).slice(0, 5);
+    
+    const upcomingDepartures = reservations.filter(r => 
+      r.checkOut > today && r.checkOut <= fiveDaysFromNow
+    ).slice(0, 5);
+    
+    return {
+      todayArrivals,
+      todayDepartures,
+      tomorrowDepartures,
+      tomorrowArrivals,
+      upcomingArrivals,
+      upcomingDepartures
+    };
+  }, [reservations]);
+  
+  const { todayArrivals, todayDepartures, tomorrowDepartures, tomorrowArrivals, upcomingArrivals, upcomingDepartures } = dashboardData;
+  
+  const lastDataUpdate = dataUpdatedAt ? new Date(dataUpdatedAt).toLocaleTimeString('es-CL') : '';
 
   useEffect(() => {
     logger.info('dashboard.mount');
-    loadData();
     return () => logger.info('dashboard.unmount');
   }, []);
 
@@ -397,7 +352,7 @@ const Dashboard = () => {
       <ReservationModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onSuccess={loadData}
+        onSuccess={invalidateReservations}
       />
     </div>
   );
