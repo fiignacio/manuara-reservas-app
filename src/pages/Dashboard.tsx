@@ -1,11 +1,13 @@
 
 import { useState, useEffect } from 'react';
-import { Plus, LogIn, LogOut, CalendarDays, Users, Clock, AlertTriangle, Calendar } from 'lucide-react';
+import { Plus, LogIn, LogOut, CalendarDays, Users, Clock, AlertTriangle, Calendar, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import ReservationModal from '@/components/ReservationModal';
+import { MigrationTool } from '@/components/MigrationTool';
 import { Reservation } from '@/types/reservation';
 import { getAllReservations } from '@/lib/reservationService';
 import { dashboardCache } from '@/lib/dashboardCache';
@@ -393,6 +395,21 @@ const Dashboard = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Admin Tools */}
+      <Collapsible>
+        <CollapsibleTrigger asChild>
+          <Button variant="outline" className="w-full flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <Settings className="h-4 w-4" />
+              Herramientas de Administración
+            </span>
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="mt-4">
+          <MigrationTool />
+        </CollapsibleContent>
+      </Collapsible>
 
       <ReservationModal
         isOpen={isModalOpen}
