@@ -1,15 +1,10 @@
 import { collection, getDocs, query, onSnapshot } from 'firebase/firestore';
 import { db } from './firebase';
-import { CABIN_TYPES, getMaxCapacity, getCabinDisplayName, getCabinColor } from './availabilityHelpers';
+import { CABIN_TYPES, getMaxCapacity, getCabinDisplayName, getCabinColor, getCabinInfo, type CabinInfo } from './cabinConfig';
 import { logger } from './logger';
 
-export interface CabinInfo {
-  id: string;
-  name: string;
-  displayName: string;
-  maxCapacity: number;
-  color: string;
-}
+// Re-export CabinInfo for backward compatibility
+export type { CabinInfo };
 
 export interface DayAvailability {
   date: string;
@@ -27,16 +22,8 @@ export interface PublicAvailabilityResponse {
   lastUpdated: string;
 }
 
-// Get cabin information for public display
-export const getCabinInfo = (): CabinInfo[] => {
-  return CABIN_TYPES.map((cabinType, index) => ({
-    id: `cabin-${index + 1}`,
-    name: cabinType,
-    displayName: getCabinDisplayName(cabinType),
-    maxCapacity: getMaxCapacity(cabinType),
-    color: getCabinColor(cabinType)
-  }));
-};
+// Re-export getCabinInfo from cabinConfig
+export { getCabinInfo };
 
 // Get reservations for a date range (for public availability check)
 const getReservationsInRange = async (startDate: string, endDate: string) => {
