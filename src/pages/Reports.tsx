@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   FileText, 
   Download, 
@@ -23,7 +24,6 @@ import {
   exportToCSV, 
   exportToPDF, 
   getCabinTypes,
-  getAvailableYears,
   ReportData, 
   ReportFilters,
   exportCabinGroupToCSV,
@@ -43,10 +43,8 @@ const Reports = () => {
   });
   const { toast } = useToast();
   
-  // Use React Query for reservations data
   const { data: reservations = [] } = useReservationsQuery();
 
-  // Calculate available years from reservations
   const availableYears = useMemo(() => {
     const years = new Set<number>();
     const currentYear = new Date().getFullYear();
@@ -62,7 +60,6 @@ const Reports = () => {
     return Array.from(years).sort((a, b) => b - a);
   }, [reservations]);
 
-  // Calculate summary statistics
   const summaryStats = useMemo(() => {
     if (reportData.length === 0) return null;
     
@@ -71,13 +68,11 @@ const Reports = () => {
     const totalChildren = reportData.reduce((sum, r) => sum + r.children, 0);
     const totalBabies = reportData.reduce((sum, r) => sum + r.babies, 0);
     
-    // Count by cabin type
     const byCabin = CABIN_TYPES.reduce((acc, cabin) => {
       acc[cabin] = reportData.filter(r => r.cabinType === cabin).length;
       return acc;
     }, {} as Record<string, number>);
     
-    // Average guests per reservation
     const avgGuests = totalGuests / reportData.length;
     
     return {
@@ -169,13 +164,13 @@ const Reports = () => {
       }
       toast({
         title: 'Exportación exitosa',
-        description: `El archivo ${format.toUpperCase()} del grupo se ha descargado correctamente`,
+        description: `Archivo ${format.toUpperCase()} descargado`,
       });
     } catch (error) {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: `Error al exportar el grupo a ${format.toUpperCase()}`,
+        description: `Error al exportar a ${format.toUpperCase()}`,
       });
     }
   };
@@ -186,75 +181,68 @@ const Reports = () => {
   ];
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 sm:space-y-6 animate-fade-in">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="flex items-center space-x-4">
-          <div className="p-3 bg-primary/10 rounded-lg">
-            <FileText className="w-8 h-8 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Reportes de Uso</h1>
-            <p className="text-muted-foreground">
-              Genera reportes detallados de uso por mes y tipo de cabaña
-            </p>
-          </div>
+      <div className="flex items-center gap-3">
+        <div className="p-2 sm:p-3 bg-primary/10 rounded-lg">
+          <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-primary" />
+        </div>
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Reportes</h1>
+          <p className="text-sm text-muted-foreground hidden sm:block">
+            Genera reportes detallados de uso
+          </p>
         </div>
       </div>
 
       <Tabs defaultValue="generate" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="generate" className="flex items-center gap-2">
-            <BarChart3 className="h-4 w-4" />
-            Generar Reporte
+        <TabsList className="w-full h-auto flex flex-wrap">
+          <TabsTrigger value="generate" className="flex-1 min-w-[100px] text-xs sm:text-sm py-2">
+            <BarChart3 className="h-4 w-4 mr-1 sm:mr-2" />
+            <span className="hidden xs:inline">Generar</span>
           </TabsTrigger>
-          <TabsTrigger value="export-group" className="flex items-center gap-2">
-            <FileSpreadsheet className="h-4 w-4" />
-            Exportar por Grupo
+          <TabsTrigger value="export-group" className="flex-1 min-w-[100px] text-xs sm:text-sm py-2">
+            <FileSpreadsheet className="h-4 w-4 mr-1 sm:mr-2" />
+            <span className="hidden xs:inline">Grupos</span>
           </TabsTrigger>
-          <TabsTrigger value="data" className="flex items-center gap-2" disabled={reportData.length === 0}>
-            <Home className="h-4 w-4" />
-            Datos ({reportData.length})
+          <TabsTrigger value="data" className="flex-1 min-w-[100px] text-xs sm:text-sm py-2" disabled={reportData.length === 0}>
+            <Home className="h-4 w-4 mr-1 sm:mr-2" />
+            <span>({reportData.length})</span>
           </TabsTrigger>
         </TabsList>
 
         {/* Generate Report Tab */}
-        <TabsContent value="generate" className="space-y-6">
+        <TabsContent value="generate" className="space-y-4 mt-4">
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Calendar className="w-5 h-5" />
-                <span>Filtros de Reporte</span>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                <Calendar className="w-4 h-4 sm:w-5 sm:h-5" />
+                Filtros
               </CardTitle>
-              <CardDescription>
-                Selecciona el período y tipo de cabaña para generar el reporte
-              </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                {/* Year Filter */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">Año</label>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {/* Year */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Año</label>
                   <Select
                     value={filters.year.toString()}
                     onValueChange={(value) => setFilters({ ...filters, year: parseInt(value) })}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar año" />
+                    <SelectTrigger className="h-10">
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       {availableYears.map((year) => (
-                        <SelectItem key={year} value={year.toString()}>
-                          {year}
-                        </SelectItem>
+                        <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
 
-                {/* Month Filter */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">Mes (Opcional)</label>
+                {/* Month */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Mes</label>
                   <Select
                     value={filters.month?.toString() || "all"}
                     onValueChange={(value) => {
@@ -264,23 +252,23 @@ const Reports = () => {
                       });
                     }}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Todos los meses" />
+                    <SelectTrigger className="h-10">
+                      <SelectValue placeholder="Todos" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">Todos los meses</SelectItem>
+                      <SelectItem value="all">Todos</SelectItem>
                       {monthNames.map((month, index) => (
                         <SelectItem key={index + 1} value={(index + 1).toString()}>
-                          {month}
+                          {month.substring(0, 3)}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
 
-                {/* Cabin Type Filter */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">Tipo de Cabaña</label>
+                {/* Cabin */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Cabaña</label>
                   <Select
                     value={filters.cabinType || "all"}
                     onValueChange={(value) => {
@@ -290,14 +278,14 @@ const Reports = () => {
                       });
                     }}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Todas las cabañas" />
+                    <SelectTrigger className="h-10">
+                      <SelectValue placeholder="Todas" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">Todas las cabañas</SelectItem>
+                      <SelectItem value="all">Todas</SelectItem>
                       {getCabinTypes().map((cabin) => (
                         <SelectItem key={cabin} value={cabin}>
-                          {cabin}
+                          {cabin.split(' (')[0]}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -309,42 +297,33 @@ const Reports = () => {
                   <Button 
                     onClick={loadReportData} 
                     disabled={loading}
-                    className="w-full"
+                    className="w-full h-10"
                   >
                     {loading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Generando...
-                      </>
+                      <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
                       <>
-                        <BarChart3 className="mr-2 h-4 w-4" />
-                        Generar Reporte
+                        <BarChart3 className="h-4 w-4 mr-1" />
+                        <span className="hidden sm:inline">Generar</span>
                       </>
                     )}
                   </Button>
                 </div>
               </div>
 
-              {/* Advanced Options */}
+              {/* Include overlaps option */}
               {filters.month && (
-                <div className="mt-4 pt-4 border-t border-border">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="includeOverlaps"
-                      checked={filters.includeOverlaps || false}
-                      onCheckedChange={(checked) => {
-                        setFilters({ ...filters, includeOverlaps: checked as boolean });
-                      }}
-                    />
-                    <label htmlFor="includeOverlaps" className="text-sm font-medium text-foreground cursor-pointer">
-                      Incluir reservas que se extienden fuera del mes
-                    </label>
-                    <Info className="w-4 h-4 text-muted-foreground" />
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1 ml-6">
-                    Incluye reservas que comienzan antes del mes o terminan después del mes seleccionado
-                  </p>
+                <div className="flex items-center gap-2 pt-2 border-t">
+                  <Checkbox
+                    id="includeOverlaps"
+                    checked={filters.includeOverlaps || false}
+                    onCheckedChange={(checked) => {
+                      setFilters({ ...filters, includeOverlaps: checked as boolean });
+                    }}
+                  />
+                  <label htmlFor="includeOverlaps" className="text-xs text-muted-foreground cursor-pointer">
+                    Incluir reservas que se extienden fuera del mes
+                  </label>
                 </div>
               )}
             </CardContent>
@@ -352,76 +331,41 @@ const Reports = () => {
 
           {/* Summary Stats */}
           {summaryStats && (
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 sm:gap-3">
               <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Reservas</p>
-                      <p className="text-2xl font-bold">{summaryStats.totalReservations}</p>
-                    </div>
-                    <Calendar className="h-8 w-8 text-primary/50" />
-                  </div>
+                <CardContent className="p-3 sm:p-4">
+                  <p className="text-xs text-muted-foreground">Reservas</p>
+                  <p className="text-xl sm:text-2xl font-bold">{summaryStats.totalReservations}</p>
                 </CardContent>
               </Card>
-              
               <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Total Huéspedes</p>
-                      <p className="text-2xl font-bold">{summaryStats.totalGuests}</p>
-                    </div>
-                    <Users className="h-8 w-8 text-blue-500/50" />
-                  </div>
+                <CardContent className="p-3 sm:p-4">
+                  <p className="text-xs text-muted-foreground">Huéspedes</p>
+                  <p className="text-xl sm:text-2xl font-bold">{summaryStats.totalGuests}</p>
                 </CardContent>
               </Card>
-
               <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Adultos</p>
-                      <p className="text-2xl font-bold">{summaryStats.totalAdults}</p>
-                    </div>
-                    <Users className="h-8 w-8 text-green-500/50" />
-                  </div>
+                <CardContent className="p-3 sm:p-4">
+                  <p className="text-xs text-muted-foreground">Adultos</p>
+                  <p className="text-xl sm:text-2xl font-bold">{summaryStats.totalAdults}</p>
                 </CardContent>
               </Card>
-
               <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Niños</p>
-                      <p className="text-2xl font-bold">{summaryStats.totalChildren}</p>
-                    </div>
-                    <Users className="h-8 w-8 text-amber-500/50" />
-                  </div>
+                <CardContent className="p-3 sm:p-4">
+                  <p className="text-xs text-muted-foreground">Niños</p>
+                  <p className="text-xl sm:text-2xl font-bold">{summaryStats.totalChildren}</p>
                 </CardContent>
               </Card>
-
               <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Bebés</p>
-                      <p className="text-2xl font-bold">{summaryStats.totalBabies}</p>
-                    </div>
-                    <Users className="h-8 w-8 text-pink-500/50" />
-                  </div>
+                <CardContent className="p-3 sm:p-4">
+                  <p className="text-xs text-muted-foreground">Bebés</p>
+                  <p className="text-xl sm:text-2xl font-bold">{summaryStats.totalBabies}</p>
                 </CardContent>
               </Card>
-
               <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Prom. Huéspedes</p>
-                      <p className="text-2xl font-bold">{summaryStats.avgGuests}</p>
-                    </div>
-                    <TrendingUp className="h-8 w-8 text-purple-500/50" />
-                  </div>
+                <CardContent className="p-3 sm:p-4">
+                  <p className="text-xs text-muted-foreground">Prom.</p>
+                  <p className="text-xl sm:text-2xl font-bold">{summaryStats.avgGuests}</p>
                 </CardContent>
               </Card>
             </div>
@@ -430,57 +374,51 @@ const Reports = () => {
           {/* Export Actions */}
           {reportData.length > 0 && (
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Download className="w-5 h-5" />
-                  <span>Exportar Reporte</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-4">
-                  <Button onClick={handleExportCSV} variant="outline">
-                    <FileSpreadsheet className="w-4 h-4 mr-2" />
-                    Exportar CSV
+              <CardContent className="p-4">
+                <div className="flex flex-wrap gap-2 sm:gap-3">
+                  <Button onClick={handleExportCSV} variant="outline" size="sm" className="flex-1 sm:flex-none">
+                    <FileSpreadsheet className="w-4 h-4 mr-1" />
+                    CSV
                   </Button>
-                  <Button onClick={handleExportPDF} variant="outline">
-                    <FileText className="w-4 h-4 mr-2" />
-                    Exportar PDF
+                  <Button onClick={handleExportPDF} variant="outline" size="sm" className="flex-1 sm:flex-none">
+                    <FileText className="w-4 h-4 mr-1" />
+                    PDF
                   </Button>
+                  <Badge variant="secondary" className="ml-auto">
+                    {reportData.length} registros
+                  </Badge>
                 </div>
-                <p className="text-sm text-muted-foreground mt-3">
-                  Se encontraron <Badge variant="secondary">{reportData.length}</Badge> reservas que coinciden con los filtros
-                </p>
               </CardContent>
             </Card>
           )}
 
-          {/* Cabin Type Distribution */}
+          {/* Cabin Distribution */}
           {summaryStats && (
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Home className="w-5 h-5" />
-                  <span>Distribución por Cabaña</span>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Home className="w-4 h-4" />
+                  Por Cabaña
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {CABIN_TYPES.map((cabin) => {
                     const count = summaryStats.byCabin[cabin] || 0;
                     const percentage = summaryStats.totalReservations > 0 
-                      ? ((count / summaryStats.totalReservations) * 100).toFixed(1)
+                      ? ((count / summaryStats.totalReservations) * 100).toFixed(0)
                       : 0;
                     
                     return (
-                      <div key={cabin} className="p-4 rounded-lg bg-accent/50 space-y-2">
-                        <p className="font-medium text-sm">{cabin.split(' (')[0]}</p>
-                        <div className="flex items-end justify-between">
-                          <p className="text-2xl font-bold">{count}</p>
-                          <Badge variant="outline">{percentage}%</Badge>
+                      <div key={cabin} className="p-3 rounded-lg bg-accent/50">
+                        <p className="text-xs text-muted-foreground truncate">{cabin.split(' (')[0]}</p>
+                        <div className="flex items-end justify-between mt-1">
+                          <p className="text-lg font-bold">{count}</p>
+                          <Badge variant="outline" className="text-xs">{percentage}%</Badge>
                         </div>
-                        <div className="w-full bg-muted rounded-full h-2">
+                        <div className="w-full bg-muted rounded-full h-1.5 mt-2">
                           <div 
-                            className="bg-primary rounded-full h-2 transition-all"
+                            className="bg-primary rounded-full h-1.5 transition-all"
                             style={{ width: `${percentage}%` }}
                           />
                         </div>
@@ -494,40 +432,35 @@ const Reports = () => {
         </TabsContent>
 
         {/* Export by Group Tab */}
-        <TabsContent value="export-group" className="space-y-6">
+        <TabsContent value="export-group" className="space-y-4 mt-4">
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <FileSpreadsheet className="w-5 h-5" />
-                <span>Exportar por Grupo de Cabañas</span>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <FileSpreadsheet className="w-4 h-4" />
+                Exportar por Grupo
               </CardTitle>
-              <CardDescription>
-                Exporta reportes agrupando cabañas según su configuración
-              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Year/Month selector for group exports */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Año para exportación</label>
+              {/* Year/Month selectors */}
+              <div className="grid grid-cols-2 gap-3 p-3 bg-muted/50 rounded-lg">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium">Año</label>
                   <Select
                     value={filters.year.toString()}
                     onValueChange={(value) => setFilters({ ...filters, year: parseInt(value) })}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="h-10">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       {availableYears.map((year) => (
-                        <SelectItem key={year} value={year.toString()}>
-                          {year}
-                        </SelectItem>
+                        <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Mes (Opcional)</label>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium">Mes</label>
                   <Select
                     value={filters.month?.toString() || "all"}
                     onValueChange={(value) => {
@@ -537,11 +470,11 @@ const Reports = () => {
                       });
                     }}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="h-10">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">Todos los meses</SelectItem>
+                      <SelectItem value="all">Todos</SelectItem>
                       {monthNames.map((month, index) => (
                         <SelectItem key={index + 1} value={(index + 1).toString()}>
                           {month}
@@ -552,37 +485,35 @@ const Reports = () => {
                 </div>
               </div>
 
-              {/* Group export cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Card className="border-2 border-dashed">
-                  <CardContent className="pt-6">
-                    <div className="flex flex-col gap-4">
-                      <div className="flex items-center gap-3">
+              {/* Group cards */}
+              <div className="grid gap-3">
+                <Card className="border-dashed">
+                  <CardContent className="p-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                      <div className="flex items-center gap-3 flex-1">
                         <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                          <Home className="h-6 w-6 text-blue-600" />
+                          <Home className="h-5 w-5 text-blue-600" />
                         </div>
                         <div>
-                          <p className="font-semibold">Pequeña + Grande</p>
-                          <p className="text-sm text-muted-foreground">
-                            Cabaña Pequeña y Cabaña Grande
-                          </p>
+                          <p className="font-medium text-sm">Pequeña + Grande</p>
+                          <p className="text-xs text-muted-foreground">Cabañas individuales</p>
                         </div>
                       </div>
                       <div className="flex gap-2">
                         <Button 
                           variant="outline" 
+                          size="sm"
                           className="flex-1"
                           onClick={() => handleGroupExport('small-large', 'csv')}
                         >
-                          <FileSpreadsheet className="h-4 w-4 mr-2" />
                           CSV
                         </Button>
                         <Button 
                           variant="outline" 
+                          size="sm"
                           className="flex-1"
                           onClick={() => handleGroupExport('small-large', 'pdf')}
                         >
-                          <FileText className="h-4 w-4 mr-2" />
                           PDF
                         </Button>
                       </div>
@@ -590,35 +521,33 @@ const Reports = () => {
                   </CardContent>
                 </Card>
 
-                <Card className="border-2 border-dashed">
-                  <CardContent className="pt-6">
-                    <div className="flex flex-col gap-4">
-                      <div className="flex items-center gap-3">
+                <Card className="border-dashed">
+                  <CardContent className="p-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                      <div className="flex items-center gap-3 flex-1">
                         <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-                          <Home className="h-6 w-6 text-purple-600" />
+                          <Home className="h-5 w-5 text-purple-600" />
                         </div>
                         <div>
-                          <p className="font-semibold">Medianas (1 & 2)</p>
-                          <p className="text-sm text-muted-foreground">
-                            Cabaña Mediana 1 y Cabaña Mediana 2
-                          </p>
+                          <p className="font-medium text-sm">Medianas (1 & 2)</p>
+                          <p className="text-xs text-muted-foreground">Cabañas pareadas</p>
                         </div>
                       </div>
                       <div className="flex gap-2">
                         <Button 
                           variant="outline" 
+                          size="sm"
                           className="flex-1"
                           onClick={() => handleGroupExport('mediums', 'csv')}
                         >
-                          <FileSpreadsheet className="h-4 w-4 mr-2" />
                           CSV
                         </Button>
                         <Button 
                           variant="outline" 
+                          size="sm"
                           className="flex-1"
                           onClick={() => handleGroupExport('mediums', 'pdf')}
                         >
-                          <FileText className="h-4 w-4 mr-2" />
                           PDF
                         </Button>
                       </div>
@@ -631,57 +560,53 @@ const Reports = () => {
         </TabsContent>
 
         {/* Data Table Tab */}
-        <TabsContent value="data" className="space-y-6">
+        <TabsContent value="data" className="mt-4">
           {reportData.length > 0 && (
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <span className="flex items-center space-x-2">
-                    <Home className="w-5 h-5" />
-                    <span>Datos del Reporte</span>
-                  </span>
-                  <Badge variant="secondary">{reportData.length} registros</Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-auto max-h-[500px] rounded-lg border">
-                  <Table>
-                    <TableHeader className="sticky top-0 bg-background">
-                      <TableRow>
-                        <TableHead className="font-semibold">Pasajero</TableHead>
-                        <TableHead>Check-in</TableHead>
-                        <TableHead>Check-out</TableHead>
-                        <TableHead>Vuelo Llegada</TableHead>
-                        <TableHead>Vuelo Salida</TableHead>
-                        <TableHead className="text-center">Total</TableHead>
-                        <TableHead className="text-center">Adultos</TableHead>
-                        <TableHead className="text-center">Niños</TableHead>
-                        <TableHead className="text-center">Bebés</TableHead>
-                        <TableHead>Cabaña</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {reportData.map((row, index) => (
-                        <TableRow key={index}>
-                          <TableCell className="font-medium">{row.passengerName}</TableCell>
-                          <TableCell>{row.checkIn}</TableCell>
-                          <TableCell>{row.checkOut}</TableCell>
-                          <TableCell className="text-muted-foreground">{row.arrivalFlight}</TableCell>
-                          <TableCell className="text-muted-foreground">{row.departureFlight}</TableCell>
-                          <TableCell className="text-center">
-                            <Badge variant="secondary">{row.totalGuests}</Badge>
-                          </TableCell>
-                          <TableCell className="text-center">{row.adults}</TableCell>
-                          <TableCell className="text-center">{row.children}</TableCell>
-                          <TableCell className="text-center">{row.babies}</TableCell>
-                          <TableCell className="text-xs max-w-[150px] truncate">
-                            {row.cabinType}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Home className="w-4 h-4" />
+                    Datos
+                  </CardTitle>
+                  <Badge variant="secondary">{reportData.length}</Badge>
                 </div>
+              </CardHeader>
+              <CardContent className="p-0">
+                <ScrollArea className="h-[400px] sm:h-[500px]">
+                  <div className="min-w-[600px]">
+                    <Table>
+                      <TableHeader className="sticky top-0 bg-background">
+                        <TableRow>
+                          <TableHead className="font-semibold">Pasajero</TableHead>
+                          <TableHead>Check-in</TableHead>
+                          <TableHead>Check-out</TableHead>
+                          <TableHead className="text-center">Total</TableHead>
+                          <TableHead className="text-center">A/N/B</TableHead>
+                          <TableHead>Cabaña</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {reportData.map((row, index) => (
+                          <TableRow key={index}>
+                            <TableCell className="font-medium max-w-[150px] truncate">{row.passengerName}</TableCell>
+                            <TableCell className="text-xs">{row.checkIn}</TableCell>
+                            <TableCell className="text-xs">{row.checkOut}</TableCell>
+                            <TableCell className="text-center">
+                              <Badge variant="secondary">{row.totalGuests}</Badge>
+                            </TableCell>
+                            <TableCell className="text-center text-xs text-muted-foreground">
+                              {row.adults}/{row.children}/{row.babies}
+                            </TableCell>
+                            <TableCell className="text-xs max-w-[120px] truncate">
+                              {row.cabinType.split(' (')[0]}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </ScrollArea>
               </CardContent>
             </Card>
           )}

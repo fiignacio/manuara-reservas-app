@@ -13,7 +13,6 @@ const Calendar = lazy(() => import("./pages/Calendar"));
 const Reservations = lazy(() => import("./pages/Reservations"));
 const Analytics = lazy(() => import("./pages/Analytics"));
 const Reports = lazy(() => import("./pages/Reports"));
-const Solicitudes = lazy(() => import("./pages/Solicitudes"));
 const WidgetDemo = lazy(() => import("./pages/WidgetDemo"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
@@ -42,7 +41,6 @@ const App = () => (
             <Route path="/" element={<Layout><Dashboard /></Layout>} />
             <Route path="/calendar" element={<Layout><Calendar /></Layout>} />
             <Route path="/reservations" element={<Layout><Reservations /></Layout>} />
-            <Route path="/solicitudes" element={<Layout><Solicitudes /></Layout>} />
             <Route path="/analytics" element={<Layout><Analytics /></Layout>} />
             <Route path="/reports" element={<Layout><Reports /></Layout>} />
             <Route path="*" element={<NotFound />} />

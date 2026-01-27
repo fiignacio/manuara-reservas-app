@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Search, Filter, DollarSign, CreditCard, LogIn, LogOut, Send } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Plus, Edit, Trash2, Search, Filter, DollarSign, CreditCard, LogIn, LogOut, Send, CheckCircle, TrendingUp, Calendar, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   AlertDialog, 
   AlertDialogAction, 
@@ -25,6 +26,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { Reservation } from '@/types/reservation';
 import { getAllReservations, deleteReservation, calculateRemainingBalance } from '@/lib/reservationService';
 import { useToast } from '@/hooks/use-toast';
+import { CABIN_TYPES } from '@/lib/cabinConfig';
 
 const Reservations = () => {
   const isMobile = useIsMobile();
@@ -43,8 +45,49 @@ const Reservations = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCabin, setFilterCabin] = useState('all');
   const [filterPaymentStatus, setFilterPaymentStatus] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('active');
   const [sortBy, setSortBy] = useState('checkIn');
   const { toast } = useToast();
+
+  // Calculate completed reservations analytics
+  const completedAnalytics = useMemo(() => {
+    const completed = reservations.filter(r => 
+      r.checkOutStatus === 'checked_out' || r.reservationStatus === 'checked_out'
+    );
+    
+    const totalRevenue = completed.reduce((sum, r) => sum + r.totalPrice, 0);
+    const totalGuests = completed.reduce((sum, r) => sum + r.adults + r.children, 0);
+    const avgStayDays = completed.length > 0 
+      ? completed.reduce((sum, r) => {
+          const checkIn = new Date(r.checkIn);
+          const checkOut = new Date(r.checkOut);
+          return sum + Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
+        }, 0) / completed.length
+      : 0;
+
+    const byCabin = CABIN_TYPES.reduce((acc, cabin) => {
+      acc[cabin] = completed.filter(r => r.cabinType === cabin).length;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const thisMonth = new Date().getMonth();
+    const thisYear = new Date().getFullYear();
+    const thisMonthCompleted = completed.filter(r => {
+      const checkOut = new Date(r.actualCheckOut || r.checkOut);
+      return checkOut.getMonth() === thisMonth && checkOut.getFullYear() === thisYear;
+    });
+
+    return {
+      total: completed.length,
+      totalRevenue,
+      totalGuests,
+      avgStayDays: avgStayDays.toFixed(1),
+      byCabin,
+      thisMonthCount: thisMonthCompleted.length,
+      thisMonthRevenue: thisMonthCompleted.reduce((sum, r) => sum + r.totalPrice, 0),
+      reservations: completed
+    };
+  }, [reservations]);
 
   const loadReservations = async () => {
     try {
@@ -74,24 +117,31 @@ const Reservations = () => {
   useEffect(() => {
     let filtered = [...reservations];
 
-    // Filtrar por búsqueda
+    // Filter by status (active/completed)
+    if (filterStatus === 'active') {
+      filtered = filtered.filter(r => r.checkOutStatus !== 'checked_out' && r.reservationStatus !== 'checked_out');
+    } else if (filterStatus === 'completed') {
+      filtered = filtered.filter(r => r.checkOutStatus === 'checked_out' || r.reservationStatus === 'checked_out');
+    }
+
+    // Filter by search
     if (searchTerm) {
       filtered = filtered.filter(r => 
         r.passengerName.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
-    // Filtrar por tipo de cabaña
+    // Filter by cabin type
     if (filterCabin !== 'all') {
       filtered = filtered.filter(r => r.cabinType === filterCabin);
     }
 
-    // Filtrar por estado de pago
+    // Filter by payment status
     if (filterPaymentStatus !== 'all') {
       filtered = filtered.filter(r => r.paymentStatus === filterPaymentStatus);
     }
 
-    // Ordenar
+    // Sort
     filtered.sort((a, b) => {
       switch (sortBy) {
         case 'checkIn':
@@ -110,7 +160,7 @@ const Reservations = () => {
     });
 
     setFilteredReservations(filtered);
-  }, [reservations, searchTerm, filterCabin, filterPaymentStatus, sortBy]);
+  }, [reservations, searchTerm, filterCabin, filterPaymentStatus, sortBy, filterStatus]);
 
   const handleEdit = (reservation: Reservation) => {
     setSelectedReservation(reservation);
@@ -138,7 +188,6 @@ const Reservations = () => {
     setSelectedConfirmationReservation(reservation);
     setIsConfirmationModalOpen(true);
   };
-
 
   const handleDelete = async (id: string) => {
     try {
@@ -180,9 +229,9 @@ const Reservations = () => {
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
     return date.toLocaleDateString('es-CL', {
-      year: 'numeric',
+      day: '2-digit',
       month: '2-digit',
-      day: '2-digit'
+      year: '2-digit'
     });
   };
 
@@ -193,13 +242,13 @@ const Reservations = () => {
   const getPaymentStatusBadge = (status: string) => {
     switch (status) {
       case 'fully_paid':
-        return { variant: 'default' as const, label: 'Pago Completo', color: 'bg-green-500' };
+        return { variant: 'default' as const, label: 'Pagado', color: 'bg-green-500' };
       case 'deposit_made':
-        return { variant: 'secondary' as const, label: 'Abono Realizado', color: 'bg-blue-500' };
+        return { variant: 'secondary' as const, label: 'Abonado', color: 'bg-blue-500' };
       case 'pending_payment':
-        return { variant: 'secondary' as const, label: 'Pendiente de Pago', color: 'bg-yellow-500' };
+        return { variant: 'secondary' as const, label: 'Pendiente', color: 'bg-yellow-500' };
       case 'pending_deposit':
-        return { variant: 'outline' as const, label: 'Pendiente de Abono', color: 'bg-orange-500' };
+        return { variant: 'outline' as const, label: 'Sin Abono', color: 'bg-orange-500' };
       case 'overdue':
         return { variant: 'destructive' as const, label: 'Vencido', color: 'bg-red-500' };
       default:
@@ -207,354 +256,299 @@ const Reservations = () => {
     }
   };
 
-  const getReservationStatusBadge = (status: string) => {
-    switch (status) {
-      case 'in_stay':
-        return { variant: 'default' as const, label: 'En Estadía', color: 'bg-green-500' };
-      case 'checked_out':
-        return { variant: 'secondary' as const, label: 'Check Out', color: 'bg-blue-500' };
-      case 'departed':
-        return { variant: 'secondary' as const, label: 'Salida', color: 'bg-gray-500' };
-      case 'pending_checkin':
-      default:
-        return { variant: 'outline' as const, label: 'Pendiente Check In', color: 'bg-orange-500' };
-    }
-  };
-
   const getCheckInStatusBadge = (status: string) => {
     switch (status) {
       case 'checked_in':
-        return { variant: 'default' as const, label: 'Ingresado', color: 'bg-green-500' };
+        return { variant: 'default' as const, label: 'In ✓' };
       case 'no_show':
-        return { variant: 'destructive' as const, label: 'No Show', color: 'bg-red-500' };
+        return { variant: 'destructive' as const, label: 'No Show' };
       default:
-        return { variant: 'outline' as const, label: 'Pendiente', color: 'bg-gray-500' };
+        return { variant: 'outline' as const, label: 'In ⏳' };
     }
   };
 
   const getCheckOutStatusBadge = (status: string) => {
     switch (status) {
       case 'checked_out':
-        return { variant: 'default' as const, label: 'Egresado', color: 'bg-green-500' };
+        return { variant: 'default' as const, label: 'Out ✓' };
       case 'late_checkout':
-        return { variant: 'secondary' as const, label: 'Tardío', color: 'bg-yellow-500' };
+        return { variant: 'secondary' as const, label: 'Tardío' };
       default:
-        return { variant: 'outline' as const, label: 'Pendiente', color: 'bg-gray-500' };
+        return { variant: 'outline' as const, label: 'Out ⏳' };
     }
   };
 
+  const activeCount = reservations.filter(r => r.checkOutStatus !== 'checked_out' && r.reservationStatus !== 'checked_out').length;
+  const completedCount = completedAnalytics.total;
+
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 sm:space-y-6 animate-fade-in">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Reservas</h1>
-          <p className="text-muted-foreground">
-            {filteredReservations.length} de {reservations.length} reservas
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Reservas</h1>
+          <p className="text-sm text-muted-foreground">
+            {activeCount} activas · {completedCount} completadas
           </p>
         </div>
         <Button
           onClick={() => setIsModalOpen(true)}
-          className="btn-cabin w-full sm:w-auto"
+          className="w-full sm:w-auto"
+          size={isMobile ? "lg" : "default"}
         >
           <Plus className="w-4 h-4 mr-2" />
           Nueva Reserva
         </Button>
       </div>
 
-      {/* Filters */}
-      <Card className="card-cabin">
-        <CardContent className="p-4 sm:p-6">
-          <div className="space-y-4">
-            {/* Search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por nombre..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
+      {/* Tabs for Active/Completed */}
+      <Tabs defaultValue="active" className="w-full" onValueChange={(v) => setFilterStatus(v)}>
+        <TabsList className="grid w-full grid-cols-2 h-12">
+          <TabsTrigger value="active" className="text-sm">
+            Activas ({activeCount})
+          </TabsTrigger>
+          <TabsTrigger value="completed" className="text-sm">
+            Completadas ({completedCount})
+          </TabsTrigger>
+        </TabsList>
 
-            {/* Filters Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Select value={filterCabin} onValueChange={setFilterCabin}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Filtrar por cabaña" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas las cabañas</SelectItem>
-                  <SelectItem value="Cabaña Pequeña (Max 3p)">Cabaña Pequeña</SelectItem>
-                  <SelectItem value="Cabaña Mediana 1 (Max 4p)">Cabaña Mediana 1</SelectItem>
-                  <SelectItem value="Cabaña Mediana 2 (Max 4p)">Cabaña Mediana 2</SelectItem>
-                  <SelectItem value="Cabaña Grande (Max 6p)">Cabaña Grande</SelectItem>
-                </SelectContent>
-              </Select>
+        {/* Active Reservations Tab */}
+        <TabsContent value="active" className="space-y-4 mt-4">
+          {/* Filters */}
+          <Card>
+            <CardContent className="p-3 sm:p-4">
+              <div className="space-y-3">
+                {/* Search */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar por nombre..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 h-11"
+                  />
+                </div>
 
-              <Select value={filterPaymentStatus} onValueChange={setFilterPaymentStatus}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Estado de pago" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos los estados</SelectItem>
-                  <SelectItem value="pending_deposit">Pendiente de abono</SelectItem>
-                  <SelectItem value="pending_payment">Pendiente de pago</SelectItem>
-                  <SelectItem value="deposit_made">Abono realizado</SelectItem>
-                  <SelectItem value="fully_paid">Pago completo</SelectItem>
-                  <SelectItem value="overdue">Vencido</SelectItem>
-                </SelectContent>
-              </Select>
+                {/* Filter row */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+                  <Select value={filterCabin} onValueChange={setFilterCabin}>
+                    <SelectTrigger className="h-10 text-xs sm:text-sm">
+                      <SelectValue placeholder="Cabaña" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas</SelectItem>
+                      {CABIN_TYPES.map(cabin => (
+                        <SelectItem key={cabin} value={cabin}>
+                          {cabin.split(' (')[0]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
 
-              <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Ordenar por" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="checkIn">Fecha de entrada</SelectItem>
-                  <SelectItem value="checkOut">Fecha de salida</SelectItem>
-                  <SelectItem value="passengerName">Nombre</SelectItem>
-                  <SelectItem value="totalPrice">Precio total</SelectItem>
-                  <SelectItem value="remainingBalance">Balance pendiente</SelectItem>
-                </SelectContent>
-              </Select>
+                  <Select value={filterPaymentStatus} onValueChange={setFilterPaymentStatus}>
+                    <SelectTrigger className="h-10 text-xs sm:text-sm">
+                      <SelectValue placeholder="Pago" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="pending_deposit">Sin abono</SelectItem>
+                      <SelectItem value="deposit_made">Abonado</SelectItem>
+                      <SelectItem value="fully_paid">Pagado</SelectItem>
+                      <SelectItem value="overdue">Vencido</SelectItem>
+                    </SelectContent>
+                  </Select>
 
-              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground bg-muted/50 rounded-md px-3 py-2">
-                <Filter className="w-4 h-4" />
-                {filteredReservations.length} resultados
+                  <Select value={sortBy} onValueChange={setSortBy}>
+                    <SelectTrigger className="h-10 text-xs sm:text-sm">
+                      <SelectValue placeholder="Ordenar" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="checkIn">Fecha entrada</SelectItem>
+                      <SelectItem value="checkOut">Fecha salida</SelectItem>
+                      <SelectItem value="passengerName">Nombre</SelectItem>
+                      <SelectItem value="totalPrice">Precio</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground bg-muted/50 rounded-md px-2 py-2">
+                    <Filter className="w-3 h-3" />
+                    <span>{filteredReservations.length}</span>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
 
-      {/* Reservations Content */}
-      {loading ? (
-        <div className="text-center py-8 text-muted-foreground">Cargando reservas...</div>
-      ) : filteredReservations.length === 0 ? (
-        <div className="text-center py-8 text-muted-foreground">
-          {reservations.length === 0 ? 'No hay reservas registradas' : 'No se encontraron reservas con los filtros aplicados'}
-        </div>
-      ) : isMobile ? (
-        /* Mobile Cards View */
-        <div className="space-y-4">
-          {filteredReservations.map((reservation) => (
-            <ReservationCard
-              key={reservation.id}
-              reservation={reservation}
-              onEdit={handleEdit}
-              onAddPayment={handleAddPayment}
-              onCheckIn={handleCheckIn}
-              onCheckOut={handleCheckOut}
+          {/* Reservations List */}
+          {loading ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+              Cargando...
+            </div>
+          ) : filteredReservations.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center text-muted-foreground">
+                {reservations.length === 0 
+                  ? 'No hay reservas registradas' 
+                  : 'No se encontraron reservas con los filtros aplicados'
+                }
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {filteredReservations.map((reservation) => (
+                <ReservationCard
+                  key={reservation.id}
+                  reservation={reservation}
+                  onEdit={handleEdit}
+                  onAddPayment={handleAddPayment}
+                  onCheckIn={handleCheckIn}
+                  onCheckOut={handleCheckOut}
                   onDelete={handleDelete}
                   onConfirmation={handleConfirmation}
-                  
                 />
-          ))}
-        </div>
-      ) : (
-        /* Desktop Table View */
-        <Card className="card-cabin">
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="border-b border-border">
-                  <tr className="text-left text-sm text-muted-foreground">
-                    <th className="p-4 font-medium">Pasajero</th>
-                    <th className="p-4 font-medium">Check-in</th>
-                    <th className="p-4 font-medium">Check-out</th>
-                    <th className="p-4 font-medium">Estado</th>
-                    <th className="p-4 font-medium">Cabaña</th>
-                    <th className="p-4 font-medium">Huéspedes</th>
-                    <th className="p-4 font-medium">Temporada</th>
-                    <th className="p-4 font-medium">Precio Total</th>
-                    <th className="p-4 font-medium">Estado Pago</th>
-                    <th className="p-4 font-medium">Balance</th>
-                    <th className="p-4 font-medium">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredReservations.map((reservation) => {
-                    const paymentBadge = getPaymentStatusBadge(reservation.paymentStatus);
-                    const reservationBadge = getReservationStatusBadge(reservation.reservationStatus || 'pending_checkin');
-                    const checkInBadge = getCheckInStatusBadge(reservation.checkInStatus || 'pending');
-                    const checkOutBadge = getCheckOutStatusBadge(reservation.checkOutStatus || 'pending');
-                    
-                    return (
-                      <tr key={reservation.id} className="border-b border-border/50 hover:bg-accent/50 transition-colors">
-                        <td className="p-4">
-                          <div className="font-medium">{reservation.passengerName}</div>
-                          {reservation.useCustomPrice && (
-                            <div className="text-xs text-muted-foreground flex items-center gap-1">
-                              <DollarSign className="w-3 h-3" />
-                              Precio personalizado
-                            </div>
-                          )}
-                          {reservation.comments && (
-                            <div className="text-xs text-muted-foreground mt-1" title={reservation.comments}>
-                              💬 {reservation.comments.length > 30 ? `${reservation.comments.substring(0, 30)}...` : reservation.comments}
-                            </div>
-                          )}
-                        </td>
-                        <td className="p-4 text-sm">
-                          <div>{formatDate(reservation.checkIn)}</div>
-                          {reservation.actualCheckIn && (
-                            <div className="text-xs text-muted-foreground">
-                              Real: {new Date(reservation.actualCheckIn).toLocaleDateString('es-CL')}
-                            </div>
-                          )}
-                        </td>
-                        <td className="p-4 text-sm">
-                          <div>{formatDate(reservation.checkOut)}</div>
-                          {reservation.actualCheckOut && (
-                            <div className="text-xs text-muted-foreground">
-                              Real: {new Date(reservation.actualCheckOut).toLocaleDateString('es-CL')}
-                            </div>
-                          )}
-                        </td>
-                        <td className="p-4">
-                          <div className="space-y-1">
-                            <Badge variant={reservationBadge.variant} className="text-xs">
-                              {reservationBadge.label}
-                            </Badge>
-                            <div className="flex gap-1">
-                              <Badge variant={checkInBadge.variant} className="text-xs">
-                                {checkInBadge.label}
-                              </Badge>
-                              <Badge variant={checkOutBadge.variant} className="text-xs">
-                                {checkOutBadge.label}
-                              </Badge>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="p-4 text-sm">
-                          {reservation.cabinType.split(' (')[0]}
-                        </td>
-                        <td className="p-4 text-sm">
-                          {reservation.adults} + {reservation.children}
-                        </td>
-                        <td className="p-4">
-                          <Badge variant={getSeasonBadge(reservation.season)}>
-                            {reservation.season}
-                          </Badge>
-                        </td>
-                        <td className="p-4 font-medium text-primary">
-                          ${reservation.totalPrice.toLocaleString('es-CL')}
-                        </td>
-                         <td className="p-4">
-                           <div className="space-y-1">
-                             <Badge variant={paymentBadge.variant}>
-                               {paymentBadge.label}
-                             </Badge>
-                           </div>
-                         </td>
-                        <td className="p-4">
-                          <div className="text-sm">
-                            <div className={reservation.remainingBalance > 0 ? "font-medium text-destructive" : "text-muted-foreground"}>
-                              ${reservation.remainingBalance.toLocaleString('es-CL')}
-                            </div>
-                            {(reservation.payments || []).length > 0 && (
-                              <div className="text-xs text-muted-foreground">
-                                {(reservation.payments || []).length} pago{(reservation.payments || []).length !== 1 ? 's' : ''}
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                        <td className="p-4">
-                          <div className="flex gap-1 flex-wrap">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleEdit(reservation)}
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            {reservation.remainingBalance > 0 && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleAddPayment(reservation)}
-                                className="text-primary hover:text-primary"
-                              >
-                                <CreditCard className="w-4 h-4" />
-                              </Button>
-                            )}
-                            {reservation.checkInStatus !== 'checked_in' && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleCheckIn(reservation)}
-                                className="text-green-600 hover:text-green-600"
-                                title="Check-in"
-                              >
-                                <LogIn className="w-4 h-4" />
-                              </Button>
-                            )}
-                            {reservation.checkInStatus === 'checked_in' && reservation.checkOutStatus !== 'checked_out' && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleCheckOut(reservation)}
-                                className="text-blue-600 hover:text-blue-600"
-                                title="Check-out"
-                              >
-                                <LogOut className="w-4 h-4" />
-                              </Button>
-                            )}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleConfirmation(reservation)}
-                              className="text-primary hover:text-primary"
-                              title="Enviar confirmación"
-                            >
-                              <Send className="w-4 h-4" />
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="text-destructive hover:text-destructive"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>¿Eliminar reserva?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Esta acción no se puede deshacer. Se eliminará permanentemente la reserva de {reservation.passengerName}.
-                                    {(reservation.payments || []).length > 0 && (
-                                      <div className="mt-2 text-destructive font-medium">
-                                        ⚠️ Esta reserva tiene {(reservation.payments || []).length} pago{(reservation.payments || []).length !== 1 ? 's' : ''} registrado{(reservation.payments || []).length !== 1 ? 's' : ''}.
-                                      </div>
-                                    )}
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => handleDelete(reservation.id!)}
-                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                  >
-                                    Eliminar
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+              ))}
             </div>
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </TabsContent>
 
+        {/* Completed Reservations Tab with Analytics */}
+        <TabsContent value="completed" className="space-y-4 mt-4">
+          {/* Analytics Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Total Completadas</p>
+                    <p className="text-2xl font-bold">{completedAnalytics.total}</p>
+                  </div>
+                  <CheckCircle className="h-8 w-8 text-green-500/50" />
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Ingresos Totales</p>
+                    <p className="text-xl sm:text-2xl font-bold">${completedAnalytics.totalRevenue.toLocaleString('es-CL')}</p>
+                  </div>
+                  <TrendingUp className="h-8 w-8 text-primary/50" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Huéspedes Atendidos</p>
+                    <p className="text-2xl font-bold">{completedAnalytics.totalGuests}</p>
+                  </div>
+                  <Users className="h-8 w-8 text-blue-500/50" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Prom. Noches</p>
+                    <p className="text-2xl font-bold">{completedAnalytics.avgStayDays}</p>
+                  </div>
+                  <Calendar className="h-8 w-8 text-amber-500/50" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* This Month Stats */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                Este Mes
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-3 bg-accent/50 rounded-lg">
+                  <p className="text-xs text-muted-foreground">Checkout realizados</p>
+                  <p className="text-xl font-bold">{completedAnalytics.thisMonthCount}</p>
+                </div>
+                <div className="p-3 bg-accent/50 rounded-lg">
+                  <p className="text-xs text-muted-foreground">Ingresos del mes</p>
+                  <p className="text-xl font-bold">${completedAnalytics.thisMonthRevenue.toLocaleString('es-CL')}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Completed by Cabin */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Por Tipo de Cabaña</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {CABIN_TYPES.map(cabin => {
+                  const count = completedAnalytics.byCabin[cabin] || 0;
+                  const pct = completedAnalytics.total > 0 
+                    ? ((count / completedAnalytics.total) * 100).toFixed(0) 
+                    : 0;
+                  return (
+                    <div key={cabin} className="p-3 bg-accent/50 rounded-lg">
+                      <p className="text-xs text-muted-foreground truncate">{cabin.split(' (')[0]}</p>
+                      <div className="flex items-end justify-between mt-1">
+                        <p className="text-lg font-bold">{count}</p>
+                        <Badge variant="outline" className="text-xs">{pct}%</Badge>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Completed Reservations List */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Historial de Checkouts</CardTitle>
+              <CardDescription>Últimas reservas completadas</CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="divide-y divide-border max-h-96 overflow-y-auto">
+                {completedAnalytics.reservations.slice(0, 20).map((reservation) => (
+                  <div key={reservation.id} className="p-4 hover:bg-accent/50 transition-colors">
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium truncate">{reservation.passengerName}</p>
+                        <p className="text-xs text-muted-foreground">{reservation.cabinType.split(' (')[0]}</p>
+                        <div className="flex gap-2 mt-1 text-xs text-muted-foreground">
+                          <span>{formatDate(reservation.checkIn)}</span>
+                          <span>→</span>
+                          <span>{formatDate(reservation.checkOut)}</span>
+                        </div>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <p className="font-semibold text-primary">${reservation.totalPrice.toLocaleString('es-CL')}</p>
+                        <Badge variant="secondary" className="text-xs mt-1">
+                          {reservation.adults + reservation.children}p
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Modals */}
       <ReservationModal
         isOpen={isModalOpen}
         onClose={handleModalClose}
@@ -589,7 +583,6 @@ const Reservations = () => {
           reservation={selectedConfirmationReservation}
         />
       )}
-
     </div>
   );
 };
