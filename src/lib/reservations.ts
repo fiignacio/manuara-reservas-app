@@ -247,50 +247,23 @@ export const getAllReservations = async (): Promise<Reservation[]> => {
   logger.time('reservations.getAllReservations');
   
   const reservations: Reservation[] = [];
-  const seenIds = new Set<string>();
   
-  // Read from primary collection (reservas)
   try {
-    const q1 = query(collection(db, COLLECTION_NAME), orderBy('checkIn', 'asc'));
-    const snapshot1 = await getDocs(q1);
+    const q = query(collection(db, COLLECTION_NAME), orderBy('checkIn', 'asc'));
+    const snapshot = await getDocs(q);
     
-    snapshot1.docs.forEach(doc => {
+    snapshot.docs.forEach(doc => {
       const data = doc.data();
-      reservations.push(normalizeReservation({ ...data, id: doc.id, _sourceCollection: 'reservas' }));
-      seenIds.add(doc.id);
+      reservations.push(normalizeReservation({ ...data, id: doc.id }));
     });
     
-    logger.debug('reservations.getAllReservations.primary.loaded', { count: reservations.length });
+    logger.debug('reservations.getAllReservations.loaded', { count: reservations.length });
   } catch (error) {
-    logger.warn('reservations.getAllReservations.primary.error', { error: String(error) });
-    // Silent error handling to prevent console spam
+    logger.warn('reservations.getAllReservations.error', { error: String(error) });
   }
   
-  // Read from legacy collection (reservations) for any missing data
-  try {
-    const q2 = query(collection(db, 'reservations'), orderBy('checkIn', 'asc'));
-    const snapshot2 = await getDocs(q2);
-    
-    snapshot2.docs.forEach(doc => {
-      // Only add if not already seen from primary collection
-      if (!seenIds.has(doc.id)) {
-        const data = doc.data();
-        reservations.push(normalizeReservation({ ...data, id: doc.id, _sourceCollection: 'reservations' }));
-      }
-    });
-  } catch (error) {
-    // Silent error handling to prevent console spam
-  }
-  
-  // Sort by checkIn date after combining both collections
-  const sortedReservations = reservations.sort((a, b) => a.checkIn.localeCompare(b.checkIn));
-  
-  
-  // Note: Background status maintenance removed to prevent infinite loops
-  // Status updates are now only done explicitly via user actions
-
-  
-  return sortedReservations;
+  logger.timeEnd('reservations.getAllReservations');
+  return reservations;
 };
 
 export const getReservationsForDate = async (date: string): Promise<Reservation[]> => {
@@ -414,12 +387,11 @@ export const deleteExpiredReservations = async (): Promise<number> => {
   return querySnapshot.docs.length;
 };
 
-// Enhanced reservation status update with dual-collection handling
+// Reservation status update - now uses only 'reservas' collection
 export const updateReservationStatuses = async (
   reservationId: string,
   statusUpdates: Partial<Pick<Reservation, 'paymentStatus' | 'reservationStatus' | 'checkInStatus' | 'checkOutStatus' | 'checkInNotes' | 'checkOutNotes' | 'actualCheckIn' | 'actualCheckOut'>>,
   options?: {
-    sourceCollection?: 'reservas' | 'reservations';
     previousReservation?: Reservation;
   }
 ): Promise<void> => {
@@ -456,35 +428,8 @@ export const updateReservationStatuses = async (
       updatedAt: Timestamp.now()
     };
     
-    let primarySuccess = false;
-    let fallbackSuccess = false;
-    
-    // Always try to update both collections to keep them in sync
-    // Try primary collection (reservas)
-    try {
-      const primaryRef = doc(db, 'reservas', reservationId);
-      await updateDoc(primaryRef, updateData);
-      primarySuccess = true;
-    } catch (error) {
-      // Silent error handling
-    }
-    
-    // Try fallback collection (reservations)
-    try {
-      const fallbackRef = doc(db, 'reservations', reservationId);
-      await updateDoc(fallbackRef, updateData);
-      fallbackSuccess = true;
-    } catch (error) {
-      // Silent error handling
-    }
-    
-    // Success if at least one collection was updated
-    if (primarySuccess || fallbackSuccess) {
-      return;
-    }
-    
-    // Both failed - throw error
-    throw new Error('No se pudo actualizar el estado de la reserva en ninguna colección');
+    const docRef = doc(db, COLLECTION_NAME, reservationId);
+    await updateDoc(docRef, updateData);
     
   } catch (error) {
     throw new Error('No se pudo actualizar el estado de la reserva');

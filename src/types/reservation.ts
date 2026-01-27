@@ -58,8 +58,6 @@ export interface Reservation {
   agency?: string;
   depositAmount?: number;
   pendingBalance?: number;
-  // Source collection for updates
-  _sourceCollection?: 'reservas' | 'reservations';
 }
 
 export interface ReservationFormData extends Omit<Reservation, 'id' | 'totalPrice' | 'payments' | 'remainingBalance' | 'paymentStatus' | 'reservationStatus' | 'actualCheckIn' | 'actualCheckOut' | 'checkInStatus' | 'checkOutStatus' | 'checkInNotes' | 'checkOutNotes' | 'confirmationSent' | 'confirmationSentDate' | 'confirmationMethod' | 'createdAt' | 'updatedAt'> {

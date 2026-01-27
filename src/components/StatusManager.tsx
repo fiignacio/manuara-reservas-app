@@ -98,10 +98,9 @@ const StatusManager = ({ reservation, onStatusUpdate, compact = false }: StatusM
       }
     }
 
-    // Pass source collection and previous reservation for robust updates
+    // Pass previous reservation for status updates
     const enhancedUpdates = {
       ...updates,
-      _sourceCollection: reservation._sourceCollection,
       _previousReservation: reservation
     };
 
