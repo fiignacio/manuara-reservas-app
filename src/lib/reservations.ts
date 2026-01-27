@@ -269,11 +269,14 @@ export const getAllReservations = async (): Promise<Reservation[]> => {
       count: reservations.length
     });
   } catch (error) {
-    logger.error('reservations.getAllReservations.error', { 
+    const errorDetails = {
       error: String(error),
       errorName: error instanceof Error ? error.name : 'Unknown',
-      errorMessage: error instanceof Error ? error.message : String(error)
-    });
+      errorMessage: error instanceof Error ? error.message : String(error),
+      errorCode: (error as any)?.code || 'no-code'
+    };
+    logger.error('reservations.getAllReservations.error', errorDetails);
+    console.error('Firebase Error Details:', errorDetails);
   }
   
   logger.timeEnd('reservations.getAllReservations');
