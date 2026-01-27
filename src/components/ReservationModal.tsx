@@ -718,7 +718,6 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
                       reservation.id!, 
                       statusUpdates,
                       {
-                        sourceCollection: _sourceCollection || reservation._sourceCollection,
                         previousReservation: _previousReservation || reservation
                       }
                     );
