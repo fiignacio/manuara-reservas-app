@@ -14,6 +14,7 @@ export function MigrationTool() {
     reservationsCount: number;
     duplicateCount: number;
     toMigrateCount: number;
+    error?: string;
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [migrating, setMigrating] = useState(false);
@@ -30,7 +31,8 @@ export function MigrationTool() {
       const data = await getMigrationPreview();
       setPreview(data);
     } catch (error) {
-      toast.error('Error al cargar datos de migración');
+      console.error('Error loading migration preview:', error);
+      toast.error(`Error al cargar datos de migración: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setLoading(false);
     }

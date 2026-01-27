@@ -145,24 +145,58 @@ export const getMigrationPreview = async (): Promise<{
   reservationsCount: number;
   duplicateCount: number;
   toMigrateCount: number;
+  error?: string;
 }> => {
-  const reservasSnapshot = await getDocs(collection(db, 'reservas'));
-  const reservationsSnapshot = await getDocs(collection(db, 'reservations'));
-  
-  const reservasIds = new Set<string>();
-  reservasSnapshot.forEach(doc => reservasIds.add(doc.id));
-  
+  let reservasCount = 0;
+  let reservationsCount = 0;
   let duplicateCount = 0;
-  reservationsSnapshot.forEach(doc => {
-    if (reservasIds.has(doc.id)) {
-      duplicateCount++;
-    }
-  });
+  const reservasIds = new Set<string>();
   
-  return {
-    reservasCount: reservasSnapshot.size,
-    reservationsCount: reservationsSnapshot.size,
-    duplicateCount,
-    toMigrateCount: reservationsSnapshot.size - duplicateCount
-  };
+  try {
+    logger.info('migration.preview.start');
+    
+    // Try to get reservas collection
+    try {
+      const reservasSnapshot = await getDocs(collection(db, 'reservas'));
+      reservasCount = reservasSnapshot.size;
+      reservasSnapshot.forEach(doc => reservasIds.add(doc.id));
+      logger.debug('migration.preview.reservas', { count: reservasCount });
+    } catch (reservasError) {
+      logger.warn('migration.preview.reservas.error', { error: String(reservasError) });
+    }
+    
+    // Try to get reservations collection
+    try {
+      const reservationsSnapshot = await getDocs(collection(db, 'reservations'));
+      reservationsCount = reservationsSnapshot.size;
+      reservationsSnapshot.forEach(doc => {
+        if (reservasIds.has(doc.id)) {
+          duplicateCount++;
+        }
+      });
+      logger.debug('migration.preview.reservations', { count: reservationsCount });
+    } catch (reservationsError) {
+      logger.warn('migration.preview.reservations.error', { error: String(reservationsError) });
+      // If reservations collection fails, it might not exist or have no permissions - that's OK
+    }
+    
+    const result = {
+      reservasCount,
+      reservationsCount,
+      duplicateCount,
+      toMigrateCount: reservationsCount - duplicateCount
+    };
+    
+    logger.info('migration.preview.complete', result);
+    return result;
+  } catch (error) {
+    logger.error('migration.preview.error', { error: String(error) });
+    return {
+      reservasCount: 0,
+      reservationsCount: 0,
+      duplicateCount: 0,
+      toMigrateCount: 0,
+      error: String(error)
+    };
+  }
 };
