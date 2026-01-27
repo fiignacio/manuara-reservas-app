@@ -41,31 +41,12 @@ export const getCabinInfo = (): CabinInfo[] => {
 // Get reservations for a date range (for public availability check)
 const getReservationsInRange = async (startDate: string, endDate: string) => {
   try {
-    // Get all reservations that overlap with the date range
     const reservasRef = collection(db, 'reservas');
-    const reservationsRef = collection(db, 'reservations');
-    
-    // Query from both collections
-    const [reservasSnapshot, reservationsSnapshot] = await Promise.all([
-      getDocs(reservasRef),
-      getDocs(reservationsRef)
-    ]);
+    const reservasSnapshot = await getDocs(reservasRef);
     
     const allReservations: any[] = [];
     
     reservasSnapshot.docs.forEach(doc => {
-      const data = doc.data();
-      if (data.checkIn && data.checkOut) {
-        allReservations.push({
-          id: doc.id,
-          cabinType: data.cabinType,
-          checkIn: data.checkIn,
-          checkOut: data.checkOut
-        });
-      }
-    });
-    
-    reservationsSnapshot.docs.forEach(doc => {
       const data = doc.data();
       if (data.checkIn && data.checkOut) {
         allReservations.push({
@@ -82,7 +63,7 @@ const getReservationsInRange = async (startDate: string, endDate: string) => {
       return res.checkIn < endDate && res.checkOut > startDate;
     });
   } catch (error) {
-    logger.exception('publicAvailability.getReservationsInRange.error', error);
+    logger.error('publicAvailability.getReservationsInRange.error', { error: String(error) });
     return [];
   }
 };
@@ -213,40 +194,11 @@ export const subscribeToAvailability = (
   logger.info('publicAvailability.subscribe.start', { startDate, endDate });
   
   const reservasRef = collection(db, 'reservas');
-  const reservationsRef = collection(db, 'reservations');
-  
-  let reservasData: any[] = [];
-  let reservationsData: any[] = [];
-  let reservasLoaded = false;
-  let reservationsLoaded = false;
 
-  const processAndCallback = () => {
-    if (!reservasLoaded || !reservationsLoaded) return;
-    
-    const allReservations = [...reservasData, ...reservationsData].filter(res => 
-      res.checkIn < endDate && res.checkOut > startDate
-    );
-    
-    const dates = getDateRange(startDate, endDate);
-    const availability = dates.map(date => generateDayAvailability(date, allReservations));
-    
-    const response: PublicAvailabilityResponse = {
-      cabins: getCabinInfo(),
-      availability,
-      lastUpdated: new Date().toISOString()
-    };
-    
-    logger.info('publicAvailability.subscribe.updated', { 
-      reservationsCount: allReservations.length 
-    });
-    
-    callback(response);
-  };
-
-  const unsubscribeReservas = onSnapshot(
+  const unsubscribe = onSnapshot(
     query(reservasRef),
     (snapshot) => {
-      reservasData = snapshot.docs
+      const reservasData = snapshot.docs
         .map(doc => {
           const data = doc.data();
           if (data.checkIn && data.checkOut && data.cabinType) {
@@ -259,47 +211,32 @@ export const subscribeToAvailability = (
           }
           return null;
         })
-        .filter(res => res !== null);
+        .filter(res => res !== null)
+        .filter(res => res!.checkIn < endDate && res!.checkOut > startDate);
       
-      reservasLoaded = true;
-      processAndCallback();
+      const dates = getDateRange(startDate, endDate);
+      const availability = dates.map(date => generateDayAvailability(date, reservasData as any[]));
+      
+      const response: PublicAvailabilityResponse = {
+        cabins: getCabinInfo(),
+        availability,
+        lastUpdated: new Date().toISOString()
+      };
+      
+      logger.info('publicAvailability.subscribe.updated', { 
+        reservationsCount: reservasData.length 
+      });
+      
+      callback(response);
     },
     (error) => {
-      logger.exception('publicAvailability.subscribe.reservas.error', error);
-      onError?.(error);
-    }
-  );
-
-  const unsubscribeReservations = onSnapshot(
-    query(reservationsRef),
-    (snapshot) => {
-      reservationsData = snapshot.docs
-        .map(doc => {
-          const data = doc.data();
-          if (data.checkIn && data.checkOut && data.cabinType) {
-            return {
-              id: doc.id,
-              cabinType: data.cabinType,
-              checkIn: data.checkIn,
-              checkOut: data.checkOut
-            };
-          }
-          return null;
-        })
-        .filter(res => res !== null);
-      
-      reservationsLoaded = true;
-      processAndCallback();
-    },
-    (error) => {
-      logger.exception('publicAvailability.subscribe.reservations.error', error);
+      logger.error('publicAvailability.subscribe.error', { error: String(error) });
       onError?.(error);
     }
   );
 
   return () => {
     logger.info('publicAvailability.subscribe.cleanup');
-    unsubscribeReservas();
-    unsubscribeReservations();
+    unsubscribe();
   };
 };
