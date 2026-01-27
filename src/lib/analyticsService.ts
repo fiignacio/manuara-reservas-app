@@ -40,24 +40,33 @@ export const calculateOccupancyStats = (
   startDate: string,
   endDate: string
 ): OccupancyStats => {
+  // Filter reservations that overlap with the date range
+  // A reservation overlaps if: checkIn <= endDate AND checkOut >= startDate
   const filteredReservations = reservations.filter(r => 
-    r.checkIn >= startDate && r.checkOut <= endDate
+    r.checkIn <= endDate && r.checkOut >= startDate
   );
 
   const totalReservations = filteredReservations.length;
   const totalGuests = filteredReservations.reduce((sum, r) => sum + r.adults + r.children, 0);
   const totalRevenue = filteredReservations.reduce((sum, r) => sum + r.totalPrice, 0);
   
+  // Calculate nights within the period for each reservation
   const totalNights = filteredReservations.reduce((sum, r) => {
-    return sum + calculateNights(r.checkIn, r.checkOut);
+    // Clamp the reservation dates to the period
+    const effectiveStart = r.checkIn > startDate ? r.checkIn : startDate;
+    const effectiveEnd = r.checkOut < endDate ? r.checkOut : endDate;
+    const nights = calculateNights(effectiveStart, effectiveEnd);
+    return sum + Math.max(0, nights);
   }, 0);
 
-  const averageStayLength = totalReservations > 0 ? totalNights / totalReservations : 0;
+  const averageStayLength = totalReservations > 0 
+    ? filteredReservations.reduce((sum, r) => sum + calculateNights(r.checkIn, r.checkOut), 0) / totalReservations 
+    : 0;
   
-  // Calcular días totales en el período
+  // Calculate total days in period
   const totalDaysInPeriod = calculateNights(startDate, endDate);
   
-  // Asumir 4 cabañas disponibles
+  // 4 cabins available
   const totalCabinDays = totalDaysInPeriod * 4;
   const occupancyRate = totalCabinDays > 0 ? (totalNights / totalCabinDays) * 100 : 0;
   
@@ -68,7 +77,7 @@ export const calculateOccupancyStats = (
     totalGuests,
     totalRevenue,
     averageStayLength,
-    occupancyRate,
+    occupancyRate: Math.min(occupancyRate, 100),
     averageRevenuePerNight
   };
 };
