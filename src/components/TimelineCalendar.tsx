@@ -8,6 +8,7 @@ import { Reservation } from '@/types/reservation';
 import { formatDateForDisplay, parseDate, getDaysBetween } from '@/lib/dateUtils';
 import { useDateSelection } from '@/hooks/useDateSelection';
 import { logger } from '@/lib/logger';
+import { CABIN_TYPES } from '@/lib/cabinConfig';
 
 interface TimelineCalendarProps {
   reservations: Reservation[];
@@ -15,13 +16,6 @@ interface TimelineCalendarProps {
   loading: boolean;
   onDateRangeSelect?: (startDate: string, endDate: string) => void;
 }
-
-const CABIN_TYPES = [
-  'Cabaña Pequeña (Max 3p)',
-  'Cabaña Mediana 1 (Max 4p)',
-  'Cabaña Mediana 2 (Max 4p)',
-  'Cabaña Grande (Max 6p)'
-];
 
 const TimelineCalendar = ({ reservations, onReservationClick, loading, onDateRangeSelect }: TimelineCalendarProps) => {
   const [currentDate, setCurrentDate] = useState(new Date());

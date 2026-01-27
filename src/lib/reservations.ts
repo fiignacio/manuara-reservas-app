@@ -12,25 +12,15 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { Reservation, ReservationFormData } from '@/types/reservation';
+import { logger } from './logger';
+import { normalizeCabinType } from './cabinConfig';
+
 import { addDays, getTomorrowDate, formatDateToISO, formatDateForDisplay, getTodayDate } from './dateUtils';
 import { validateReservationDates, validateCabinCapacity } from './validation';
-import { calculatePrice, calculateRemainingBalance } from './pricing';
+import { calculatePrice } from './pricing';
 import { checkCabinAvailability, getNextAvailableDate } from './availability';
-import { logger } from './logger';
 
 const COLLECTION_NAME = 'reservas';
-
-// Cabin type mapping for legacy data
-const CABIN_TYPE_MAPPING: Record<string, string> = {
-  'Cabaña Pequeña': 'Cabaña Pequeña (Max 3p)',
-  'Cabaña Mediana 1': 'Cabaña Mediana 1 (Max 4p)',
-  'Cabaña Mediana 2': 'Cabaña Mediana 2 (Max 4p)',
-  'Cabaña Grande': 'Cabaña Grande (Max 6p)',
-  'Pequeña': 'Cabaña Pequeña (Max 3p)',
-  'Mediana 1': 'Cabaña Mediana 1 (Max 4p)',
-  'Mediana 2': 'Cabaña Mediana 2 (Max 4p)',
-  'Grande': 'Cabaña Grande (Max 6p)'
-};
 
 // Date normalization - convert DD-MM-YYYY to YYYY-MM-DD
 const normalizeDateFormat = (dateStr: string): string => {
@@ -48,12 +38,6 @@ const normalizeDateFormat = (dateStr: string): string => {
   }
   
   return dateStr; // Return original if format not recognized
-};
-
-// Cabin type normalization
-const normalizeCabinType = (cabinType: string): string => {
-  if (!cabinType) return '';
-  return CABIN_TYPE_MAPPING[cabinType] || cabinType;
 };
 
 // Normalize reservation data to ensure consistent date formats

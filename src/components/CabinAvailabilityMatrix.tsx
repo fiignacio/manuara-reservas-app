@@ -1,18 +1,15 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Check, X, Users, Calendar } from 'lucide-react';
-import { checkMultipleCabinAvailability, getCabinDisplayName, getCabinColor, CABIN_TYPES, type CabinAvailability } from '@/lib/availabilityHelpers';
+import { checkMultipleCabinAvailability, getCabinDisplayName, getCabinColor, type CabinAvailability } from '@/lib/availabilityHelpers';
 import { formatDateForDisplay } from '@/lib/dateUtils';
-
-type CabinType = typeof CABIN_TYPES[number];
 
 interface CabinAvailabilityMatrixProps {
   checkIn: string;
   checkOut: string;
-  selectedCabin: CabinType;
-  onCabinSelect: (cabinType: CabinType) => void;
+  selectedCabin: string;
+  onCabinSelect: (cabinType: string) => void;
   excludeReservationId?: string;
 }
 

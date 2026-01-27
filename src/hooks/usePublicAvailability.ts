@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { collection, onSnapshot, query } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { CABIN_TYPES, getMaxCapacity, getCabinDisplayName, getCabinColor } from '@/lib/availabilityHelpers';
+import { CABIN_TYPES, getCabinInfo } from '@/lib/cabinConfig';
 import { logger } from '@/lib/logger';
 import type { CabinInfo, DayAvailability, PublicAvailabilityData } from '@/components/public/types';
 
@@ -11,17 +11,6 @@ interface Reservation {
   checkIn: string;
   checkOut: string;
 }
-
-// Get cabin information
-const getCabinInfo = (): CabinInfo[] => {
-  return CABIN_TYPES.map((cabinType, index) => ({
-    id: `cabin-${index + 1}`,
-    name: cabinType,
-    displayName: getCabinDisplayName(cabinType),
-    maxCapacity: getMaxCapacity(cabinType),
-    color: getCabinColor(cabinType)
-  }));
-};
 
 // Generate date range
 const getDateRange = (startDate: string, endDate: string): string[] => {
