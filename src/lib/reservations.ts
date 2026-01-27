@@ -245,42 +245,35 @@ export const deleteReservation = async (id: string): Promise<void> => {
 
 export const getAllReservations = async (): Promise<Reservation[]> => {
   logger.time('reservations.getAllReservations');
+  logger.info('reservations.getAllReservations.start', { collection: COLLECTION_NAME });
   
   const reservations: Reservation[] = [];
-  const seenIds = new Set<string>();
   
   try {
-    // Leer de colección principal
+    // Leer solo de colección 'reservas'
     const qReservas = query(collection(db, COLLECTION_NAME), orderBy('checkIn', 'asc'));
+    logger.debug('reservations.getAllReservations.query', { path: COLLECTION_NAME });
+    
     const reservasSnapshot = await getDocs(qReservas);
+    logger.info('reservations.getAllReservations.fetched', { 
+      count: reservasSnapshot.size,
+      empty: reservasSnapshot.empty 
+    });
     
     reservasSnapshot.docs.forEach(doc => {
       const data = doc.data();
-      seenIds.add(doc.id);
       reservations.push(normalizeReservation({ ...data, id: doc.id }));
     });
     
-    // Leer de colección legacy para compatibilidad temporal
-    const qReservations = query(collection(db, 'reservations'), orderBy('checkIn', 'asc'));
-    const reservationsSnapshot = await getDocs(qReservations);
-    
-    reservationsSnapshot.docs.forEach(doc => {
-      if (!seenIds.has(doc.id)) {
-        const data = doc.data();
-        reservations.push(normalizeReservation({ ...data, id: doc.id }));
-      }
-    });
-    
-    // Ordenar por checkIn
-    reservations.sort((a, b) => a.checkIn.localeCompare(b.checkIn));
-    
     logger.debug('reservations.getAllReservations.loaded', { 
-      count: reservations.length,
-      fromReservas: reservasSnapshot.size,
-      fromLegacy: reservationsSnapshot.size
+      count: reservations.length
     });
   } catch (error) {
-    logger.warn('reservations.getAllReservations.error', { error: String(error) });
+    logger.error('reservations.getAllReservations.error', { 
+      error: String(error),
+      errorName: error instanceof Error ? error.name : 'Unknown',
+      errorMessage: error instanceof Error ? error.message : String(error)
+    });
   }
   
   logger.timeEnd('reservations.getAllReservations');
