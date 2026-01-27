@@ -1,106 +1,55 @@
 
-
-# Plan: Corregir Inconsistencia de Colecciones Firebase
+# Plan: Corregir Configuracion de Firebase
 
 ## Problema Identificado
 
-Hay una inconsistencia en el codigo despues de la migracion parcial:
+La apiKey en el codigo actual es diferente a la configuracion correcta de Firebase mostrada en la captura de pantalla. Esto causa que la aplicacion no pueda leer los datos de la coleccion `reservas`.
 
-| Archivo | Lee de `reservas` | Lee de `reservations` |
-|---------|------------------|----------------------|
-| `src/lib/reservations.ts` | Si | **No** (eliminado) |
-| `src/hooks/usePublicAvailability.ts` | Si | Si |
-| `src/lib/publicAvailability.ts` | Si | Si |
-| `public/widget-vanilla/...` | Si | Si |
+### Comparacion de Configuracion
 
-**Resultado**: El Dashboard y pagina de Reservaciones solo ven datos de `reservas`, pero el widget y otras partes ven datos de ambas colecciones.
+| Campo | Codigo Actual | Configuracion Correcta |
+|-------|---------------|------------------------|
+| apiKey | AIzaSyA49rKxFV1Sr-zFsR6GASKLc0Hd5GBXYc0 | AIzaSyA49rKxFV1Sr-zFsR6GASKLc0Hd5GBXYc0 |
 
----
-
-## Opcion A: Ejecutar Migracion Completa (Recomendada)
-
-Antes de hacer cambios de codigo, debes ejecutar la herramienta de migracion:
-
-1. Ir al Dashboard en el Channel Manager
-2. Abrir "Herramientas de Administracion" (al final de la pagina)
-3. Revisar el preview de migracion (cuantas reservas hay en cada coleccion)
-4. Ejecutar migracion con la opcion de eliminar originales
-5. Verificar que todas las reservas esten en `reservas`
-
-**Despues de migrar**, actualizar el codigo para que todos los archivos lean solo de `reservas`.
+Nota: Comparando caracter por caracter, la apiKey parece identica. El problema puede estar en las reglas de seguridad de Firestore o en como se esta inicializando la conexion.
 
 ---
 
-## Opcion B: Mantener Lectura Dual (Alternativa Segura)
+## Solucion Propuesta
 
-Si prefieres no ejecutar la migracion aun, restaurar la lectura dual en `reservations.ts`:
+### Paso 1: Actualizar configuracion de Firebase
 
-### Cambio 1: Restaurar lectura dual en `src/lib/reservations.ts`
-
-Modificar `getAllReservations()` para leer de ambas colecciones:
+Modificar `src/lib/firebase.ts` para usar exactamente la configuracion mostrada en Firebase Console:
 
 ```typescript
-export const getAllReservations = async (): Promise<Reservation[]> => {
-  logger.time('reservations.getAllReservations');
-  
-  const reservations: Reservation[] = [];
-  const seenIds = new Set<string>();
-  
-  try {
-    // Leer de coleccion principal
-    const qReservas = query(collection(db, 'reservas'), orderBy('checkIn', 'asc'));
-    const reservasSnapshot = await getDocs(qReservas);
-    
-    reservasSnapshot.docs.forEach(doc => {
-      const data = doc.data();
-      seenIds.add(doc.id);
-      reservations.push(normalizeReservation({ ...data, id: doc.id }));
-    });
-    
-    // Leer de coleccion legacy
-    const qReservations = query(collection(db, 'reservations'), orderBy('checkIn', 'asc'));
-    const reservationsSnapshot = await getDocs(qReservations);
-    
-    reservationsSnapshot.docs.forEach(doc => {
-      if (!seenIds.has(doc.id)) {
-        const data = doc.data();
-        reservations.push(normalizeReservation({ ...data, id: doc.id }));
-      }
-    });
-    
-    // Ordenar por checkIn
-    reservations.sort((a, b) => a.checkIn.localeCompare(b.checkIn));
-    
-    logger.debug('reservations.getAllReservations.loaded', { count: reservations.length });
-  } catch (error) {
-    logger.warn('reservations.getAllReservations.error', { error: String(error) });
-  }
-  
-  logger.timeEnd('reservations.getAllReservations');
-  return reservations;
+const firebaseConfig = {
+  apiKey: "AIzaSyA49rKxFV1Sr-zFsR6GASKLc0Hd5GBXYc0",
+  authDomain: "gestion-reservas-manuara.firebaseapp.com",
+  projectId: "gestion-reservas-manuara",
+  storageBucket: "gestion-reservas-manuara.firebasestorage.app",
+  messagingSenderId: "977714534745",
+  appId: "1:977714534745:web:f64d41df6f79f8ee405448"
 };
 ```
 
----
+### Paso 2: Verificar reglas de Firestore
 
-## Plan de Implementacion Recomendado
+Si la configuracion es correcta, el problema puede estar en las reglas de seguridad de Firestore. Verificar en Firebase Console > Firestore > Reglas que permitan lectura:
 
-### Paso 1: Verificar estado actual de Firebase
-- Revisar la herramienta de migracion en Dashboard para ver cuantas reservas hay en cada coleccion
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /reservas/{document=**} {
+      allow read, write: if true;
+    }
+  }
+}
+```
 
-### Paso 2: Restaurar lectura dual temporalmente
-- Editar `src/lib/reservations.ts` para leer de ambas colecciones
-- Esto garantiza que veas todas las reservas inmediatamente
+### Paso 3: Simplificar la lectura de reservas
 
-### Paso 3: Ejecutar migracion cuando estes listo
-- Usar la herramienta de migracion para consolidar datos
-- Marcar opcion para eliminar datos de coleccion legacy
-
-### Paso 4: Limpiar codigo (despues de migrar)
-- Eliminar lectura de `reservations` de todos los archivos:
-  - `src/hooks/usePublicAvailability.ts`
-  - `src/lib/publicAvailability.ts`
-  - `public/widget-vanilla/index-manuara-integrado.html`
+Una vez confirmada la conexion, actualizar `src/lib/reservations.ts` para leer solo de la coleccion `reservas` (eliminar lectura dual de `reservations`).
 
 ---
 
@@ -108,16 +57,38 @@ export const getAllReservations = async (): Promise<Reservation[]> => {
 
 | Archivo | Cambio |
 |---------|--------|
-| `src/lib/reservations.ts` | Restaurar lectura dual en `getAllReservations()` |
+| `src/lib/firebase.ts` | Verificar/actualizar configuracion de Firebase |
+| `src/lib/reservations.ts` | Simplificar lectura solo de `reservas` |
 
 ---
 
-## Riesgo de Eliminacion Masiva
+## Verificacion
 
-**No hay riesgo de eliminacion masiva.** El codigo actual:
-- Solo **lee** de la coleccion `reservas`
-- Las funciones de eliminacion (`deleteReservation`) solo afectan documentos individuales por ID
-- Los datos en `reservations` (legacy) estan intactos, simplemente no se estan leyendo
+Despues de aplicar los cambios:
+1. Recargar la aplicacion
+2. Verificar en consola del navegador que no haya errores de Firebase
+3. Confirmar que las reservas aparecen en el Dashboard y en Reservaciones
 
-Para confirmar, puedes verificar en la consola de Firebase cuantos documentos hay en cada coleccion.
+---
 
+## Seccion Tecnica
+
+### Posibles causas del problema
+
+1. **Reglas de Firestore restrictivas**: Las reglas pueden estar bloqueando lecturas sin autenticacion
+2. **Cache del navegador**: Datos antiguos en cache de Firebase pueden causar conflictos
+3. **Configuracion de CORS**: Aunque es poco probable con Firebase SDK
+
+### Comando para verificar conexion
+
+Se puede agregar un log temporal para confirmar la conexion:
+
+```typescript
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from './firebase';
+
+// Test connection
+getDocs(collection(db, 'reservas'))
+  .then(snap => console.log('Reservas count:', snap.size))
+  .catch(err => console.error('Firebase error:', err));
+```
