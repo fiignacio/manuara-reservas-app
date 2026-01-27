@@ -247,17 +247,38 @@ export const getAllReservations = async (): Promise<Reservation[]> => {
   logger.time('reservations.getAllReservations');
   
   const reservations: Reservation[] = [];
+  const seenIds = new Set<string>();
   
   try {
-    const q = query(collection(db, COLLECTION_NAME), orderBy('checkIn', 'asc'));
-    const snapshot = await getDocs(q);
+    // Leer de colección principal
+    const qReservas = query(collection(db, COLLECTION_NAME), orderBy('checkIn', 'asc'));
+    const reservasSnapshot = await getDocs(qReservas);
     
-    snapshot.docs.forEach(doc => {
+    reservasSnapshot.docs.forEach(doc => {
       const data = doc.data();
+      seenIds.add(doc.id);
       reservations.push(normalizeReservation({ ...data, id: doc.id }));
     });
     
-    logger.debug('reservations.getAllReservations.loaded', { count: reservations.length });
+    // Leer de colección legacy para compatibilidad temporal
+    const qReservations = query(collection(db, 'reservations'), orderBy('checkIn', 'asc'));
+    const reservationsSnapshot = await getDocs(qReservations);
+    
+    reservationsSnapshot.docs.forEach(doc => {
+      if (!seenIds.has(doc.id)) {
+        const data = doc.data();
+        reservations.push(normalizeReservation({ ...data, id: doc.id }));
+      }
+    });
+    
+    // Ordenar por checkIn
+    reservations.sort((a, b) => a.checkIn.localeCompare(b.checkIn));
+    
+    logger.debug('reservations.getAllReservations.loaded', { 
+      count: reservations.length,
+      fromReservas: reservasSnapshot.size,
+      fromLegacy: reservationsSnapshot.size
+    });
   } catch (error) {
     logger.warn('reservations.getAllReservations.error', { error: String(error) });
   }
