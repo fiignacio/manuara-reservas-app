@@ -8,7 +8,6 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "127.0.0.1",
     port: 8080,
-    historyApiFallback: true,
   },
   plugins: [
     react(),
@@ -18,14 +17,12 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
-      "react": path.resolve(__dirname, "./node_modules/react"),
-      "react-dom": path.resolve(__dirname, "./node_modules/react-dom"),
     },
-    dedupe: ['react', 'react-dom', 'react/jsx-runtime'],
+    dedupe: ['react', 'react-dom'],
   },
   optimizeDeps: {
-    include: ['react', 'react-dom', 'react/jsx-runtime'],
-    force: true,
+    include: ['react', 'react-dom'],
+    exclude: [],
   },
   build: {
     rollupOptions: {
@@ -37,6 +34,5 @@ export default defineConfig(({ mode }) => ({
   preview: {
     port: 8080,
     host: "127.0.0.1",
-    historyApiFallback: true,
   },
 }));
