@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Edit, Trash2, Search, Filter, DollarSign, CreditCard, LogIn, LogOut, Send, CheckCircle, TrendingUp, Calendar, Users } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Filter, DollarSign, CreditCard, LogIn, LogOut, Send, CheckCircle, TrendingUp, Calendar, Users, WifiOff, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -17,6 +17,7 @@ import {
   AlertDialogTrigger 
 } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import ReservationModal from '@/components/ReservationModal';
 import PaymentModal from '@/components/PaymentModal';
 import CheckInOutModal from '@/components/CheckInOutModal';
@@ -24,13 +25,35 @@ import ConfirmationModal from '@/components/ConfirmationModal';
 import ReservationCard from '@/components/mobile/ReservationCard';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Reservation } from '@/types/reservation';
-import { getAllReservations, deleteReservation, calculateRemainingBalance } from '@/lib/reservationService';
+import { deleteReservation, calculateRemainingBalance } from '@/lib/reservationService';
 import { useToast } from '@/hooks/use-toast';
 import { CABIN_TYPES } from '@/lib/cabinConfig';
+import { useOfflineReservations, useSyncPendingOperations } from '@/hooks/useOfflineReservations';
 
 const Reservations = () => {
   const isMobile = useIsMobile();
-  const [reservations, setReservations] = useState<(Reservation & { remainingBalance: number })[]>([]);
+  const { toast } = useToast();
+  
+  // Use offline-capable hook for reservations
+  const { 
+    reservations: rawReservations, 
+    isLoading: loading, 
+    isOnline, 
+    isUsingCache, 
+    cacheStatus,
+    refetch 
+  } = useOfflineReservations();
+  useSyncPendingOperations();
+  
+  // Add remaining balance to reservations
+  const reservations = useMemo(() => 
+    rawReservations.map(r => ({
+      ...r,
+      remainingBalance: calculateRemainingBalance(r)
+    })), 
+    [rawReservations]
+  );
+  
   const [filteredReservations, setFilteredReservations] = useState<(Reservation & { remainingBalance: number })[]>([]);
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
   const [selectedPaymentReservation, setSelectedPaymentReservation] = useState<Reservation | null>(null);
@@ -41,13 +64,11 @@ const Reservations = () => {
   const [isCheckInOutModalOpen, setIsCheckInOutModalOpen] = useState(false);
   const [isConfirmationModalOpen, setIsConfirmationModalOpen] = useState(false);
   const [checkInOutType, setCheckInOutType] = useState<'check_in' | 'check_out'>('check_in');
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCabin, setFilterCabin] = useState('all');
   const [filterPaymentStatus, setFilterPaymentStatus] = useState('all');
   const [filterStatus, setFilterStatus] = useState('active');
   const [sortBy, setSortBy] = useState('checkIn');
-  const { toast } = useToast();
 
   // Calculate completed reservations analytics
   const completedAnalytics = useMemo(() => {
@@ -88,31 +109,6 @@ const Reservations = () => {
       reservations: completed
     };
   }, [reservations]);
-
-  const loadReservations = async () => {
-    try {
-      setLoading(true);
-      const data = await getAllReservations();
-      const reservationsWithBalance = data.map(r => ({
-        ...r,
-        remainingBalance: calculateRemainingBalance(r)
-      }));
-      setReservations(reservationsWithBalance);
-      setFilteredReservations(reservationsWithBalance);
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "No se pudieron cargar las reservas.",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadReservations();
-  }, []);
 
   useEffect(() => {
     let filtered = [...reservations];
@@ -196,7 +192,7 @@ const Reservations = () => {
         title: "Éxito",
         description: "Reserva eliminada correctamente."
       });
-      loadReservations();
+      refetch();
     } catch (error) {
       toast({
         title: "Error",
@@ -283,18 +279,48 @@ const Reservations = () => {
 
   return (
     <div className="space-y-4 sm:space-y-6 animate-fade-in">
+      {/* Offline Alert */}
+      {isUsingCache && (
+        <Alert className="border-yellow-500/50 bg-yellow-500/10">
+          <WifiOff className="h-4 w-4 text-yellow-600" />
+          <AlertDescription className="flex items-center justify-between flex-wrap gap-2">
+            <span className="text-sm">
+              <strong>Modo offline:</strong> Mostrando {cacheStatus.reservationsCount} reservas en caché
+              {cacheStatus.lastSync && (
+                <span className="text-muted-foreground ml-1">
+                  (último sync: {cacheStatus.lastSync.toLocaleTimeString('es-CL')})
+                </span>
+              )}
+            </span>
+            {isOnline && (
+              <Button size="sm" variant="outline" onClick={() => refetch()} className="h-7 text-xs">
+                <RefreshCw className="w-3 h-3 mr-1" />
+                Sincronizar
+              </Button>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Reservas</h1>
-          <p className="text-sm text-muted-foreground">
-            {activeCount} activas · {completedCount} completadas
-          </p>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span>{activeCount} activas · {completedCount} completadas</span>
+            {isUsingCache && (
+              <Badge variant="outline" className="text-xs gap-1">
+                <WifiOff className="w-3 h-3" />
+                Offline
+              </Badge>
+            )}
+          </div>
         </div>
         <Button
           onClick={() => setIsModalOpen(true)}
           className="w-full sm:w-auto"
           size={isMobile ? "lg" : "default"}
+          disabled={!isOnline}
         >
           <Plus className="w-4 h-4 mr-2" />
           Nueva Reserva
@@ -552,7 +578,7 @@ const Reservations = () => {
       <ReservationModal
         isOpen={isModalOpen}
         onClose={handleModalClose}
-        onSuccess={loadReservations}
+        onSuccess={() => refetch()}
         reservation={selectedReservation}
       />
 
@@ -560,7 +586,7 @@ const Reservations = () => {
         <PaymentModal
           isOpen={isPaymentModalOpen}
           onClose={handlePaymentModalClose}
-          onSuccess={loadReservations}
+          onSuccess={() => refetch()}
           reservation={selectedPaymentReservation}
         />
       )}
@@ -569,7 +595,7 @@ const Reservations = () => {
         <CheckInOutModal
           isOpen={isCheckInOutModalOpen}
           onClose={handleCheckInOutModalClose}
-          onSuccess={loadReservations}
+          onSuccess={() => refetch()}
           reservation={selectedCheckInOutReservation}
           type={checkInOutType}
         />
@@ -579,7 +605,7 @@ const Reservations = () => {
         <ConfirmationModal
           isOpen={isConfirmationModalOpen}
           onClose={handleConfirmationModalClose}
-          onSuccess={loadReservations}
+          onSuccess={() => refetch()}
           reservation={selectedConfirmationReservation}
         />
       )}
