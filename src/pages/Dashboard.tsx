@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, LogIn, LogOut, CalendarDays, Users, Clock, AlertTriangle, Calendar } from 'lucide-react';
+import { Plus, LogIn, LogOut, CalendarDays, Users, Clock, AlertTriangle, Calendar, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -8,15 +8,17 @@ import ReservationModal from '@/components/ReservationModal';
 import { formatDateForDisplay, getTodayDate, getTomorrowDate, addDays } from '@/lib/dateUtils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { logger } from '@/lib/logger';
-import { useReservationsQuery, useInvalidateReservations } from '@/hooks/useReservations';
+import { useInvalidateReservations } from '@/hooks/useReservations';
+import { useOfflineReservations, useSyncPendingOperations } from '@/hooks/useOfflineReservations';
 import { Reservation } from '@/types/reservation';
 
 const Dashboard = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   
-  // Use React Query for data fetching with caching
-  const { data: reservations = [], isLoading: loading, dataUpdatedAt } = useReservationsQuery();
+  // Use offline-capable hook for reservations
+  const { reservations, isLoading: loading, isOnline, isUsingCache, cacheStatus } = useOfflineReservations();
   const invalidateReservations = useInvalidateReservations();
+  useSyncPendingOperations(); // Auto-sync when online
   
   // Calculate dashboard metrics from reservations
   const dashboardData = useMemo(() => {
@@ -49,7 +51,9 @@ const Dashboard = () => {
   
   const { todayArrivals, todayDepartures, tomorrowDepartures, tomorrowArrivals, upcomingArrivals, upcomingDepartures } = dashboardData;
   
-  const lastDataUpdate = dataUpdatedAt ? new Date(dataUpdatedAt).toLocaleTimeString('es-CL') : '';
+  const lastDataUpdate = cacheStatus.lastSync 
+    ? cacheStatus.lastSync.toLocaleTimeString('es-CL') 
+    : '';
 
   useEffect(() => {
     logger.info('dashboard.mount');
@@ -81,11 +85,15 @@ const Dashboard = () => {
         <div>
           <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
           <p className="text-muted-foreground capitalize">{today}</p>
-          {lastDataUpdate && (
-            <p className="text-xs text-muted-foreground">
-              Última actualización: {lastDataUpdate}
-            </p>
-          )}
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            {lastDataUpdate && <span>Última actualización: {lastDataUpdate}</span>}
+            {isUsingCache && (
+              <Badge variant="outline" className="text-xs gap-1">
+                <WifiOff className="w-3 h-3" />
+                Modo offline
+              </Badge>
+            )}
+          </div>
         </div>
         <Button
           onClick={() => setIsModalOpen(true)}

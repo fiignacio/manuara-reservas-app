@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Save, Loader2, Calendar, AlertCircle, CheckCircle, DollarSign } from 'lucide-react';
+import { X, Save, Loader2, Calendar, AlertCircle, CheckCircle, DollarSign, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Reservation, ReservationFormData } from '@/types/reservation';
 import { 
@@ -16,11 +17,12 @@ import {
   updateReservationStatuses
 } from '@/lib/reservations';
 import { calculatePrice } from '@/lib/pricing';
-import { checkCabinAvailability, getNextAvailableDate } from '@/lib/availability';
 import { validateReservationDates, validateCabinCapacity } from '@/lib/validation';
 import { addDays, getTodayDate, getTomorrowDate, formatDateForDisplay } from '@/lib/dateUtils';
 import StatusManager from '@/components/StatusManager';
 import CabinAvailabilityMatrix from '@/components/CabinAvailabilityMatrix';
+import { useOfflineAvailability } from '@/hooks/useOfflineReservations';
+import { useOnlineStatus } from '@/components/OfflineIndicator';
 
 interface ReservationModalProps {
   isOpen: boolean;
@@ -70,6 +72,9 @@ const initializeFormData = (reservation?: Reservation | null): ReservationFormDa
 
 const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: ReservationModalProps) => {
   const { toast } = useToast();
+  const isOnline = useOnlineStatus();
+  const { checkAvailability, getNextAvailable } = useOfflineAvailability();
+  
   const [loading, setLoading] = useState(false);
   const [checkingAvailability, setCheckingAvailability] = useState(false);
   const [availabilityStatus, setAvailabilityStatus] = useState<'available' | 'unavailable' | 'checking' | null>(null);
@@ -157,14 +162,14 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
   }, [formData, shouldValidateDates]);
 
   useEffect(() => {
-    const checkAvailability = async () => {
+    const doCheckAvailability = async () => {
       // Solo verificar disponibilidad si debemos validar fechas
       if (shouldValidateDates && formData.checkIn && formData.checkOut && formData.cabinType && !dateValidationError) {
         setCheckingAvailability(true);
         setAvailabilityStatus('checking');
         
         try {
-          const isAvailable = await checkCabinAvailability(
+          const isAvailable = await checkAvailability(
             formData.cabinType, 
             formData.checkIn, 
             formData.checkOut,
@@ -176,7 +181,7 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
             setNextAvailableDate(null);
           } else {
             setAvailabilityStatus('unavailable');
-            const nextDate = await getNextAvailableDate(formData.cabinType, formData.checkIn);
+            const nextDate = await getNextAvailable(formData.cabinType, formData.checkIn);
             setNextAvailableDate(nextDate);
           }
         } catch (error) {
@@ -191,9 +196,9 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
       }
     };
 
-    const timeoutId = setTimeout(checkAvailability, 500);
+    const timeoutId = setTimeout(doCheckAvailability, 500);
     return () => clearTimeout(timeoutId);
-  }, [formData.checkIn, formData.checkOut, formData.cabinType, dateValidationError, reservation?.id, shouldValidateDates]);
+  }, [formData.checkIn, formData.checkOut, formData.cabinType, dateValidationError, reservation?.id, shouldValidateDates, checkAvailability, getNextAvailable]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -381,13 +386,30 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
         onInteractOutside={(e) => e.preventDefault()}
       >
         <DialogHeader>
-          <DialogTitle className="text-xl font-semibold">
+          <DialogTitle className="text-xl font-semibold flex items-center gap-2">
             {reservation ? 'Editar Reserva' : 'Nueva Reserva'}
+            {!isOnline && (
+              <Badge variant="outline" className="text-xs gap-1 font-normal">
+                <WifiOff className="w-3 h-3" />
+                Offline
+              </Badge>
+            )}
           </DialogTitle>
           <DialogDescription>
             {reservation ? 'Modifica los datos de la reserva existente' : 'Completa la información para crear una nueva reserva de cabaña'}
           </DialogDescription>
         </DialogHeader>
+
+        {/* Offline Warning */}
+        {!isOnline && (
+          <Alert className="border-yellow-500/50 bg-yellow-500/10">
+            <WifiOff className="h-4 w-4 text-yellow-600" />
+            <AlertDescription className="text-sm">
+              <strong>Modo offline:</strong> La validación de disponibilidad se realiza con datos en caché. 
+              {!isEditing && " Las nuevas reservas no se guardarán hasta que vuelvas a conectarte."}
+            </AlertDescription>
+          </Alert>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Checkbox para actualizar fechas - solo al editar */}
