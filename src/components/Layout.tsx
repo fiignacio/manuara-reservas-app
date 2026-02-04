@@ -5,7 +5,8 @@ import {
   Calendar, 
   Home, 
   FileText,
-  Bed
+  Bed,
+  Settings
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -25,7 +26,7 @@ const Layout = ({ children }: LayoutProps) => {
             </div>
             
             {/* Desktop Navigation */}
-            <nav className="hidden md:flex items-center space-x-6 lg:space-x-8">
+            <nav className="hidden md:flex items-center space-x-4 lg:space-x-6">
               <NavLink 
                 to="/" 
                 className={({ isActive }) => 
@@ -81,6 +82,17 @@ const Layout = ({ children }: LayoutProps) => {
               >
                 Reportes
               </NavLink>
+              <NavLink 
+                to="/admin" 
+                className={({ isActive }) => 
+                  cn(
+                    "text-sm font-medium transition-colors hover:text-primary py-2",
+                    isActive ? "text-foreground border-b-2 border-primary" : "text-muted-foreground"
+                  )
+                }
+              >
+                <Settings className="h-4 w-4" />
+              </NavLink>
             </nav>
           </div>
         </div>
@@ -93,12 +105,12 @@ const Layout = ({ children }: LayoutProps) => {
 
       {/* Mobile Navigation - Fixed Bottom */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-background border-t border-border z-50 safe-area-inset-bottom">
-        <div className="grid grid-cols-5 h-16">
+        <div className="grid grid-cols-6 h-16">
           <NavLink 
             to="/" 
             className={({ isActive }) => 
               cn(
-                "flex flex-col items-center justify-center gap-0.5 text-[10px] sm:text-xs transition-colors",
+                "flex flex-col items-center justify-center gap-0.5 text-[10px] transition-colors",
                 isActive ? "text-primary bg-primary/5" : "text-muted-foreground active:bg-muted"
               )
             }
@@ -110,7 +122,7 @@ const Layout = ({ children }: LayoutProps) => {
             to="/calendar" 
             className={({ isActive }) => 
               cn(
-                "flex flex-col items-center justify-center gap-0.5 text-[10px] sm:text-xs transition-colors",
+                "flex flex-col items-center justify-center gap-0.5 text-[10px] transition-colors",
                 isActive ? "text-primary bg-primary/5" : "text-muted-foreground active:bg-muted"
               )
             }
@@ -122,7 +134,7 @@ const Layout = ({ children }: LayoutProps) => {
             to="/reservations" 
             className={({ isActive }) => 
               cn(
-                "flex flex-col items-center justify-center gap-0.5 text-[10px] sm:text-xs transition-colors",
+                "flex flex-col items-center justify-center gap-0.5 text-[10px] transition-colors",
                 isActive ? "text-primary bg-primary/5" : "text-muted-foreground active:bg-muted"
               )
             }
@@ -134,7 +146,7 @@ const Layout = ({ children }: LayoutProps) => {
             to="/analytics" 
             className={({ isActive }) => 
               cn(
-                "flex flex-col items-center justify-center gap-0.5 text-[10px] sm:text-xs transition-colors",
+                "flex flex-col items-center justify-center gap-0.5 text-[10px] transition-colors",
                 isActive ? "text-primary bg-primary/5" : "text-muted-foreground active:bg-muted"
               )
             }
@@ -146,13 +158,25 @@ const Layout = ({ children }: LayoutProps) => {
             to="/reports" 
             className={({ isActive }) => 
               cn(
-                "flex flex-col items-center justify-center gap-0.5 text-[10px] sm:text-xs transition-colors",
+                "flex flex-col items-center justify-center gap-0.5 text-[10px] transition-colors",
                 isActive ? "text-primary bg-primary/5" : "text-muted-foreground active:bg-muted"
               )
             }
           >
             <FileText className="h-5 w-5" />
             <span>Reportes</span>
+          </NavLink>
+          <NavLink 
+            to="/admin" 
+            className={({ isActive }) => 
+              cn(
+                "flex flex-col items-center justify-center gap-0.5 text-[10px] transition-colors",
+                isActive ? "text-primary bg-primary/5" : "text-muted-foreground active:bg-muted"
+              )
+            }
+          >
+            <Settings className="h-5 w-5" />
+            <span>Admin</span>
           </NavLink>
         </div>
       </nav>
