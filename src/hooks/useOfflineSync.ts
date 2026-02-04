@@ -8,6 +8,7 @@ import {
   SyncResult,
   OfflineOperation 
 } from '@/lib/offlineQueue';
+import { getAdminConfig, AdminConfig } from '@/lib/adminConfig';
 import { useQueryClient } from '@tanstack/react-query';
 import { reservationKeys } from './useReservations';
 import { useToast } from './use-toast';
@@ -103,14 +104,9 @@ export function useOfflineSync() {
 }
 
 export function useAdminConfig() {
-  const [config, setConfig] = useState(() => {
-    // Import dynamically to avoid circular dependency
-    const { getAdminConfig } = require('@/lib/adminConfig');
-    return getAdminConfig();
-  });
+  const [config, setConfig] = useState<AdminConfig>(() => getAdminConfig());
   
   const refreshConfig = useCallback(() => {
-    const { getAdminConfig } = require('@/lib/adminConfig');
     setConfig(getAdminConfig());
   }, []);
   
