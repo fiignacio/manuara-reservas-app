@@ -13,6 +13,7 @@ const Calendar = lazy(() => import("./pages/Calendar"));
 const Reservations = lazy(() => import("./pages/Reservations"));
 const Analytics = lazy(() => import("./pages/Analytics"));
 const Reports = lazy(() => import("./pages/Reports"));
+const Admin = lazy(() => import("./pages/Admin"));
 const WidgetDemo = lazy(() => import("./pages/WidgetDemo"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
@@ -43,6 +44,7 @@ const App = () => (
             <Route path="/reservations" element={<Layout><Reservations /></Layout>} />
             <Route path="/analytics" element={<Layout><Analytics /></Layout>} />
             <Route path="/reports" element={<Layout><Reports /></Layout>} />
+            <Route path="/admin" element={<Layout><Admin /></Layout>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
