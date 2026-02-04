@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { WifiOff, Wifi } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -7,27 +7,39 @@ interface OfflineIndicatorProps {
 }
 
 export function OfflineIndicator({ className }: OfflineIndicatorProps) {
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [isOnline, setIsOnline] = useState(() => 
+    typeof navigator !== 'undefined' ? navigator.onLine : true
+  );
   const [showReconnected, setShowReconnected] = useState(false);
-  const [isVisible, setIsVisible] = useState(!navigator.onLine);
+  const [isVisible, setIsVisible] = useState(() => 
+    typeof navigator !== 'undefined' ? !navigator.onLine : false
+  );
+
+  const handleOnline = useCallback(() => {
+    setIsOnline(true);
+    setShowReconnected(true);
+    setIsVisible(true);
+    
+    // Show "reconnected" message for 3 seconds
+    const timer = setTimeout(() => {
+      setShowReconnected(false);
+      setTimeout(() => setIsVisible(false), 300);
+    }, 3000);
+    
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleOffline = useCallback(() => {
+    setIsOnline(false);
+    setShowReconnected(false);
+    setIsVisible(true);
+  }, []);
 
   useEffect(() => {
-    const handleOnline = () => {
-      setIsOnline(true);
-      setShowReconnected(true);
-      
-      // Show "reconnected" message for 3 seconds
-      setTimeout(() => {
-        setShowReconnected(false);
-        setTimeout(() => setIsVisible(false), 300);
-      }, 3000);
-    };
-
-    const handleOffline = () => {
-      setIsOnline(false);
-      setShowReconnected(false);
-      setIsVisible(true);
-    };
+    // Sync initial state
+    const online = navigator.onLine;
+    setIsOnline(online);
+    setIsVisible(!online);
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
@@ -36,7 +48,7 @@ export function OfflineIndicator({ className }: OfflineIndicatorProps) {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, []);
+  }, [handleOnline, handleOffline]);
 
   if (!isVisible) return null;
 
@@ -72,9 +84,14 @@ export function OfflineIndicator({ className }: OfflineIndicatorProps) {
 
 // Hook to check online status
 export function useOnlineStatus() {
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [isOnline, setIsOnline] = useState(() => 
+    typeof navigator !== 'undefined' ? navigator.onLine : true
+  );
 
   useEffect(() => {
+    // Sync on mount
+    setIsOnline(navigator.onLine);
+    
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
 
