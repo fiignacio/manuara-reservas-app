@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useContext } from 'react';
 import { useOnlineStatus } from '@/components/OfflineIndicator';
 import { 
   getOfflineQueue, 
@@ -9,14 +9,20 @@ import {
   OfflineOperation 
 } from '@/lib/offlineQueue';
 import { getAdminConfig, AdminConfig } from '@/lib/adminConfig';
-import { useQueryClient } from '@tanstack/react-query';
+import { QueryClientContext, QueryClient } from '@tanstack/react-query';
 import { reservationKeys } from './useReservations';
 import { useToast } from './use-toast';
 import { logger } from '@/lib/logger';
 
+// Safe hook that doesn't throw if QueryClient isn't available
+function useSafeQueryClient(): QueryClient | null {
+  const queryClient = useContext(QueryClientContext);
+  return queryClient ?? null;
+}
+
 export function useOfflineSync() {
   const isOnline = useOnlineStatus();
-  const queryClient = useQueryClient();
+  const queryClient = useSafeQueryClient();
   const { toast } = useToast();
   
   const [isSyncing, setIsSyncing] = useState(false);
@@ -51,8 +57,10 @@ export function useOfflineSync() {
       setPendingCount(getQueueLength());
       setPendingOperations(getOfflineQueue());
       
-      // Refresh data after sync
-      queryClient.invalidateQueries({ queryKey: reservationKeys.all });
+      // Refresh data after sync (only if queryClient is available)
+      if (queryClient) {
+        queryClient.invalidateQueries({ queryKey: reservationKeys.all });
+      }
       
       // Show toast notification
       if (result.succeeded > 0) {

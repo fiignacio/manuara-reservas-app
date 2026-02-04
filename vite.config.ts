@@ -3,9 +3,6 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 
-// Force cache bust - update this value to invalidate Vite cache
-const CACHE_VERSION = Date.now();
-
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   server: {
@@ -25,9 +22,8 @@ export default defineConfig(({ mode }) => ({
   },
   optimizeDeps: {
     include: ['react', 'react-dom'],
-    force: true, // Force re-optimization on every restart
+    exclude: [],
   },
-  cacheDir: `.vite-cache-${CACHE_VERSION}`,
   build: {
     rollupOptions: {
       output: {
