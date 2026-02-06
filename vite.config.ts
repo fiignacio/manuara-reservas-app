@@ -17,12 +17,16 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      // Force single React instance
+      "react": path.resolve(__dirname, "./node_modules/react"),
+      "react-dom": path.resolve(__dirname, "./node_modules/react-dom"),
     },
-    dedupe: ['react', 'react-dom', 'react/jsx-runtime'],
+    dedupe: ['react', 'react-dom', 'react/jsx-runtime', '@radix-ui/react-direction'],
   },
   optimizeDeps: {
     include: ['react', 'react-dom', '@tanstack/react-query'],
     exclude: [],
+    force: true,
   },
   build: {
     rollupOptions: {
