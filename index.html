@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -10,26 +10,34 @@
 
     <!-- PWA Manifest -->
     <link rel="manifest" href="/manifest.json" />
-    <link rel="icon" href="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=32&h=32&fit=crop&crop=center" />
+    <link rel="icon" type="image/png" href="/icons/icon-192x192.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-192x192.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-192x192.png" />
+
+    <!-- iOS PWA Meta Tags -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Manuara" />
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-192x192.png" />
+    <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-192x192.png" />
+    <link rel="apple-touch-icon" sizes="120x120" href="/icons/icon-192x192.png" />
+
+    <!-- iOS Splash Screens (using theme color) -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 
     <!-- Open Graph -->
     <meta property="og:title" content="Manuara Reservas - Gestión de Cabañas" />
     <meta property="og:description" content="Sistema de gestión de reservas para cabañas Manuara" />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1200&h=630&fit=crop&crop=center" />
+    <meta property="og:image" content="/icons/icon-512x512.png" />
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Manuara Reservas" />
     <meta name="twitter:description" content="Sistema de gestión de reservas para cabañas" />
-    <meta name="twitter:image" content="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1200&h=630&fit=crop&crop=center" />
-
-    <!-- PWA Mobile Web App -->
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="Manuara Reservas" />
-    <link rel="apple-touch-icon" href="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=180&h=180&fit=crop&crop=center" />
+    <meta name="twitter:image" content="/icons/icon-512x512.png" />
   </head>
 
   <body>
@@ -42,7 +50,26 @@
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/sw.js')
             .then((registration) => {
-              // Service worker registered successfully (silent in production)
+              // Check for updates periodically
+              setInterval(() => {
+                registration.update();
+              }, 60 * 60 * 1000); // Check every hour
+              
+              // Listen for updates
+              registration.addEventListener('updatefound', () => {
+                const newWorker = registration.installing;
+                if (newWorker) {
+                  newWorker.addEventListener('statechange', () => {
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                      // New version available
+                      if (confirm('Nueva versión disponible. ¿Actualizar ahora?')) {
+                        newWorker.postMessage('skipWaiting');
+                        window.location.reload();
+                      }
+                    }
+                  });
+                }
+              });
             })
             .catch((registrationError) => {
               console.warn('Service worker registration failed:', registrationError);
