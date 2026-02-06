@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Layout from "./components/Layout";
 import { OfflineIndicator } from "./components/OfflineIndicator";
+import { InstallPrompt } from "./components/InstallPrompt";
 
 // Lazy load pages for better initial load performance
 const Dashboard = lazy(() => import("./pages/Dashboard"));
@@ -15,6 +16,7 @@ const Analytics = lazy(() => import("./pages/Analytics"));
 const Reports = lazy(() => import("./pages/Reports"));
 const Admin = lazy(() => import("./pages/Admin"));
 const WidgetDemo = lazy(() => import("./pages/WidgetDemo"));
+const Install = lazy(() => import("./pages/Install"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
@@ -30,13 +32,15 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <OfflineIndicator />
+      <InstallPrompt />
       <Toaster />
       <Sonner />
       <BrowserRouter>
         <Suspense fallback={<PageLoader />}>
           <Routes>
-            {/* Widget demo - sin layout */}
+            {/* Widget demo e install - sin layout */}
             <Route path="/widget-demo" element={<WidgetDemo />} />
+            <Route path="/install" element={<Install />} />
             
             {/* Rutas principales con layout */}
             <Route path="/" element={<Layout><Dashboard /></Layout>} />
