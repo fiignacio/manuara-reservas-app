@@ -32,10 +32,10 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <OfflineIndicator />
-      <InstallPrompt />
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <InstallPrompt />
         <Suspense fallback={<PageLoader />}>
           <Routes>
             {/* Widget demo e install - sin layout */}
