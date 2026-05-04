@@ -286,27 +286,31 @@ export const exportToPDF = (data: ReportData[], filters: ReportFilters): void =>
       'Pasajero',
       'Check-in',
       'Check-out',
-      'Vuelo Llegada',
-      'Vuelo Salida',
-      'Total',
+      'Cabaña',
       'Adultos',
       'Niños',
       'Bebés',
-      'Cabaña'
+      'Auto',
+      'Total',
+      'Abono',
+      'Saldo',
+      'Estado'
     ];
     
     // Table data with enhanced text wrapping
     const tableData = data.map(row => [
-      row.passengerName.length > 20 ? row.passengerName.substring(0, 17) + '...' : row.passengerName,
+      row.passengerName.length > 18 ? row.passengerName.substring(0, 15) + '...' : row.passengerName,
       row.checkIn,
       row.checkOut,
-      row.arrivalFlight.length > 12 ? row.arrivalFlight.substring(0, 9) + '...' : row.arrivalFlight,
-      row.departureFlight.length > 12 ? row.departureFlight.substring(0, 9) + '...' : row.departureFlight,
-      row.totalGuests.toString(),
+      row.cabinType.split(' (')[0],
       row.adults.toString(),
       row.children.toString(),
       row.babies.toString(),
-      row.cabinType.length > 25 ? row.cabinType.substring(0, 22) + '...' : row.cabinType
+      row.hasRentedCar ? 'Sí' : 'No',
+      `$${(row.totalPrice || 0).toLocaleString('es-CL')}`,
+      `$${(row.totalPaid || 0).toLocaleString('es-CL')}`,
+      `$${(row.remainingBalance || 0).toLocaleString('es-CL')}`,
+      row.paymentStatus,
     ]);
 
     autoTable(doc, {
@@ -314,7 +318,7 @@ export const exportToPDF = (data: ReportData[], filters: ReportFilters): void =>
       body: tableData,
       startY: 40,
       styles: {
-        fontSize: 8,
+        fontSize: 7,
         cellPadding: 2,
         overflow: 'linebreak',
         cellWidth: 'wrap',
@@ -324,19 +328,7 @@ export const exportToPDF = (data: ReportData[], filters: ReportFilters): void =>
         textColor: 255,
         fontStyle: 'bold',
       },
-      columnStyles: {
-        0: { cellWidth: 25 }, // Pasajero
-        1: { cellWidth: 18 }, // Check-in
-        2: { cellWidth: 18 }, // Check-out
-        3: { cellWidth: 18 }, // Vuelo Llegada
-        4: { cellWidth: 18 }, // Vuelo Salida
-        5: { cellWidth: 12 }, // Total
-        6: { cellWidth: 15 }, // Adultos
-        7: { cellWidth: 12 }, // Niños
-        8: { cellWidth: 12 }, // Bebés
-        9: { cellWidth: 40 }, // Cabaña
-      },
-      margin: { top: 40 },
+      margin: { top: 40, left: 8, right: 8 },
     });
     
     const fileName = `reporte_uso_${filters.year}${filters.month ? `_${String(filters.month).padStart(2, '0')}` : ''}${filters.cabinType ? `_${filters.cabinType.replace(/\s+/g, '_')}` : ''}.pdf`;
