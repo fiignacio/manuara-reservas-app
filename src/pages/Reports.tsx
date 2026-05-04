@@ -574,7 +574,7 @@ const Reports = () => {
               </CardHeader>
               <CardContent className="p-0">
                 <ScrollArea className="h-[400px] sm:h-[500px]">
-                  <div className="min-w-[600px]">
+                  <div className="min-w-[900px]">
                     <Table>
                       <TableHeader className="sticky top-0 bg-background">
                         <TableRow>
