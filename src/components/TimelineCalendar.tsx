@@ -494,10 +494,12 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading, onDateRan
       <CardContent className="p-0">
         <div className="flex">
           {/* Cabin Labels */}
-          <div className="w-48 border-r border-border/50 bg-muted/30">
+          <div className={`${labelsCollapsed ? 'w-10' : 'w-48'} border-r border-border/50 bg-muted/30 transition-all duration-200`}>
             {/* Date header spacer */}
-            <div className="h-12 border-b border-border/50 flex items-center px-4">
-              <span className="text-sm font-medium text-muted-foreground">Cabañas</span>
+            <div className="h-12 border-b border-border/50 flex items-center px-2 sm:px-4">
+              {!labelsCollapsed && (
+                <span className="text-sm font-medium text-muted-foreground">Cabañas</span>
+              )}
             </div>
             
             {/* Cabin rows */}
@@ -509,16 +511,19 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading, onDateRan
               return (
                 <div 
                   key={cabinType} 
-                  className="border-b border-border/50 flex items-center px-4 bg-background"
+                  className="border-b border-border/50 flex items-center px-2 sm:px-4 bg-background"
                   style={{ height: `${rowHeight}px` }}
+                  title={cabinType.split(' (')[0]}
                 >
                   <div className="flex items-center gap-2">
                     <div 
-                      className={`w-3 h-3 rounded-full ${getCabinColor(cabinType)}`}
+                      className={`w-3 h-3 rounded-full ${getCabinColor(cabinType)} flex-shrink-0`}
                     ></div>
-                    <span className="text-sm font-medium">
-                      {cabinType.split(' (')[0]}
-                    </span>
+                    {!labelsCollapsed && (
+                      <span className="text-sm font-medium">
+                        {cabinType.split(' (')[0]}
+                      </span>
+                    )}
                   </div>
                 </div>
               );
