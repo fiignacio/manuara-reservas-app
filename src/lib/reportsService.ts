@@ -528,6 +528,11 @@ export const exportCabinGroupToCSV = async (filters: ReportFilters, group: Cabin
       'Niños': sanitizeCSVValue(row.children),
       'Bebés': sanitizeCSVValue(row.babies),
       'Tipo de Cabaña': sanitizeCSVValue(row.cabinType),
+      'Auto Arrendado': sanitizeCSVValue(row.hasRentedCar ? 'Sí' : 'No'),
+      'Precio Total': sanitizeCSVValue(row.totalPrice),
+      'Abono Pagado': sanitizeCSVValue(row.totalPaid),
+      'Saldo Pendiente': sanitizeCSVValue(row.remainingBalance),
+      'Estado de Pago': sanitizeCSVValue(row.paymentStatus),
     }));
 
     const csv = Papa.unparse(csvData);
