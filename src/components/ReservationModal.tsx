@@ -68,7 +68,8 @@ const initializeFormData = (reservation?: Reservation | null): ReservationFormDa
     useCustomPrice: false,
     customPrice: 0,
     comments: '',
-    hasRentedCar: false
+    hasRentedCar: false,
+    initialPayment: { amount: 0, method: 'cash', notes: '' }
   };
 };
 
