@@ -21,6 +21,11 @@ export interface ReportData {
   cabinType: string;
   month: string;
   year: string;
+  totalPrice: number;
+  totalPaid: number;
+  remainingBalance: number;
+  paymentStatus: string;
+  hasRentedCar: boolean;
 }
 
 export interface ReportFilters {
@@ -29,6 +34,24 @@ export interface ReportFilters {
   cabinType?: string;
   includeOverlaps?: boolean; // Include reservations that span month boundaries
 }
+
+const computePaymentInfo = (reservation: Reservation) => {
+  const totalPrice = reservation.totalPrice || 0;
+  const totalPaid = (reservation.payments || []).reduce((sum, p) => sum + (p?.amount || 0), 0);
+  const remainingBalance = typeof reservation.remainingBalance === 'number'
+    ? reservation.remainingBalance
+    : Math.max(0, totalPrice - totalPaid);
+  const statusMap: Record<string, string> = {
+    pendiente: 'Pendiente',
+    pending_deposit: 'Pendiente abono',
+    pending_payment: 'Pendiente pago',
+    deposit_made: 'Abono realizado',
+    fully_paid: 'Pagado',
+    overdue: 'Atrasado',
+  };
+  const paymentStatus = statusMap[reservation.paymentStatus] || reservation.paymentStatus || 'N/A';
+  return { totalPrice, totalPaid, remainingBalance, paymentStatus };
+};
 
 export const generateReportData = async (filters: ReportFilters): Promise<ReportData[]> => {
   logger.info('reports.generateReportData.start', { filters });
@@ -120,6 +143,8 @@ export const generateReportData = async (filters: ReportFilters): Promise<Report
             cabinType: reservation.cabinType || 'Sin especificar',
             month: format(checkInDate, 'MMMM', { locale: es }),
             year: checkInDate.getFullYear().toString(),
+            ...computePaymentInfo(reservation),
+            hasRentedCar: !!reservation.hasRentedCar,
           };
         } catch (error) {
           logger.error('reports.generateReportData.mapping_error', { 
@@ -140,6 +165,11 @@ export const generateReportData = async (filters: ReportFilters): Promise<Report
             cabinType: reservation.cabinType || 'N/A',
             month: 'N/A',
             year: 'N/A',
+            totalPrice: 0,
+            totalPaid: 0,
+            remainingBalance: 0,
+            paymentStatus: 'N/A',
+            hasRentedCar: false,
           };
         }
       })
@@ -195,6 +225,11 @@ export const exportToCSV = (data: ReportData[], filters: ReportFilters): void =>
       'Niños': sanitizeCSVValue(row.children),
       'Bebés': sanitizeCSVValue(row.babies),
       'Tipo de Cabaña': sanitizeCSVValue(row.cabinType),
+      'Auto Arrendado': sanitizeCSVValue(row.hasRentedCar ? 'Sí' : 'No'),
+      'Precio Total': sanitizeCSVValue(row.totalPrice),
+      'Abono Pagado': sanitizeCSVValue(row.totalPaid),
+      'Saldo Pendiente': sanitizeCSVValue(row.remainingBalance),
+      'Estado de Pago': sanitizeCSVValue(row.paymentStatus),
     }));
 
     const csv = Papa.unparse(csvData);
@@ -251,27 +286,31 @@ export const exportToPDF = (data: ReportData[], filters: ReportFilters): void =>
       'Pasajero',
       'Check-in',
       'Check-out',
-      'Vuelo Llegada',
-      'Vuelo Salida',
-      'Total',
+      'Cabaña',
       'Adultos',
       'Niños',
       'Bebés',
-      'Cabaña'
+      'Auto',
+      'Total',
+      'Abono',
+      'Saldo',
+      'Estado'
     ];
     
     // Table data with enhanced text wrapping
     const tableData = data.map(row => [
-      row.passengerName.length > 20 ? row.passengerName.substring(0, 17) + '...' : row.passengerName,
+      row.passengerName.length > 18 ? row.passengerName.substring(0, 15) + '...' : row.passengerName,
       row.checkIn,
       row.checkOut,
-      row.arrivalFlight.length > 12 ? row.arrivalFlight.substring(0, 9) + '...' : row.arrivalFlight,
-      row.departureFlight.length > 12 ? row.departureFlight.substring(0, 9) + '...' : row.departureFlight,
-      row.totalGuests.toString(),
+      row.cabinType.split(' (')[0],
       row.adults.toString(),
       row.children.toString(),
       row.babies.toString(),
-      row.cabinType.length > 25 ? row.cabinType.substring(0, 22) + '...' : row.cabinType
+      row.hasRentedCar ? 'Sí' : 'No',
+      `$${(row.totalPrice || 0).toLocaleString('es-CL')}`,
+      `$${(row.totalPaid || 0).toLocaleString('es-CL')}`,
+      `$${(row.remainingBalance || 0).toLocaleString('es-CL')}`,
+      row.paymentStatus,
     ]);
 
     autoTable(doc, {
@@ -279,7 +318,7 @@ export const exportToPDF = (data: ReportData[], filters: ReportFilters): void =>
       body: tableData,
       startY: 40,
       styles: {
-        fontSize: 8,
+        fontSize: 7,
         cellPadding: 2,
         overflow: 'linebreak',
         cellWidth: 'wrap',
@@ -289,19 +328,7 @@ export const exportToPDF = (data: ReportData[], filters: ReportFilters): void =>
         textColor: 255,
         fontStyle: 'bold',
       },
-      columnStyles: {
-        0: { cellWidth: 25 }, // Pasajero
-        1: { cellWidth: 18 }, // Check-in
-        2: { cellWidth: 18 }, // Check-out
-        3: { cellWidth: 18 }, // Vuelo Llegada
-        4: { cellWidth: 18 }, // Vuelo Salida
-        5: { cellWidth: 12 }, // Total
-        6: { cellWidth: 15 }, // Adultos
-        7: { cellWidth: 12 }, // Niños
-        8: { cellWidth: 12 }, // Bebés
-        9: { cellWidth: 40 }, // Cabaña
-      },
-      margin: { top: 40 },
+      margin: { top: 40, left: 8, right: 8 },
     });
     
     const fileName = `reporte_uso_${filters.year}${filters.month ? `_${String(filters.month).padStart(2, '0')}` : ''}${filters.cabinType ? `_${filters.cabinType.replace(/\s+/g, '_')}` : ''}.pdf`;
@@ -412,6 +439,8 @@ export const generateReportDataByCabinTypes = async (filters: ReportFilters, cab
             cabinType: reservation.cabinType || 'Sin especificar',
             month: format(checkInDate, 'MMMM', { locale: es }),
             year: checkInDate.getFullYear().toString(),
+            ...computePaymentInfo(reservation),
+            hasRentedCar: !!reservation.hasRentedCar,
           };
         } catch (error) {
           logger.error('reports.generateReportDataByCabinTypes.mapping_error', { 
@@ -431,6 +460,11 @@ export const generateReportDataByCabinTypes = async (filters: ReportFilters, cab
             cabinType: 'N/A',
             month: 'N/A',
             year: 'N/A',
+            totalPrice: 0,
+            totalPaid: 0,
+            remainingBalance: 0,
+            paymentStatus: 'N/A',
+            hasRentedCar: false,
           };
         }
       })
@@ -486,6 +520,11 @@ export const exportCabinGroupToCSV = async (filters: ReportFilters, group: Cabin
       'Niños': sanitizeCSVValue(row.children),
       'Bebés': sanitizeCSVValue(row.babies),
       'Tipo de Cabaña': sanitizeCSVValue(row.cabinType),
+      'Auto Arrendado': sanitizeCSVValue(row.hasRentedCar ? 'Sí' : 'No'),
+      'Precio Total': sanitizeCSVValue(row.totalPrice),
+      'Abono Pagado': sanitizeCSVValue(row.totalPaid),
+      'Saldo Pendiente': sanitizeCSVValue(row.remainingBalance),
+      'Estado de Pago': sanitizeCSVValue(row.paymentStatus),
     }));
 
     const csv = Papa.unparse(csvData);
@@ -538,26 +577,30 @@ export const exportCabinGroupToPDF = async (filters: ReportFilters, group: Cabin
       'Pasajero',
       'Check-in',
       'Check-out',
-      'Vuelo Llegada',
-      'Vuelo Salida',
-      'Total',
+      'Cabaña',
       'Adultos',
       'Niños',
       'Bebés',
-      'Cabaña'
+      'Auto',
+      'Total',
+      'Abono',
+      'Saldo',
+      'Estado'
     ];
 
     const tableData = data.map(row => [
-      row.passengerName.length > 20 ? row.passengerName.substring(0, 17) + '...' : row.passengerName,
+      row.passengerName.length > 18 ? row.passengerName.substring(0, 15) + '...' : row.passengerName,
       row.checkIn,
       row.checkOut,
-      row.arrivalFlight.length > 12 ? row.arrivalFlight.substring(0, 9) + '...' : row.arrivalFlight,
-      row.departureFlight.length > 12 ? row.departureFlight.substring(0, 9) + '...' : row.departureFlight,
-      row.totalGuests.toString(),
+      row.cabinType.split(' (')[0],
       row.adults.toString(),
       row.children.toString(),
       row.babies.toString(),
-      row.cabinType.length > 25 ? row.cabinType.substring(0, 22) + '...' : row.cabinType
+      row.hasRentedCar ? 'Sí' : 'No',
+      `$${(row.totalPrice || 0).toLocaleString('es-CL')}`,
+      `$${(row.totalPaid || 0).toLocaleString('es-CL')}`,
+      `$${(row.remainingBalance || 0).toLocaleString('es-CL')}`,
+      row.paymentStatus,
     ]);
 
     autoTable(doc, {
@@ -565,7 +608,7 @@ export const exportCabinGroupToPDF = async (filters: ReportFilters, group: Cabin
       body: tableData,
       startY: 40,
       styles: {
-        fontSize: 8,
+        fontSize: 7,
         cellPadding: 2,
         overflow: 'linebreak',
         cellWidth: 'wrap',
@@ -575,19 +618,7 @@ export const exportCabinGroupToPDF = async (filters: ReportFilters, group: Cabin
         textColor: 255,
         fontStyle: 'bold',
       },
-      columnStyles: {
-        0: { cellWidth: 25 },
-        1: { cellWidth: 18 },
-        2: { cellWidth: 18 },
-        3: { cellWidth: 18 },
-        4: { cellWidth: 18 },
-        5: { cellWidth: 12 },
-        6: { cellWidth: 15 },
-        7: { cellWidth: 12 },
-        8: { cellWidth: 12 },
-        9: { cellWidth: 40 },
-      },
-      margin: { top: 40 },
+      margin: { top: 40, left: 8, right: 8 },
     });
 
     const monthPart = filters.month ? `_${String(filters.month).padStart(2, '0')}` : '';

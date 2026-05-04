@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback, memo } from 'react';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Eye, ZoomIn, ZoomOut, ArrowLeft, ArrowRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Eye, ZoomIn, ZoomOut, ArrowLeft, ArrowRight, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -21,6 +21,7 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading, onDateRan
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'week' | 'month'>('month');
   const [dayWidth, setDayWidth] = useState(40);
+  const [labelsCollapsed, setLabelsCollapsed] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
   
@@ -473,6 +474,14 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading, onDateRan
             <Button
               variant="outline"
               size="sm"
+              onClick={() => setLabelsCollapsed(prev => !prev)}
+              title={labelsCollapsed ? 'Mostrar nombres de cabañas' : 'Ocultar nombres de cabañas'}
+            >
+              {labelsCollapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={goToToday}
             >
               <CalendarIcon className="w-4 h-4 mr-1" />
@@ -485,10 +494,12 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading, onDateRan
       <CardContent className="p-0">
         <div className="flex">
           {/* Cabin Labels */}
-          <div className="w-48 border-r border-border/50 bg-muted/30">
+          <div className={`${labelsCollapsed ? 'w-10' : 'w-48'} border-r border-border/50 bg-muted/30 transition-all duration-200`}>
             {/* Date header spacer */}
-            <div className="h-12 border-b border-border/50 flex items-center px-4">
-              <span className="text-sm font-medium text-muted-foreground">Cabañas</span>
+            <div className="h-12 border-b border-border/50 flex items-center px-2 sm:px-4">
+              {!labelsCollapsed && (
+                <span className="text-sm font-medium text-muted-foreground">Cabañas</span>
+              )}
             </div>
             
             {/* Cabin rows */}
@@ -500,16 +511,19 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading, onDateRan
               return (
                 <div 
                   key={cabinType} 
-                  className="border-b border-border/50 flex items-center px-4 bg-background"
+                  className="border-b border-border/50 flex items-center px-2 sm:px-4 bg-background"
                   style={{ height: `${rowHeight}px` }}
+                  title={cabinType.split(' (')[0]}
                 >
                   <div className="flex items-center gap-2">
                     <div 
-                      className={`w-3 h-3 rounded-full ${getCabinColor(cabinType)}`}
+                      className={`w-3 h-3 rounded-full ${getCabinColor(cabinType)} flex-shrink-0`}
                     ></div>
-                    <span className="text-sm font-medium">
-                      {cabinType.split(' (')[0]}
-                    </span>
+                    {!labelsCollapsed && (
+                      <span className="text-sm font-medium">
+                        {cabinType.split(' (')[0]}
+                      </span>
+                    )}
                   </div>
                 </div>
               );

@@ -574,16 +574,20 @@ const Reports = () => {
               </CardHeader>
               <CardContent className="p-0">
                 <ScrollArea className="h-[400px] sm:h-[500px]">
-                  <div className="min-w-[600px]">
+                  <div className="min-w-[900px]">
                     <Table>
                       <TableHeader className="sticky top-0 bg-background">
                         <TableRow>
                           <TableHead className="font-semibold">Pasajero</TableHead>
                           <TableHead>Check-in</TableHead>
                           <TableHead>Check-out</TableHead>
-                          <TableHead className="text-center">Total</TableHead>
                           <TableHead className="text-center">A/N/B</TableHead>
                           <TableHead>Cabaña</TableHead>
+                          <TableHead className="text-center">Auto</TableHead>
+                          <TableHead className="text-right">Total</TableHead>
+                          <TableHead className="text-right">Abono</TableHead>
+                          <TableHead className="text-right">Saldo</TableHead>
+                          <TableHead>Estado</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -592,14 +596,20 @@ const Reports = () => {
                             <TableCell className="font-medium max-w-[150px] truncate">{row.passengerName}</TableCell>
                             <TableCell className="text-xs">{row.checkIn}</TableCell>
                             <TableCell className="text-xs">{row.checkOut}</TableCell>
-                            <TableCell className="text-center">
-                              <Badge variant="secondary">{row.totalGuests}</Badge>
-                            </TableCell>
                             <TableCell className="text-center text-xs text-muted-foreground">
                               {row.adults}/{row.children}/{row.babies}
                             </TableCell>
                             <TableCell className="text-xs max-w-[120px] truncate">
                               {row.cabinType.split(' (')[0]}
+                            </TableCell>
+                            <TableCell className="text-center text-xs">
+                              {row.hasRentedCar ? '🚗 Sí' : 'No'}
+                            </TableCell>
+                            <TableCell className="text-right text-xs">${(row.totalPrice || 0).toLocaleString('es-CL')}</TableCell>
+                            <TableCell className="text-right text-xs text-green-600 font-medium">${(row.totalPaid || 0).toLocaleString('es-CL')}</TableCell>
+                            <TableCell className="text-right text-xs text-orange-600">${(row.remainingBalance || 0).toLocaleString('es-CL')}</TableCell>
+                            <TableCell className="text-xs">
+                              <Badge variant="outline" className="text-xs">{row.paymentStatus}</Badge>
                             </TableCell>
                           </TableRow>
                         ))}
