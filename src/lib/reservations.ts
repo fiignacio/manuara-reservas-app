@@ -128,14 +128,35 @@ export const createReservation = async (data: ReservationFormData): Promise<stri
 
     // Calculate price and statuses
     const totalPrice = calculatePrice(data);
-    const paymentStatus = 'pending_deposit' as const;
+
+    // Handle optional initial payment (abono)
+    const { initialPayment, ...rest } = data as any;
+    const payments: any[] = [];
+    let remainingBalance = totalPrice;
+    let paymentStatus: 'pending_deposit' | 'deposit_made' | 'fully_paid' = 'pending_deposit';
+
+    if (initialPayment && initialPayment.amount > 0) {
+      const amount = Math.min(initialPayment.amount, totalPrice);
+      payments.push({
+        id: `pay_${Date.now()}`,
+        amount,
+        paymentDate: new Date().toISOString(),
+        method: initialPayment.method || 'cash',
+        notes: initialPayment.notes || 'Abono inicial al crear reserva',
+        createdBy: 'system',
+        createdAt: new Date(),
+      });
+      remainingBalance = Math.max(0, totalPrice - amount);
+      paymentStatus = remainingBalance === 0 ? 'fully_paid' : 'deposit_made';
+    }
+
     const reservationStatus = 'pending_checkin' as const;
 
     const reservationData = {
-      ...data,
+      ...rest,
       totalPrice,
-      payments: [],
-      remainingBalance: totalPrice,
+      payments,
+      remainingBalance,
       paymentStatus,
       reservationStatus,
       checkInStatus: 'pending' as const,
