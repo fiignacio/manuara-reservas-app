@@ -826,6 +826,8 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
                   </div>
                 </div>
               )}
+              </>
+              )}
             </div>
           )}
 
