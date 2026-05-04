@@ -67,7 +67,8 @@ const initializeFormData = (reservation?: Reservation | null): ReservationFormDa
     departureFlight: 'LA842',
     useCustomPrice: false,
     customPrice: 0,
-    comments: ''
+    comments: '',
+    hasRentedCar: false
   };
 };
 
