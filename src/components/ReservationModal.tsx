@@ -711,6 +711,25 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
             </div>
           )}
 
+          {/* Auto arrendado */}
+          <div className="bg-accent/50 p-4 rounded-lg border">
+            <div className="flex items-center space-x-3">
+              <Checkbox
+                id="hasRentedCar"
+                checked={!!formData.hasRentedCar}
+                onCheckedChange={(checked) => setFormData({ ...formData, hasRentedCar: !!checked })}
+              />
+              <div className="grid gap-1.5 leading-none">
+                <Label htmlFor="hasRentedCar" className="text-sm font-medium cursor-pointer">
+                  🚗 ¿Tiene auto arrendado?
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Marcar si el huésped cuenta con un vehículo arrendado.
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* Comentarios */}
           <div>
             <Label htmlFor="comments">Comentarios (opcional)</Label>
