@@ -21,6 +21,7 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading, onDateRan
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'week' | 'month'>('month');
   const [dayWidth, setDayWidth] = useState(40);
+  const [labelsCollapsed, setLabelsCollapsed] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
   
