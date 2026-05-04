@@ -442,6 +442,8 @@ export const generateReportDataByCabinTypes = async (filters: ReportFilters, cab
             cabinType: reservation.cabinType || 'Sin especificar',
             month: format(checkInDate, 'MMMM', { locale: es }),
             year: checkInDate.getFullYear().toString(),
+            ...computePaymentInfo(reservation),
+            hasRentedCar: !!reservation.hasRentedCar,
           };
         } catch (error) {
           logger.error('reports.generateReportDataByCabinTypes.mapping_error', { 
@@ -461,6 +463,11 @@ export const generateReportDataByCabinTypes = async (filters: ReportFilters, cab
             cabinType: 'N/A',
             month: 'N/A',
             year: 'N/A',
+            totalPrice: 0,
+            totalPaid: 0,
+            remainingBalance: 0,
+            paymentStatus: 'N/A',
+            hasRentedCar: false,
           };
         }
       })
