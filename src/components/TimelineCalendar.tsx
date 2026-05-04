@@ -474,6 +474,14 @@ const TimelineCalendar = ({ reservations, onReservationClick, loading, onDateRan
             <Button
               variant="outline"
               size="sm"
+              onClick={() => setLabelsCollapsed(prev => !prev)}
+              title={labelsCollapsed ? 'Mostrar nombres de cabañas' : 'Ocultar nombres de cabañas'}
+            >
+              {labelsCollapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={goToToday}
             >
               <CalendarIcon className="w-4 h-4 mr-1" />
