@@ -35,6 +35,24 @@ export interface ReportFilters {
   includeOverlaps?: boolean; // Include reservations that span month boundaries
 }
 
+const computePaymentInfo = (reservation: Reservation) => {
+  const totalPrice = reservation.totalPrice || 0;
+  const totalPaid = (reservation.payments || []).reduce((sum, p) => sum + (p?.amount || 0), 0);
+  const remainingBalance = typeof reservation.remainingBalance === 'number'
+    ? reservation.remainingBalance
+    : Math.max(0, totalPrice - totalPaid);
+  const statusMap: Record<string, string> = {
+    pendiente: 'Pendiente',
+    pending_deposit: 'Pendiente abono',
+    pending_payment: 'Pendiente pago',
+    deposit_made: 'Abono realizado',
+    fully_paid: 'Pagado',
+    overdue: 'Atrasado',
+  };
+  const paymentStatus = statusMap[reservation.paymentStatus] || reservation.paymentStatus || 'N/A';
+  return { totalPrice, totalPaid, remainingBalance, paymentStatus };
+};
+
 export const generateReportData = async (filters: ReportFilters): Promise<ReportData[]> => {
   logger.info('reports.generateReportData.start', { filters });
   logger.time('reports.generateReportData');
