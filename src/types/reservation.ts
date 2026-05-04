@@ -68,6 +68,11 @@ export interface ReservationFormData extends Omit<Reservation, 'id' | 'totalPric
   reservationStatus?: ReservationStatusType;
   depositAmount?: number;
   pendingBalance?: number;
+  initialPayment?: {
+    amount: number;
+    method: 'cash' | 'transfer' | 'credit_card' | 'other';
+    notes?: string;
+  };
 }
 
 export interface CheckInOutData {
