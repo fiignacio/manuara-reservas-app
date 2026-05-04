@@ -731,6 +731,81 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
             </div>
           </div>
 
+          {/* Abono inicial - solo al crear */}
+          {!isEditing && calculatedPrice > 0 && (
+            <div className="bg-accent/50 p-4 rounded-lg border space-y-3">
+              <div className="flex items-center gap-2">
+                <DollarSign className="w-4 h-4 text-primary" />
+                <Label className="text-sm font-medium">Abono inicial (opcional)</Label>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Si el huésped paga un abono al momento de reservar, regístralo aquí. Se creará automáticamente como pago.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="initialPaymentAmount" className="text-xs">Monto del abono</Label>
+                  <Input
+                    id="initialPaymentAmount"
+                    type="number"
+                    min="0"
+                    max={calculatedPrice}
+                    value={formData.initialPayment?.amount || ''}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      initialPayment: {
+                        ...(formData.initialPayment || { amount: 0, method: 'cash' }),
+                        amount: parseInt(e.target.value) || 0,
+                      }
+                    })}
+                    placeholder="0"
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Método de pago</Label>
+                  <Select
+                    value={formData.initialPayment?.method || 'cash'}
+                    onValueChange={(value: 'cash' | 'transfer' | 'credit_card' | 'other') =>
+                      setFormData({
+                        ...formData,
+                        initialPayment: {
+                          ...(formData.initialPayment || { amount: 0, method: 'cash' }),
+                          method: value,
+                        }
+                      })
+                    }
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cash">Efectivo</SelectItem>
+                      <SelectItem value="transfer">Transferencia</SelectItem>
+                      <SelectItem value="credit_card">Tarjeta</SelectItem>
+                      <SelectItem value="other">Otro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              {(formData.initialPayment?.amount || 0) > 0 && (
+                <div className="text-xs space-y-1 pt-2 border-t">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Abono:</span>
+                    <span className="font-medium text-green-600">
+                      ${(formData.initialPayment?.amount || 0).toLocaleString('es-CL')}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Saldo pendiente:</span>
+                    <span className="font-medium text-orange-600">
+                      ${Math.max(0, calculatedPrice - (formData.initialPayment?.amount || 0)).toLocaleString('es-CL')}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Comentarios */}
           <div>
             <Label htmlFor="comments">Comentarios (opcional)</Label>
