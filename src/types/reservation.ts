@@ -58,6 +58,7 @@ export interface Reservation {
   agency?: string;
   depositAmount?: number;
   pendingBalance?: number;
+  hasRentedCar?: boolean;
 }
 
 export interface ReservationFormData extends Omit<Reservation, 'id' | 'totalPrice' | 'payments' | 'remainingBalance' | 'paymentStatus' | 'reservationStatus' | 'actualCheckIn' | 'actualCheckOut' | 'checkInStatus' | 'checkOutStatus' | 'checkInNotes' | 'checkOutNotes' | 'confirmationSent' | 'confirmationSentDate' | 'confirmationMethod' | 'createdAt' | 'updatedAt'> {
