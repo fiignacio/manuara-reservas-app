@@ -251,11 +251,16 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
     
     try {
       // Clean form data before submission
+      const { _abonoEnabled, ...rest } = formData as any;
       const cleanFormData = {
-        ...formData,
+        ...rest,
         useCustomPrice: !!formData.useCustomPrice,
         customPrice: formData.useCustomPrice ? (formData.customPrice || 0) : 0,
-        comments: formData.comments || ''
+        comments: formData.comments || '',
+        // Solo incluir initialPayment si está activado y tiene monto > 0
+        initialPayment: _abonoEnabled && (formData.initialPayment?.amount || 0) > 0
+          ? formData.initialPayment
+          : undefined,
       };
 
       if (reservation?.id) {
