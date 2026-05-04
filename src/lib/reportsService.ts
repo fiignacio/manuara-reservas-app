@@ -21,6 +21,11 @@ export interface ReportData {
   cabinType: string;
   month: string;
   year: string;
+  totalPrice: number;
+  totalPaid: number;
+  remainingBalance: number;
+  paymentStatus: string;
+  hasRentedCar: boolean;
 }
 
 export interface ReportFilters {
