@@ -143,6 +143,8 @@ export const generateReportData = async (filters: ReportFilters): Promise<Report
             cabinType: reservation.cabinType || 'Sin especificar',
             month: format(checkInDate, 'MMMM', { locale: es }),
             year: checkInDate.getFullYear().toString(),
+            ...computePaymentInfo(reservation),
+            hasRentedCar: !!reservation.hasRentedCar,
           };
         } catch (error) {
           logger.error('reports.generateReportData.mapping_error', { 
