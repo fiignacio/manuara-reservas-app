@@ -735,9 +735,32 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
           {!isEditing && calculatedPrice > 0 && (
             <div className="bg-accent/50 p-4 rounded-lg border space-y-3">
               <div className="flex items-center gap-2">
+                <Checkbox
+                  id="hasInitialPayment"
+                  checked={(formData.initialPayment?.amount || 0) > 0 || (formData as any)._abonoEnabled === true}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      setFormData({
+                        ...formData,
+                        _abonoEnabled: true,
+                        initialPayment: formData.initialPayment || { amount: 0, method: 'cash', notes: '' },
+                      } as any);
+                    } else {
+                      setFormData({
+                        ...formData,
+                        _abonoEnabled: false,
+                        initialPayment: { amount: 0, method: 'cash', notes: '' },
+                      } as any);
+                    }
+                  }}
+                />
                 <DollarSign className="w-4 h-4 text-primary" />
-                <Label className="text-sm font-medium">Abono inicial (opcional)</Label>
+                <Label htmlFor="hasInitialPayment" className="text-sm font-medium cursor-pointer">
+                  Registrar abono inicial
+                </Label>
               </div>
+              {((formData.initialPayment?.amount || 0) > 0 || (formData as any)._abonoEnabled === true) && (
+              <>
               <p className="text-xs text-muted-foreground">
                 Si el huésped paga un abono al momento de reservar, regístralo aquí. Se creará automáticamente como pago.
               </p>
@@ -802,6 +825,8 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
                     </span>
                   </div>
                 </div>
+              )}
+              </>
               )}
             </div>
           )}
