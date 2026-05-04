@@ -165,6 +165,11 @@ export const generateReportData = async (filters: ReportFilters): Promise<Report
             cabinType: reservation.cabinType || 'N/A',
             month: 'N/A',
             year: 'N/A',
+            totalPrice: 0,
+            totalPaid: 0,
+            remainingBalance: 0,
+            paymentStatus: 'N/A',
+            hasRentedCar: false,
           };
         }
       })
