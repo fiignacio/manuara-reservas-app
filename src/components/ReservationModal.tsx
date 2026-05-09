@@ -788,6 +788,40 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
                     placeholder="0"
                     className="mt-1"
                   />
+                  <div className="flex gap-2 mt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="text-xs h-7"
+                      onClick={() => setFormData({
+                        ...formData,
+                        initialPayment: {
+                          ...(formData.initialPayment || { amount: 0, method: 'cash' }),
+                          amount: Math.round(calculatedPrice * 0.5),
+                        }
+                      })}
+                      disabled={calculatedPrice <= 0}
+                    >
+                      Abono 50%
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="text-xs h-7"
+                      onClick={() => setFormData({
+                        ...formData,
+                        initialPayment: {
+                          ...(formData.initialPayment || { amount: 0, method: 'cash' }),
+                          amount: calculatedPrice,
+                        }
+                      })}
+                      disabled={calculatedPrice <= 0}
+                    >
+                      Pago total
+                    </Button>
+                  </div>
                 </div>
                 <div>
                   <Label className="text-xs">Método de pago</Label>
