@@ -1,5 +1,6 @@
 import { ReservationFormData, Reservation } from '@/types/reservation';
 import { calculateNights } from './dateUtils';
+import { getPricing } from './adminConfig';
 
 export const calculatePrice = (data: ReservationFormData): number => {
   // If using custom price, return that value
@@ -9,15 +10,15 @@ export const calculatePrice = (data: ReservationFormData): number => {
 
   // Otherwise calculate automatically
   const nights = calculateNights(data.checkIn, data.checkOut);
-  
   if (nights <= 0) return 0;
-  
-  const costPerNightAdults = data.season === 'Alta' ? 30000 : 25000;
-  const costPerNightChildren = 15000;
-  // Babies don't pay
-  
-  const costPerNight = (data.adults * costPerNightAdults) + (data.children * costPerNightChildren);
-  
+
+  const pricing = getPricing();
+  const adultRate = data.season === 'Alta' ? pricing.adultHighSeason : pricing.adultLowSeason;
+  const costPerNight =
+    (data.adults * adultRate) +
+    (data.children * pricing.childRate) +
+    (data.babies * pricing.babyRate);
+
   return costPerNight * nights;
 };
 
