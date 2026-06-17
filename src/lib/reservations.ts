@@ -192,11 +192,25 @@ export const updateReservation = async (id: string, data: ReservationFormData, s
     throw new Error(capacityValidation.error);
   }
   
+  // Cargar reserva actual primero para conocer su estado
+  const reservations = await getAllReservations();
+  const reservation = reservations.find(r => r.id === id);
+  if (!reservation) {
+    throw new Error('Reserva no encontrada');
+  }
+
   if (shouldUpdateDates) {
     if (!data.checkIn || !data.checkOut) {
       throw new Error('Las fechas de check-in y check-out son obligatorias.');
     }
-    const dateValidation = validateReservationDates(data.checkIn, data.checkOut);
+    // Si la reserva ya está en estadía o ya hizo check-in, permitir check-in en el pasado
+    const today = getTodayDate();
+    const allowPastCheckIn =
+      reservation.reservationStatus === 'in_stay' ||
+      reservation.checkInStatus === 'checked_in' ||
+      reservation.checkIn <= today;
+
+    const dateValidation = validateReservationDates(data.checkIn, data.checkOut, { allowPastCheckIn });
     if (!dateValidation.isValid) {
       throw new Error(dateValidation.error);
     }
