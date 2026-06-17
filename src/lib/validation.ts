@@ -21,8 +21,8 @@ export const validateReservationDates = (checkIn: string, checkOut: string, opti
   const maxDate = addDays(today, 730); // 2 años en el futuro
   const daysDifference = calculateNights(checkIn, checkOut);
 
-  // Validar que check-in no sea en el pasado
-  if (checkIn < today) {
+  // Validar que check-in no sea en el pasado (omitir si la reserva ya inició: edición de check-out durante estadía)
+  if (!options?.allowPastCheckIn && checkIn < today) {
     return {
       isValid: false,
       error: `La fecha de check-in no puede ser anterior a hoy (${formatDateForDisplay(today)})`
