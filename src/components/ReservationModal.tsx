@@ -263,6 +263,16 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
         customPrice: formData.useCustomPrice ? (formData.customPrice || 0) : 0,
         comments: formData.comments || '',
       };
+      // Sanitize referrer fields (Firestore no acepta undefined)
+      if (formData.referrerId && formData.referrerName) {
+        cleanFormData.referrerId = formData.referrerId;
+        cleanFormData.referrerName = formData.referrerName;
+        if (!reservation?.referrerPaymentStatus) {
+          cleanFormData.referrerPaymentStatus = 'pending';
+        }
+      } else {
+        delete cleanFormData.referrerId;
+        delete cleanFormData.referrerName;
       // Solo incluir initialPayment si está activado y tiene monto > 0 (Firestore no acepta undefined)
       if (_abonoEnabled && (formData.initialPayment?.amount || 0) > 0) {
         cleanFormData.initialPayment = formData.initialPayment;
