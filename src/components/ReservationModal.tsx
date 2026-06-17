@@ -273,6 +273,7 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
       } else {
         delete cleanFormData.referrerId;
         delete cleanFormData.referrerName;
+      }
       // Solo incluir initialPayment si está activado y tiene monto > 0 (Firestore no acepta undefined)
       if (_abonoEnabled && (formData.initialPayment?.amount || 0) > 0) {
         cleanFormData.initialPayment = formData.initialPayment;
