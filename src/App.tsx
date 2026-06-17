@@ -15,6 +15,7 @@ const Reservations = lazy(() => import("./pages/Reservations"));
 const Analytics = lazy(() => import("./pages/Analytics"));
 const Reports = lazy(() => import("./pages/Reports"));
 const Admin = lazy(() => import("./pages/Admin"));
+const Referrers = lazy(() => import("./pages/Referrers"));
 const WidgetDemo = lazy(() => import("./pages/WidgetDemo"));
 const Install = lazy(() => import("./pages/Install"));
 const NotFound = lazy(() => import("./pages/NotFound"));
