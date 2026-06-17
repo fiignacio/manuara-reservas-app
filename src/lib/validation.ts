@@ -16,7 +16,7 @@ export const validateCabinCapacity = (cabinType: string, adults: number, childre
   return { isValid: true };
 };
 
-export const validateReservationDates = (checkIn: string, checkOut: string): { isValid: boolean; error?: string } => {
+export const validateReservationDates = (checkIn: string, checkOut: string, options?: { allowPastCheckIn?: boolean }): { isValid: boolean; error?: string } => {
   const today = getTodayDate();
   const maxDate = addDays(today, 730); // 2 años en el futuro
   const daysDifference = calculateNights(checkIn, checkOut);
