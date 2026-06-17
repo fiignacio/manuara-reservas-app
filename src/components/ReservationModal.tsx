@@ -49,7 +49,9 @@ const initializeFormData = (reservation?: Reservation | null): ReservationFormDa
       useCustomPrice: reservation.useCustomPrice ?? false,
       customPrice: reservation.customPrice || 0,
       comments: reservation.comments || '',
-      hasRentedCar: reservation.hasRentedCar ?? false
+      hasRentedCar: reservation.hasRentedCar ?? false,
+      referrerId: reservation.referrerId,
+      referrerName: reservation.referrerName,
     };
   }
   
