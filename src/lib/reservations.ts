@@ -203,14 +203,9 @@ export const updateReservation = async (id: string, data: ReservationFormData, s
     if (!data.checkIn || !data.checkOut) {
       throw new Error('Las fechas de check-in y check-out son obligatorias.');
     }
-    // Si la reserva ya está en estadía o ya hizo check-in, permitir check-in en el pasado
-    const today = getTodayDate();
-    const allowPastCheckIn =
-      reservation.reservationStatus === 'in_stay' ||
-      reservation.checkInStatus === 'checked_in' ||
-      reservation.checkIn <= today;
-
-    const dateValidation = validateReservationDates(data.checkIn, data.checkOut, { allowPastCheckIn });
+    // Al editar una reserva existente, permitir siempre check-in en el pasado
+    // (la reserva ya fue creada previamente y puede estar en curso o ya iniciada).
+    const dateValidation = validateReservationDates(data.checkIn, data.checkOut, { allowPastCheckIn: true });
     if (!dateValidation.isValid) {
       throw new Error(dateValidation.error);
     }
