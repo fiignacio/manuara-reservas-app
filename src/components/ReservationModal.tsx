@@ -19,6 +19,7 @@ import {
 import { calculatePrice } from '@/lib/pricing';
 import { validateReservationDates, validateCabinCapacity } from '@/lib/validation';
 import { addDays, getTodayDate, getTomorrowDate, formatDateForDisplay } from '@/lib/dateUtils';
+import ReferrerSelector from '@/components/ReferrerSelector';
 import StatusManager from '@/components/StatusManager';
 import CabinAvailabilityMatrix from '@/components/CabinAvailabilityMatrix';
 import { useOfflineAvailability } from '@/hooks/useOfflineReservations';
@@ -49,7 +50,9 @@ const initializeFormData = (reservation?: Reservation | null): ReservationFormDa
       useCustomPrice: reservation.useCustomPrice ?? false,
       customPrice: reservation.customPrice || 0,
       comments: reservation.comments || '',
-      hasRentedCar: reservation.hasRentedCar ?? false
+      hasRentedCar: reservation.hasRentedCar ?? false,
+      referrerId: reservation.referrerId,
+      referrerName: reservation.referrerName,
     };
   }
   
@@ -260,6 +263,17 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
         customPrice: formData.useCustomPrice ? (formData.customPrice || 0) : 0,
         comments: formData.comments || '',
       };
+      // Sanitize referrer fields (Firestore no acepta undefined)
+      if (formData.referrerId && formData.referrerName) {
+        cleanFormData.referrerId = formData.referrerId;
+        cleanFormData.referrerName = formData.referrerName;
+        if (!reservation?.referrerPaymentStatus) {
+          cleanFormData.referrerPaymentStatus = 'pending';
+        }
+      } else {
+        delete cleanFormData.referrerId;
+        delete cleanFormData.referrerName;
+      }
       // Solo incluir initialPayment si está activado y tiene monto > 0 (Firestore no acepta undefined)
       if (_abonoEnabled && (formData.initialPayment?.amount || 0) > 0) {
         cleanFormData.initialPayment = formData.initialPayment;
@@ -871,6 +885,13 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
               )}
             </div>
           )}
+
+          {/* Cliente referente */}
+          <ReferrerSelector
+            value={{ referrerId: formData.referrerId, referrerName: formData.referrerName }}
+            onChange={(v) => setFormData({ ...formData, referrerId: v.referrerId, referrerName: v.referrerName })}
+          />
+
 
           {/* Comentarios */}
           <div>

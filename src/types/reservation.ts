@@ -59,6 +59,11 @@ export interface Reservation {
   depositAmount?: number;
   pendingBalance?: number;
   hasRentedCar?: boolean;
+  // Referrer (cliente que pidió/derivó la reserva)
+  referrerId?: string;
+  referrerName?: string;
+  referrerPaymentStatus?: 'pending' | 'paid';
+  referrerPaidAt?: string;
 }
 
 export interface ReservationFormData extends Omit<Reservation, 'id' | 'totalPrice' | 'payments' | 'remainingBalance' | 'paymentStatus' | 'reservationStatus' | 'actualCheckIn' | 'actualCheckOut' | 'checkInStatus' | 'checkOutStatus' | 'checkInNotes' | 'checkOutNotes' | 'confirmationSent' | 'confirmationSentDate' | 'confirmationMethod' | 'createdAt' | 'updatedAt'> {

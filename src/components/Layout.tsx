@@ -83,6 +83,17 @@ const Layout = ({ children }: LayoutProps) => {
                 Reportes
               </NavLink>
               <NavLink 
+                to="/referrers" 
+                className={({ isActive }) => 
+                  cn(
+                    "text-sm font-medium transition-colors hover:text-primary py-2",
+                    isActive ? "text-foreground border-b-2 border-primary" : "text-muted-foreground"
+                  )
+                }
+              >
+                Referentes
+              </NavLink>
+              <NavLink 
                 to="/admin" 
                 className={({ isActive }) => 
                   cn(
