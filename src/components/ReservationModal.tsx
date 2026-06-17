@@ -476,7 +476,7 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
               <Input
                 id="checkIn"
                 type="date"
-                min={shouldValidateDates ? today : undefined}
+                min={!isEditing && shouldValidateDates ? today : undefined}
                 max={shouldValidateDates ? maxDate : undefined}
                 value={formData.checkIn}
                 onChange={(e) => setFormData({ ...formData, checkIn: e.target.value })}
