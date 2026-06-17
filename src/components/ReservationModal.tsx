@@ -143,7 +143,9 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
       
       // Validate dates in real-time if needed
       if (shouldValidateDates) {
-        const validation = validateReservationDates(formData.checkIn, formData.checkOut);
+        const validation = validateReservationDates(formData.checkIn, formData.checkOut, {
+          allowPastCheckIn: isEditing,
+        });
         if (!validation.isValid) {
           setDateValidationError(validation.error || null);
           setAvailabilityStatus(null);
