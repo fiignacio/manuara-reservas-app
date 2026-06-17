@@ -222,12 +222,6 @@ export const updateReservation = async (id: string, data: ReservationFormData, s
     }
   }
 
-  // Get current reservation to preserve payments
-  const reservations = await getAllReservations();
-  const reservation = reservations.find(r => r.id === id);
-  if (!reservation) {
-    throw new Error('Reserva no encontrada');
-  }
 
   // Recalculate derived fields
   const totalPrice = calculatePrice(data);
