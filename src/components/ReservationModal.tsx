@@ -875,6 +875,13 @@ const ReservationModal = ({ isOpen, onClose, onSuccess, reservation }: Reservati
             </div>
           )}
 
+          {/* Cliente referente */}
+          <ReferrerSelector
+            value={{ referrerId: formData.referrerId, referrerName: formData.referrerName }}
+            onChange={(v) => setFormData({ ...formData, referrerId: v.referrerId, referrerName: v.referrerName })}
+          />
+
+
           {/* Comentarios */}
           <div>
             <Label htmlFor="comments">Comentarios (opcional)</Label>
