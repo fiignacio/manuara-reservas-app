@@ -19,6 +19,7 @@ import {
 import { calculatePrice } from '@/lib/pricing';
 import { validateReservationDates, validateCabinCapacity } from '@/lib/validation';
 import { addDays, getTodayDate, getTomorrowDate, formatDateForDisplay } from '@/lib/dateUtils';
+import ReferrerSelector from '@/components/ReferrerSelector';
 import StatusManager from '@/components/StatusManager';
 import CabinAvailabilityMatrix from '@/components/CabinAvailabilityMatrix';
 import { useOfflineAvailability } from '@/hooks/useOfflineReservations';
